@@ -29,12 +29,13 @@ namespace SourceGit.Views
             set => SetValue(HasLeftCaptionButtonProperty, value);
         }
 
-        public bool IsRightCaptionButtonsVisible
+        public bool HasRightCaptionButton
         {
             get
             {
                 if (OperatingSystem.IsLinux())
-                    return !ViewModels.Preferences.Instance.UseSystemWindowFrame;
+                    return !Native.OS.UseSystemWindowFrame;
+
                 return OperatingSystem.IsWindows();
             }
         }
@@ -52,8 +53,7 @@ namespace SourceGit.Views
             {
                 HasLeftCaptionButton = true;
                 CaptionHeight = new GridLength(34);
-                ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.SystemChrome |
-                                              ExtendClientAreaChromeHints.OSXThickTitleBar;
+                ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.SystemChrome | ExtendClientAreaChromeHints.OSXThickTitleBar;
             }
             else if (UseSystemWindowFrame)
             {

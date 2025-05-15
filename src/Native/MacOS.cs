@@ -5,6 +5,8 @@ using System.IO;
 using System.Runtime.Versioning;
 
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Platform;
 
 namespace SourceGit.Native
 {
@@ -36,6 +38,12 @@ namespace SourceGit.Native
             Environment.SetEnvironmentVariable("PATH", path);
         }
 
+        public void SetupWindow(Window window)
+        {
+            window.ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.SystemChrome;
+            window.ExtendClientAreaToDecorationsHint = true;
+        }
+
         public string FindGitExecutable()
         {
             var gitPathVariants = new List<string>() {
@@ -59,6 +67,8 @@ namespace SourceGit.Native
                     return "Warp";
                 case "ghostty":
                     return "Ghostty";
+                case "kitty":
+                    return "kitty";
             }
 
             return string.Empty;

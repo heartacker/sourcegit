@@ -5,17 +5,28 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SourceGit.ViewModels
 {
+    public class TagTreeNodeToolTip
+    {
+        public string Name { get; private set; }
+        public bool IsAnnotated { get; private set; }
+        public string Message { get; private set; }
+
+        public TagTreeNodeToolTip(Models.Tag t)
+        {
+            Name = t.Name;
+            IsAnnotated = t.IsAnnotated;
+            Message = t.Message;
+        }
+    }
+
     public class TagTreeNode : ObservableObject
     {
         public string FullPath { get; set; }
         public int Depth { get; private set; } = 0;
         public Models.Tag Tag { get; private set; } = null;
+        public TagTreeNodeToolTip ToolTip { get; private set; } = null;
         public List<TagTreeNode> Children { get; private set; } = [];
-
-        public object ToolTip
-        {
-            get => Tag?.Message;
-        }
+        public int Counter { get; set; } = 0;
 
         public bool IsFolder
         {
@@ -28,11 +39,17 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _isExpanded, value);
         }
 
+        public string TagsCount
+        {
+            get => Counter > 0 ? $"({Counter})" : string.Empty;
+        }
+
         public TagTreeNode(Models.Tag t, int depth)
         {
             FullPath = t.Name;
             Depth = depth;
             Tag = t;
+            ToolTip = new TagTreeNodeToolTip(t);
             IsExpanded = false;
         }
 
@@ -41,6 +58,7 @@ namespace SourceGit.ViewModels
             FullPath = path;
             Depth = depth;
             IsExpanded = isExpanded;
+            Counter = 1;
         }
 
         public static List<TagTreeNode> Build(IList<Models.Tag> tags, HashSet<string> expaneded)
@@ -66,6 +84,7 @@ namespace SourceGit.ViewModels
                         if (folders.TryGetValue(folder, out var value))
                         {
                             lastFolder = value;
+                            lastFolder.Counter++;
                         }
                         else if (lastFolder == null)
                         {

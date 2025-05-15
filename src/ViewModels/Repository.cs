@@ -210,7 +210,7 @@ namespace SourceGit.ViewModels
             private set => SetProperty(ref _submodules, value);
         }
 
-        public List<Models.Submodule> VisibleSubmodules
+        public SubmoduleCollection VisibleSubmodules
         {
             get => _visibleSubmodules;
             private set => SetProperty(ref _visibleSubmodules, value);
@@ -226,6 +226,12 @@ namespace SourceGit.ViewModels
         {
             get => _stashesCount;
             private set => SetProperty(ref _stashesCount, value);
+        }
+
+        public int LocalBranchesCount
+        {
+            get => _localBranchesCount;
+            private set => SetProperty(ref _localBranchesCount, value);
         }
 
         public bool IncludeUntracked
@@ -583,43 +589,85 @@ namespace SourceGit.ViewModels
             Task.Run(RefreshStashes);
         }
 
-        public void OpenInFileManager()
-        {
-            Native.OS.OpenInFileManager(_fullpath);
-        }
-
-        public void OpenInTerminal()
-        {
-            Native.OS.OpenTerminal(_fullpath);
-        }
-
         public ContextMenu CreateContextMenuForExternalTools()
         {
-            var tools = Native.OS.ExternalTools;
-            if (tools.Count == 0)
-            {
-                App.RaiseException(_fullpath, "No available external editors found!");
-                return null;
-            }
-
             var menu = new ContextMenu();
             menu.Placement = PlacementMode.BottomEdgeAlignedLeft;
+
             RenderOptions.SetBitmapInterpolationMode(menu, BitmapInterpolationMode.HighQuality);
+            RenderOptions.SetEdgeMode(menu, EdgeMode.Antialias);
+            RenderOptions.SetTextRenderingMode(menu, TextRenderingMode.Antialias);
 
-            foreach (var tool in tools)
+            var explore = new MenuItem();
+            explore.Header = App.Text("Repository.Explore");
+            explore.Icon = App.CreateMenuIcon("Icons.Explore");
+            explore.Click += (_, e) =>
             {
-                var dupTool = tool;
+                Native.OS.OpenInFileManager(_fullpath);
+                e.Handled = true;
+            };
 
-                var item = new MenuItem();
-                item.Header = App.Text("Repository.OpenIn", dupTool.Name);
-                item.Icon = new Image { Width = 16, Height = 16, Source = dupTool.IconImage };
-                item.Click += (_, e) =>
+            var terminal = new MenuItem();
+            terminal.Header = App.Text("Repository.Terminal");
+            terminal.Icon = App.CreateMenuIcon("Icons.Terminal");
+            terminal.Click += (_, e) =>
+            {
+                Native.OS.OpenTerminal(_fullpath);
+                e.Handled = true;
+            };
+
+            menu.Items.Add(explore);
+            menu.Items.Add(terminal);
+
+            var tools = Native.OS.ExternalTools;
+            if (tools.Count > 0)
+            {
+                menu.Items.Add(new MenuItem() { Header = "-" });
+
+                foreach (var tool in Native.OS.ExternalTools)
                 {
-                    dupTool.Open(_fullpath);
-                    e.Handled = true;
-                };
+                    var dupTool = tool;
 
-                menu.Items.Add(item);
+                    var item = new MenuItem();
+                    item.Header = App.Text("Repository.OpenIn", dupTool.Name);
+                    item.Icon = new Image { Width = 16, Height = 16, Source = dupTool.IconImage };
+                    item.Click += (_, e) =>
+                    {
+                        dupTool.Open(_fullpath);
+                        e.Handled = true;
+                    };
+
+                    menu.Items.Add(item);
+                }
+            }
+
+            var urls = new Dictionary<string, string>();
+            foreach (var r in _remotes)
+            {
+                if (r.TryGetVisitURL(out var visit))
+                    urls.Add(r.Name, visit);
+            }
+
+            if (urls.Count > 0)
+            {
+                menu.Items.Add(new MenuItem() { Header = "-" });
+
+                foreach (var url in urls)
+                {
+                    var name = url.Key;
+                    var addr = url.Value;
+
+                    var item = new MenuItem();
+                    item.Header = App.Text("Repository.Visit", name);
+                    item.Icon = App.CreateMenuIcon("Icons.Remotes");
+                    item.Click += (_, e) =>
+                    {
+                        Native.OS.OpenBrowser(addr);
+                        e.Handled = true;
+                    };
+
+                    menu.Items.Add(item);
+                }
             }
 
             return menu;
@@ -884,7 +932,7 @@ namespace SourceGit.ViewModels
                 if (!changed)
                     return;
 
-                if (isLocal && !string.IsNullOrEmpty(branch.Upstream))
+                if (isLocal && !string.IsNullOrEmpty(branch.Upstream) && !branch.IsUpstreamGone)
                     _settings.UpdateHistoriesFilter(branch.Upstream, Models.FilterType.RemoteBranch, mode);
             }
             else
@@ -978,7 +1026,7 @@ namespace SourceGit.ViewModels
 
         public void RefreshBranches()
         {
-            var branches = new Commands.QueryBranches(_fullpath).Result();
+            var branches = new Commands.QueryBranches(_fullpath).Result(out var localBranchesCount);
             var remotes = new Commands.QueryRemotes(_fullpath).Result();
             var builder = BuildBranchTree(branches, remotes);
 
@@ -991,6 +1039,7 @@ namespace SourceGit.ViewModels
                 CurrentBranch = branches.Find(x => x.IsCurrent);
                 LocalBranchTrees = builder.Locals;
                 RemoteBranchTrees = builder.Remotes;
+                LocalBranchesCount = localBranchesCount;
 
                 if (_workingCopy != null)
                     _workingCopy.HasRemotes = remotes.Count > 0;
@@ -1154,7 +1203,7 @@ namespace SourceGit.ViewModels
 
             if (branch.IsLocal)
             {
-                if (_localChangesCount > 0)
+                if (_localChangesCount > 0 || _submodules.Count > 0)
                     ShowPopup(new Checkout(this, branch.Name));
                 else
                     ShowAndStartPopup(new Checkout(this, branch.Name));
@@ -2187,6 +2236,51 @@ namespace SourceGit.ViewModels
             return menu;
         }
 
+        public ContextMenu CreateContextMenuForBranchSortMode(bool local)
+        {
+            var mode = local ? _settings.LocalBranchSortMode : _settings.RemoteBranchSortMode;
+            var changeMode = new Action<Models.BranchSortMode>(m =>
+            {
+                if (local)
+                    _settings.LocalBranchSortMode = m;
+                else
+                    _settings.RemoteBranchSortMode = m;
+
+                var builder = BuildBranchTree(_branches, _remotes);
+                LocalBranchTrees = builder.Locals;
+                RemoteBranchTrees = builder.Remotes;
+            });
+
+            var byNameAsc = new MenuItem();
+            byNameAsc.Header = App.Text("Repository.BranchSort.ByName");
+            if (mode == Models.BranchSortMode.Name)
+                byNameAsc.Icon = App.CreateMenuIcon("Icons.Check");
+            byNameAsc.Click += (_, ev) =>
+            {
+                if (mode != Models.BranchSortMode.Name)
+                    changeMode(Models.BranchSortMode.Name);
+
+                ev.Handled = true;
+            };
+
+            var byCommitterDate = new MenuItem();
+            byCommitterDate.Header = App.Text("Repository.BranchSort.ByCommitterDate");
+            if (mode == Models.BranchSortMode.CommitterDate)
+                byCommitterDate.Icon = App.CreateMenuIcon("Icons.Check");
+            byCommitterDate.Click += (_, ev) =>
+            {
+                if (mode != Models.BranchSortMode.CommitterDate)
+                    changeMode(Models.BranchSortMode.CommitterDate);
+
+                ev.Handled = true;
+            };
+
+            var menu = new ContextMenu();
+            menu.Items.Add(byNameAsc);
+            menu.Items.Add(byCommitterDate);
+            return menu;
+        }
+
         public ContextMenu CreateContextMenuForTagSortMode()
         {
             var mode = _settings.TagSortMode;
@@ -2236,14 +2330,15 @@ namespace SourceGit.ViewModels
             return menu;
         }
 
-        public ContextMenu CreateContextMenuForSubmodule(string submodule)
+        public ContextMenu CreateContextMenuForSubmodule(Models.Submodule submodule)
         {
             var open = new MenuItem();
             open.Header = App.Text("Submodule.Open");
             open.Icon = App.CreateMenuIcon("Icons.Folder.Open");
+            open.IsEnabled = submodule.Status != Models.SubmoduleStatus.NotInited;
             open.Click += (_, ev) =>
             {
-                OpenSubmodule(submodule);
+                OpenSubmodule(submodule.Path);
                 ev.Handled = true;
             };
 
@@ -2252,7 +2347,7 @@ namespace SourceGit.ViewModels
             copy.Icon = App.CreateMenuIcon("Icons.Copy");
             copy.Click += (_, ev) =>
             {
-                App.CopyText(submodule);
+                App.CopyText(submodule.Path);
                 ev.Handled = true;
             };
 
@@ -2262,7 +2357,7 @@ namespace SourceGit.ViewModels
             rm.Click += (_, ev) =>
             {
                 if (CanCreatePopup())
-                    ShowPopup(new DeleteSubmodule(this, submodule));
+                    ShowPopup(new DeleteSubmodule(this, submodule.Path));
                 ev.Handled = true;
             };
 
@@ -2356,7 +2451,7 @@ namespace SourceGit.ViewModels
 
         private BranchTreeNode.Builder BuildBranchTree(List<Models.Branch> branches, List<Models.Remote> remotes)
         {
-            var builder = new BranchTreeNode.Builder();
+            var builder = new BranchTreeNode.Builder(_settings.LocalBranchSortMode, _settings.RemoteBranchSortMode);
             if (string.IsNullOrEmpty(_filter))
             {
                 builder.SetExpandedNodes(_settings.ExpandedBranchNodesInSideBar);
@@ -2417,7 +2512,7 @@ namespace SourceGit.ViewModels
             return visible;
         }
 
-        private List<Models.Submodule> BuildVisibleSubmodules()
+        private SubmoduleCollection BuildVisibleSubmodules()
         {
             var visible = new List<Models.Submodule>();
             if (string.IsNullOrEmpty(_filter))
@@ -2432,7 +2527,8 @@ namespace SourceGit.ViewModels
                         visible.Add(s);
                 }
             }
-            return visible;
+
+            return SubmoduleCollection.Build(visible, _visibleSubmodules);
         }
 
         private void RefreshHistoriesFilters(bool refresh)
@@ -2639,6 +2735,7 @@ namespace SourceGit.ViewModels
         private int _selectedViewIndex = 0;
         private object _selectedView = null;
 
+        private int _localBranchesCount = 0;
         private int _localChangesCount = 0;
         private int _stashesCount = 0;
 
@@ -2663,7 +2760,7 @@ namespace SourceGit.ViewModels
         private List<Models.Tag> _tags = new List<Models.Tag>();
         private List<Models.Tag> _visibleTags = new List<Models.Tag>();
         private List<Models.Submodule> _submodules = new List<Models.Submodule>();
-        private List<Models.Submodule> _visibleSubmodules = new List<Models.Submodule>();
+        private SubmoduleCollection _visibleSubmodules = new SubmoduleCollection();
 
         private bool _isAutoFetching = false;
         private Timer _autoFetchTimer = null;
