@@ -180,6 +180,7 @@
   ${REPO} Repository's path
   ${DIRNAME} - repository's directory name;
   ${REMOTE} Selected remote or selected branch's remote
+  ${CURRENT_BRANCH} - current branch;
   ${BRANCH} Selected branch, without ${REMOTE} part for remote branches
   ${BRANCH_FRIENDLY_NAME} Firendly name of selected branch, contains ${REMOTE} part for remote branches
   ${SHA} Selected commit's hash

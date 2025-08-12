@@ -183,6 +183,7 @@
 
   ${REPO} 存放庫路徑
   ${DIRNAME} 存放庫資料夾名
+  ${CURRENT_BRANCH} 當前分支
   ${REMOTE} 所選的遠端存放庫或所選分支的遠端
   ${BRANCH} 所選的分支。對於遠端分支，不包含遠端名稱
   ${BRANCH_FRIENDLY_NAME} 所選的分支。對於遠端分支，不包含遠端名稱

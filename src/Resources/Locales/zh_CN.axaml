@@ -183,6 +183,7 @@
 
   ${REPO} 仓库路径
   ${DIRNAME} 仓库文件夹名
+  ${CURRENT_BRANCH} 当前的分支
   ${REMOTE} 选中的远程仓库或选中分支所属的远程仓库
   ${BRANCH} 选中的分支，对于远程分支不包含远程名
   ${BRANCH_FRIENDLY_NAME} 选中的分支，对于远程分支包含远程名
