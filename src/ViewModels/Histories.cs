@@ -413,27 +413,41 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public List<Models.Commit> GetChildrensInCurHistory(Models.Commit commit)
+        public List<Models.Commit> GetChildrensInCurHistory(Models.Commit commit, uint depth = 0)
         {
             if (commit == null || commit.Index == 0) return new List<Models.Commit>();
-            return _commits[..(commit.Index)].Where(x => x.Parents.Contains(commit.SHA)).ToList();
+            int start = 0;
+            int stop = commit.Index;
+            if (_commits.Count < commit.Index)
+                stop = _commits.Count;
+            if (depth != 0 && (stop - depth) > 0) //,else show be 0 by default, 3, 2
+                start = (int)(stop - depth);
+
+            return _commits[start..stop].Where(x => x.Parents.Contains(commit.SHA)).ToList();
         }
 
-        public List<Models.Commit> GetTopHeadsInCurHistory(Models.Commit commit)
+        public List<Models.Commit> GetTopHeadsInCurHistory(Models.Commit commit, out List<int> pathindex, uint depth = 0)
         {
-            // if (commit == null || commit.Index <= 0) return new List<Models.Commit>();
+            pathindex = new List<int>();
             var heads = new List<Models.Commit>();
             if (commit == null || commit?.Index <= 0)
                 return heads;
+
             var queue = new Queue<Models.Commit>();
-            var visited = new HashSet<string> { commit.SHA };
+            var visited = new HashSet<int>();
 
             queue.Enqueue(commit);
+
+            var toplimitIndex = commit.Index - depth;
+            if (toplimitIndex < 0)
+                toplimitIndex = 0;
 
             while (queue.Any())
             {
                 var currentCommit = queue.Dequeue();
-                var children = GetChildrensInCurHistory(currentCommit);
+                if (depth != 0 && currentCommit.Index - toplimitIndex < 1) // at least one
+                    continue;
+                var children = GetChildrensInCurHistory(currentCommit, (uint)(currentCommit.Index - toplimitIndex));
                 // var children = _commits.Where(x => x.Parents.Contains(currentCommit.SHA)).ToList();
                 if (children.Any())
                 {
@@ -442,7 +456,7 @@ namespace SourceGit.ViewModels
                     foreach (var child in children)
                     {
                         // 如果这个子提交还没有被访问过，则加入队列并标记为已访问
-                        if (visited.Add(child.SHA))
+                        if (visited.Add(child.Index))
                         {
                             queue.Enqueue(child);
                             heads.Add(child);
@@ -450,7 +464,7 @@ namespace SourceGit.ViewModels
                     }
                 }
             }
-
+            pathindex = visited.ToList();
             return heads;
         }
 
