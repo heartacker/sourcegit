@@ -349,6 +349,12 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _searchedCommits, value);
         }
 
+        public List<Models.Commit> SelectedCommits
+        {
+            get => _selectCommits;
+            set => SetProperty(ref _selectCommits, value);
+        }
+
         public Models.Commit SelectedSearchedCommit
         {
             get => _selectedSearchedCommit;
@@ -1316,6 +1322,8 @@ namespace SourceGit.ViewModels
 
         public void RefreshCommits()
         {
+            var oldSelectedCommits = _selectCommits.ToList();
+
             Task.Run(async () =>
             {
                 await Dispatcher.UIThread.InvokeAsync(() => _histories.IsLoading = true);
@@ -1355,6 +1363,8 @@ namespace SourceGit.ViewModels
                         _histories.Graph = graph;
 
                         BisectState = _histories.UpdateBisectInfo();
+
+                        _histories.MarkCommitsAsSelected(oldSelectedCommits);
 
                         if (!string.IsNullOrEmpty(_navigateToCommitDelayed))
                             NavigateToCommit(_navigateToCommitDelayed);
@@ -2079,6 +2089,7 @@ namespace SourceGit.ViewModels
         private bool _onlySearchCommitsInCurrentBranch = false;
         private string _searchCommitFilter = string.Empty;
         private List<Models.Commit> _searchedCommits = new List<Models.Commit>();
+        private List<Models.Commit> _selectCommits = new List<Models.Commit>();
         private Models.Commit _selectedSearchedCommit = null;
         private bool _requestingWorktreeFiles = false;
         private List<string> _worktreeFiles = null;
