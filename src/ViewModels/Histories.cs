@@ -413,6 +413,47 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public List<Models.Commit> GetChildrensInCurHistory(Models.Commit commit)
+        {
+            if (commit == null || commit.Index == 0) return new List<Models.Commit>();
+            return _commits[..(commit.Index)].Where(x => x.Parents.Contains(commit.SHA)).ToList();
+        }
+
+        public List<Models.Commit> GetTopHeadsInCurHistory(Models.Commit commit)
+        {
+            // if (commit == null || commit.Index <= 0) return new List<Models.Commit>();
+            var heads = new List<Models.Commit>();
+            if (commit == null || commit?.Index <= 0)
+                return heads;
+            var queue = new Queue<Models.Commit>();
+            var visited = new HashSet<string> { commit.SHA };
+
+            queue.Enqueue(commit);
+
+            while (queue.Any())
+            {
+                var currentCommit = queue.Dequeue();
+                var children = GetChildrensInCurHistory(currentCommit);
+                // var children = _commits.Where(x => x.Parents.Contains(currentCommit.SHA)).ToList();
+                if (children.Any())
+                {
+                    heads.Remove(currentCommit);
+
+                    foreach (var child in children)
+                    {
+                        // 如果这个子提交还没有被访问过，则加入队列并标记为已访问
+                        if (visited.Add(child.SHA))
+                        {
+                            queue.Enqueue(child);
+                            heads.Add(child);
+                        }
+                    }
+                }
+            }
+
+            return heads;
+        }
+
         private Repository _repo = null;
         private bool _isLoading = true;
         private List<Models.Commit> _commits = new List<Models.Commit>();

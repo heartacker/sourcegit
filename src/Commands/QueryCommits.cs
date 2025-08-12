@@ -62,6 +62,7 @@ namespace SourceGit.Commands
             if (!rs.IsSuccess)
                 return _commits;
 
+            var commitIdx = 0;
             var nextPartIdx = 0;
             var start = 0;
             var end = rs.StdOut.IndexOf('\n', start);
@@ -71,7 +72,7 @@ namespace SourceGit.Commands
                 switch (nextPartIdx)
                 {
                     case 0:
-                        _current = new Models.Commit() { SHA = line };
+                        _current = new Models.Commit() { SHA = line, Index = commitIdx++ };
                         _current.IsCommitFilterHead = _patterns.Count > 0 && _patterns.Any(f => line.StartsWith(f));
                         _commits.Add(_current);
                         break;

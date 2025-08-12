@@ -55,6 +55,11 @@ namespace SourceGit.Models
         public bool IsCommitterVisible => !Author.Equals(Committer) || AuthorTime != CommitterTime;
         public bool IsCurrentHead => Decorators.Find(x => x.Type is DecoratorType.CurrentBranchHead or DecoratorType.CurrentCommitHead) != null;
 
+        /// <summary>
+        /// the index of commit in current history's commits
+        /// </summary>
+        public int Index { get; set; } = 0;
+
         public int Color { get; set; } = 0;
         public double Opacity => IsMerged ? 1 : OpacityForNotMerged;
         public FontWeight FontWeight => IsCurrentHead ? FontWeight.Bold : FontWeight.Regular;
