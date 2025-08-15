@@ -6,7 +6,7 @@ This document shows the translation status of each locale file in the repository
 
 ### ![en_US](https://img.shields.io/badge/en__US-%E2%88%9A-brightgreen)
 
-### ![de__DE](https://img.shields.io/badge/de__DE-97.81%25-yellow)
+### ![de__DE](https://img.shields.io/badge/de__DE-97.58%25-yellow)
 
 <details>
 <summary>Missing keys in de_DE.axaml</summary>
@@ -14,6 +14,7 @@ This document shows the translation status of each locale file in the repository
 - Text.App.Hide
 - Text.App.ShowAll
 - Text.BranchTree.InvalidUpstream
+- Text.CommitCM.SoloCommits
 - Text.Configure.CustomAction.Arguments.Tip
 - Text.Configure.CustomAction.Scope.Remote
 - Text.DeleteMultiTags
@@ -23,6 +24,7 @@ This document shows the translation status of each locale file in the repository
 - Text.RemoteCM.CustomAction
 - Text.Repository.Dashboard
 - Text.Repository.MoreOptions
+- Text.Repository.SoloModeOnCurrentHead
 - Text.Tag.Tagger
 - Text.Tag.Time
 - Text.TagCM.Copy.Message
@@ -33,18 +35,20 @@ This document shows the translation status of each locale file in the repository
 
 </details>
 
-### ![es__ES](https://img.shields.io/badge/es__ES-99.65%25-yellow)
+### ![es__ES](https://img.shields.io/badge/es__ES-99.42%25-yellow)
 
 <details>
 <summary>Missing keys in es_ES.axaml</summary>
 
 - Text.App.Hide
 - Text.App.ShowAll
+- Text.CommitCM.SoloCommits
 - Text.Configure.CustomAction.Arguments.Tip
+- Text.Repository.SoloModeOnCurrentHead
 
 </details>
 
-### ![fr__FR](https://img.shields.io/badge/fr__FR-80.37%25-yellow)
+### ![fr__FR](https://img.shields.io/badge/fr__FR-80.18%25-yellow)
 
 <details>
 <summary>Missing keys in fr_FR.axaml</summary>
@@ -79,6 +83,7 @@ This document shows the translation status of each locale file in the repository
 - Text.CommitCM.CopyCommitMessage
 - Text.CommitCM.CopyCommitter
 - Text.CommitCM.CopySubject
+- Text.CommitCM.SoloCommits
 - Text.CommitCM.InteractiveRebase
 - Text.CommitCM.InteractiveRebase.Drop
 - Text.CommitCM.InteractiveRebase.Edit
@@ -161,6 +166,7 @@ This document shows the translation status of each locale file in the repository
 - Text.Repository.ClearStashes
 - Text.Repository.Dashboard
 - Text.Repository.MoreOptions
+- Text.Repository.SoloModeOnCurrentHead
 - Text.Repository.OnlyHighlightCurrentBranchInGraph
 - Text.Repository.Search.ByContent
 - Text.Repository.Search.ByPath
@@ -222,7 +228,7 @@ This document shows the translation status of each locale file in the repository
 
 </details>
 
-### ![it__IT](https://img.shields.io/badge/it__IT-85.57%25-yellow)
+### ![it__IT](https://img.shields.io/badge/it__IT-85.37%25-yellow)
 
 <details>
 <summary>Missing keys in it_IT.axaml</summary>
@@ -246,6 +252,7 @@ This document shows the translation status of each locale file in the repository
 - Text.Checkout.WithFastForward
 - Text.Checkout.WithFastForward.Upstream
 - Text.CommitCM.CopyCommitMessage
+- Text.CommitCM.SoloCommits
 - Text.CommitCM.InteractiveRebase
 - Text.CommitCM.InteractiveRebase.Drop
 - Text.CommitCM.InteractiveRebase.Edit
@@ -315,6 +322,7 @@ This document shows the translation status of each locale file in the repository
 - Text.Repository.ClearStashes
 - Text.Repository.Dashboard
 - Text.Repository.MoreOptions
+- Text.Repository.SoloModeOnCurrentHead
 - Text.Repository.OnlyHighlightCurrentBranchInGraph
 - Text.Repository.Search.ByPath
 - Text.Repository.ShowDecoratedCommitsOnly
@@ -355,7 +363,7 @@ This document shows the translation status of each locale file in the repository
 
 </details>
 
-### ![ja__JP](https://img.shields.io/badge/ja__JP-80.37%25-yellow)
+### ![ja__JP](https://img.shields.io/badge/ja__JP-80.18%25-yellow)
 
 <details>
 <summary>Missing keys in ja_JP.axaml</summary>
@@ -391,6 +399,7 @@ This document shows the translation status of each locale file in the repository
 - Text.CommitCM.CopyCommitMessage
 - Text.CommitCM.CopyCommitter
 - Text.CommitCM.CopySubject
+- Text.CommitCM.SoloCommits
 - Text.CommitCM.InteractiveRebase
 - Text.CommitCM.InteractiveRebase.Drop
 - Text.CommitCM.InteractiveRebase.Edit
@@ -474,6 +483,7 @@ This document shows the translation status of each locale file in the repository
 - Text.Repository.Dashboard
 - Text.Repository.FilterCommits
 - Text.Repository.MoreOptions
+- Text.Repository.SoloModeOnCurrentHead
 - Text.Repository.OnlyHighlightCurrentBranchInGraph
 - Text.Repository.Search.ByContent
 - Text.Repository.Search.ByPath
@@ -533,7 +543,7 @@ This document shows the translation status of each locale file in the repository
 
 </details>
 
-### ![pt__BR](https://img.shields.io/badge/pt__BR-73.56%25-red)
+### ![pt__BR](https://img.shields.io/badge/pt__BR-73.39%25-red)
 
 <details>
 <summary>Missing keys in pt_BR.axaml</summary>
@@ -577,6 +587,7 @@ This document shows the translation status of each locale file in the repository
 - Text.CommitCM.CopyCommitMessage
 - Text.CommitCM.CopyCommitter
 - Text.CommitCM.CopySubject
+- Text.CommitCM.SoloCommits
 - Text.CommitCM.InteractiveRebase
 - Text.CommitCM.InteractiveRebase.Drop
 - Text.CommitCM.InteractiveRebase.Edit
@@ -698,6 +709,7 @@ This document shows the translation status of each locale file in the repository
 - Text.Repository.HistoriesLayout.Vertical
 - Text.Repository.HistoriesOrder
 - Text.Repository.MoreOptions
+- Text.Repository.SoloModeOnCurrentHead
 - Text.Repository.Notifications.Clear
 - Text.Repository.OnlyHighlightCurrentBranchInGraph
 - Text.Repository.Search.ByContent
@@ -770,18 +782,20 @@ This document shows the translation status of each locale file in the repository
 
 </details>
 
-### ![ru__RU](https://img.shields.io/badge/ru__RU-99.65%25-yellow)
+### ![ru__RU](https://img.shields.io/badge/ru__RU-99.42%25-yellow)
 
 <details>
 <summary>Missing keys in ru_RU.axaml</summary>
 
 - Text.App.Hide
 - Text.App.ShowAll
+- Text.CommitCM.SoloCommits
 - Text.Configure.CustomAction.Arguments.Tip
+- Text.Repository.SoloModeOnCurrentHead
 
 </details>
 
-### ![ta__IN](https://img.shields.io/badge/ta__IN-80.48%25-yellow)
+### ![ta__IN](https://img.shields.io/badge/ta__IN-80.30%25-yellow)
 
 <details>
 <summary>Missing keys in ta_IN.axaml</summary>
@@ -817,6 +831,7 @@ This document shows the translation status of each locale file in the repository
 - Text.CommitCM.CopyCommitMessage
 - Text.CommitCM.CopyCommitter
 - Text.CommitCM.CopySubject
+- Text.CommitCM.SoloCommits
 - Text.CommitCM.InteractiveRebase
 - Text.CommitCM.InteractiveRebase.Drop
 - Text.CommitCM.InteractiveRebase.Edit
@@ -899,6 +914,7 @@ This document shows the translation status of each locale file in the repository
 - Text.Repository.ClearStashes
 - Text.Repository.Dashboard
 - Text.Repository.MoreOptions
+- Text.Repository.SoloModeOnCurrentHead
 - Text.Repository.OnlyHighlightCurrentBranchInGraph
 - Text.Repository.Search.ByContent
 - Text.Repository.Search.ByPath
@@ -958,7 +974,7 @@ This document shows the translation status of each locale file in the repository
 
 </details>
 
-### ![uk__UA](https://img.shields.io/badge/uk__UA-81.64%25-yellow)
+### ![uk__UA](https://img.shields.io/badge/uk__UA-81.45%25-yellow)
 
 <details>
 <summary>Missing keys in uk_UA.axaml</summary>
@@ -993,6 +1009,7 @@ This document shows the translation status of each locale file in the repository
 - Text.CommitCM.CopyCommitMessage
 - Text.CommitCM.CopyCommitter
 - Text.CommitCM.CopySubject
+- Text.CommitCM.SoloCommits
 - Text.CommitCM.InteractiveRebase
 - Text.CommitCM.InteractiveRebase.Drop
 - Text.CommitCM.InteractiveRebase.Edit
@@ -1071,6 +1088,7 @@ This document shows the translation status of each locale file in the repository
 - Text.Repository.ClearStashes
 - Text.Repository.Dashboard
 - Text.Repository.MoreOptions
+- Text.Repository.SoloModeOnCurrentHead
 - Text.Repository.OnlyHighlightCurrentBranchInGraph
 - Text.Repository.Search.ByContent
 - Text.Repository.Search.ByPath
@@ -1125,6 +1143,22 @@ This document shows the translation status of each locale file in the repository
 
 </details>
 
-### ![zh__CN](https://img.shields.io/badge/zh__CN-%E2%88%9A-brightgreen)
+### ![zh__CN](https://img.shields.io/badge/zh__CN-99.77%25-yellow)
 
-### ![zh__TW](https://img.shields.io/badge/zh__TW-%E2%88%9A-brightgreen)
+<details>
+<summary>Missing keys in zh_CN.axaml</summary>
+
+- Text.CommitCM.SoloCommits
+- Text.Repository.SoloModeOnCurrentHead
+
+</details>
+
+### ![zh__TW](https://img.shields.io/badge/zh__TW-99.77%25-yellow)
+
+<details>
+<summary>Missing keys in zh_TW.axaml</summary>
+
+- Text.CommitCM.SoloCommits
+- Text.Repository.SoloModeOnCurrentHead
+
+</details>
