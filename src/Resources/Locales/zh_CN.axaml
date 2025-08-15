@@ -180,8 +180,9 @@
   <x:String x:Key="Text.Configure.CustomAction" xml:space="preserve">自定义操作</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Arguments" xml:space="preserve">命令行参数 ：</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Arguments.Tip" xml:space="preserve">内置变量：
-  
+
   ${REPO} 仓库路径
+  ${DIRNAME} 仓库文件夹名
   ${REMOTE} 选中的远程仓库或选中分支所属的远程仓库
   ${BRANCH} 选中的分支，对于远程分支不包含远程名
   ${BRANCH_FRIENDLY_NAME} 选中的分支，对于远程分支包含远程名

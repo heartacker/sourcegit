@@ -179,9 +179,10 @@
   <x:String x:Key="Text.Configure.CommitMessageTemplate.Name" xml:space="preserve">範本名稱:</x:String>
   <x:String x:Key="Text.Configure.CustomAction" xml:space="preserve">自訂動作</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Arguments" xml:space="preserve">指令參數:</x:String>
-  <x:String x:Key="Text.Configure.CustomAction.Arguments.Tip" xml:space="preserve">內建參數: 
-  
+  <x:String x:Key="Text.Configure.CustomAction.Arguments.Tip" xml:space="preserve">內建參數:
+
   ${REPO} 存放庫路徑
+  ${DIRNAME} 存放庫資料夾名
   ${REMOTE} 所選的遠端存放庫或所選分支的遠端
   ${BRANCH} 所選的分支。對於遠端分支，不包含遠端名稱
   ${BRANCH_FRIENDLY_NAME} 所選的分支。對於遠端分支，不包含遠端名稱

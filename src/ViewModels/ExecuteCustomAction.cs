@@ -179,6 +179,7 @@ namespace SourceGit.ViewModels
         private string PrepareStringByTarget(string org)
         {
             org = org.Replace("${REPO}", GetWorkdir());
+            org = org.Replace("${DIRNAME}", GetWorkdirname());
 
             return Target switch
             {
@@ -193,6 +194,11 @@ namespace SourceGit.ViewModels
         private string GetWorkdir()
         {
             return OperatingSystem.IsWindows() ? _repo.FullPath.Replace("/", "\\") : _repo.FullPath;
+        }
+
+        private string GetWorkdirname()
+        {
+            return _repo.FullPath.Replace("\\", "/").Split('/')[^1];
         }
 
         private void Run(string args)
