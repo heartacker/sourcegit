@@ -44,3 +44,5 @@ SourceGit.app/
 build.command
 src/Properties/launchSettings.json
 *.lscache
+graphify-out/
+
