@@ -495,6 +495,15 @@
   <x:String x:Key="Text.Histories.Header.CommitTime" xml:space="preserve">提交时间</x:String>
   <x:String x:Key="Text.Histories.Header.DateTime" xml:space="preserve">日期时间</x:String>
   <x:String x:Key="Text.Histories.Header.GraphAndSubject" xml:space="preserve">路线图与主题</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights" xml:space="preserve">高亮模式</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.All" xml:space="preserve">全部显示</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.CurrentBranchOnly" xml:space="preserve">仅当前分支</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.SelectedLineageOnly" xml:space="preserve">仅选中谱系</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.CurrentBranchAndSelectedLineage" xml:space="preserve">当前分支与选中谱系</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod" xml:space="preserve">谱系搜索方式</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.ParentsOnly" xml:space="preserve">仅祖先</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.ChildsOnly" xml:space="preserve">仅后代</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.FullLineage" xml:space="preserve">完整谱系</x:String>
   <x:String x:Key="Text.Histories.Header.SHA" xml:space="preserve">提交指纹</x:String>
   <x:String x:Key="Text.Histories.HighlightsInGraph" xml:space="preserve">高亮分支</x:String>
   <x:String x:Key="Text.Histories.HighlightsInGraph.All" xml:space="preserve">全部</x:String>
@@ -650,6 +659,7 @@
   <x:String x:Key="Text.Preferences.Appearance.Theme" xml:space="preserve">主题</x:String>
   <x:String x:Key="Text.Preferences.Appearance.ThemeOverrides" xml:space="preserve">主题自定义</x:String>
   <x:String x:Key="Text.Preferences.Appearance.UseAutoHideScrollBars" xml:space="preserve">允许滚动条自动隐藏</x:String>
+  <x:String x:Key="Text.Preferences.Appearance.EnableHoverViewTracking" xml:space="preserve">开启悬停视图跟踪</x:String>
   <x:String x:Key="Text.Preferences.Appearance.UseFixedTabWidth" xml:space="preserve">主标签使用固定宽度</x:String>
   <x:String x:Key="Text.Preferences.Appearance.UseNativeWindowFrame" xml:space="preserve">使用系统默认窗体样式</x:String>
   <x:String x:Key="Text.Preferences.DiffMerge" xml:space="preserve">对比/合并工具</x:String>
