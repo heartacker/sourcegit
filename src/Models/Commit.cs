@@ -39,6 +39,9 @@ namespace SourceGit.Models
         public int Index { get; set; } = -1;
         public int PathIndex { get; set; } = -1;
 
+        public bool IsFolded { get; set; } = false;
+        public int FoldedCount { get; set; } = 0;
+
         public bool IsHighlightedInGraph
         {
             get => _isHighlightedInGraph;
@@ -49,6 +52,11 @@ namespace SourceGit.Models
         public bool IsCurrentHead => Decorators.Find(x => x.Type is DecoratorType.CurrentBranchHead or DecoratorType.CurrentCommitHead) != null;
         public bool HasDecorators => Decorators.Count > 0;
         public string FirstParentToCompare => Parents.Count > 0 ? $"{SHA}^" : EmptyTreeHash.Guess(SHA);
+
+        public Commit Clone()
+        {
+            return (Commit)MemberwiseClone();
+        }
 
         public string GetFriendlyName()
         {

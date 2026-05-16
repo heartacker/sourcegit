@@ -95,6 +95,24 @@ namespace SourceGit.Views
             set => SetValue(SubjectProperty, value);
         }
 
+        public static readonly StyledProperty<bool> IsFoldedProperty =
+            AvaloniaProperty.Register<CommitSubjectPresenter, bool>(nameof(IsFolded), false);
+
+        public bool IsFolded
+        {
+            get => GetValue(IsFoldedProperty);
+            set => SetValue(IsFoldedProperty, value);
+        }
+
+        public static readonly StyledProperty<int> FoldedCountProperty =
+            AvaloniaProperty.Register<CommitSubjectPresenter, int>(nameof(FoldedCount), 0);
+
+        public int FoldedCount
+        {
+            get => GetValue(FoldedCountProperty);
+            set => SetValue(FoldedCountProperty, value);
+        }
+
         public static readonly StyledProperty<AvaloniaList<Models.IssueTracker>> IssueTrackersProperty =
             AvaloniaProperty.Register<CommitSubjectPresenter, AvaloniaList<Models.IssueTracker>>(nameof(IssueTrackers));
 
@@ -112,7 +130,7 @@ namespace SourceGit.Views
                 GenerateFormattedTextElements();
             }
 
-            if (_inlines.Count == 0)
+            if (_inlines.Count == 0 && !IsFolded)
                 return;
 
             using (context.PushRenderOptions(new() { EdgeMode = EdgeMode.Antialias }))
@@ -120,6 +138,20 @@ namespace SourceGit.Views
             {
                 var height = Bounds.Height;
                 var width = Bounds.Width;
+
+                if (IsFolded)
+                {
+                    var txt = new FormattedText(
+                        App.Text("Histories.Folded", FoldedCount),
+                        CultureInfo.CurrentCulture,
+                        FlowDirection.LeftToRight,
+                        new Typeface(FontFamily, FontStyle.Italic, FontWeight.Light),
+                        FontSize,
+                        Foreground);
+                    context.DrawText(txt, new Point(0, (height - txt.Height) * 0.5));
+                    return;
+                }
+
                 var maxX = 0.0;
                 foreach (var inline in _inlines)
                 {
