@@ -622,14 +622,12 @@ namespace SourceGit.ViewModels
             int viewportTopIndex = -1,
             int viewportBottomIndex = -1)
         {
-            var active = new bool[_commits.Count];
-            if (commit == null || method == Models.CommitLineageSearchMethod.None)
-                return active;
-
-            active[commit.Index] = true;
+            var commitsCount = _commits.Count;
+            if (commit == null || method == Models.CommitLineageSearchMethod.None || commitsCount == 0)
+                return new bool[commitsCount];
 
             int topLimit = Math.Max(0, commit.Index - (int)depth);
-            int bottomLimit = Math.Min(_commits.Count - 1, commit.Index + (int)depth);
+            int bottomLimit = Math.Min(commitsCount - 1, commit.Index + (int)depth);
 
             if (viewportTopIndex >= 0 && viewportBottomIndex >= viewportTopIndex)
             {
@@ -637,37 +635,49 @@ namespace SourceGit.ViewModels
                 bottomLimit = Math.Min(bottomLimit, viewportBottomIndex);
             }
 
+            var isAncestor = new bool[commitsCount];
+            var isDescendant = new bool[commitsCount];
+            isAncestor[commit.Index] = true;
+            isDescendant[commit.Index] = true;
+
+            // 1. Independent search for Descendants (Newer commits, lower indices)
             if (method == Models.CommitLineageSearchMethod.ChildsOnly || method == Models.CommitLineageSearchMethod.FullLineage)
             {
                 for (int i = commit.Index - 1; i >= topLimit; i--)
                 {
                     foreach (var pSha in _commits[i].Parents)
                     {
-                        if (_commitMap.TryGetValue(pSha, out var parent) && parent.Index < _commits.Count && active[parent.Index])
+                        if (_commitMap.TryGetValue(pSha, out var parent) && parent.Index < commitsCount && isDescendant[parent.Index])
                         {
-                            active[i] = true;
+                            isDescendant[i] = true;
                             break;
                         }
                     }
                 }
             }
 
+            // 2. Independent search for Ancestors (Older commits, higher indices)
             if (method == Models.CommitLineageSearchMethod.ParentsOnly || method == Models.CommitLineageSearchMethod.FullLineage)
             {
                 for (int i = commit.Index; i <= bottomLimit; i++)
                 {
-                    if (active[i])
+                    if (isAncestor[i])
                     {
                         foreach (var pSha in _commits[i].Parents)
                         {
                             if (_commitMap.TryGetValue(pSha, out var parent) && parent.Index <= bottomLimit)
                             {
-                                active[parent.Index] = true;
+                                isAncestor[parent.Index] = true;
                             }
                         }
                     }
                 }
             }
+
+            // 3. Combine results
+            var active = new bool[commitsCount];
+            for (int i = 0; i < commitsCount; i++)
+                active[i] = isAncestor[i] || isDescendant[i];
 
             return active;
         }
