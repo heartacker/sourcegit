@@ -118,7 +118,7 @@ namespace SourceGit.Models
                 }
 
                 // Calculate highlighted state of the commit itself
-                bool isCommitSelected = selectedLineage != null && selectedLineage[commit.Index];
+                bool isCommitSelected = selectedLineage != null && commit.Index < selectedLineage.Length && selectedLineage[commit.Index];
                 var isHighlighted = false;
                 if (highlighting == CommitGraphHighlighting.All)
                     isHighlighted = true;
@@ -195,7 +195,7 @@ namespace SourceGit.Models
                 {
                     var pSha = commit.Parents[0];
                     var pIndex = commitMap.GetValueOrDefault(pSha, -1);
-                    bool pIsSelected = pIndex >= 0 && selectedLineage != null && selectedLineage[pIndex];
+                    bool pIsSelected = pIndex >= 0 && selectedLineage != null && pIndex < selectedLineage.Length && selectedLineage[pIndex];
                     bool pIsMerged = merged.Contains(pSha);
 
                     if (highlighting == CommitGraphHighlighting.CurrentBranchOnly)
@@ -240,7 +240,7 @@ namespace SourceGit.Models
                     {
                         var pSha = commit.Parents[j];
                         var pIndex = commitMap.GetValueOrDefault(pSha, -1);
-                        bool pIsSelected = pIndex >= 0 && selectedLineage != null && selectedLineage[pIndex];
+                        bool pIsSelected = pIndex >= 0 && selectedLineage != null && pIndex < selectedLineage.Length && selectedLineage[pIndex];
                         bool pIsMerged = merged.Contains(pSha);
 
                         bool linkIsHighlighted = false;
