@@ -9,13 +9,12 @@ namespace SourceGit.Commands
 {
     public class QueryCommits : Command
     {
-        public QueryCommits(string repo, string limits, bool markMerged = true, List<string> patterns = null)
+        public QueryCommits(string repo, string limits, bool markMerged = true)
         {
             WorkingDirectory = repo;
             Context = repo;
             Args = $"log --no-show-signature --decorate=full --format=%H%x00%P%x00%D%x00%aN±%aE%x00%at%x00%cN±%cE%x00%ct%x00%s {limits}";
             _markMerged = markMerged;
-            _patterns = patterns ?? new List<string>();
         }
 
         public QueryCommits(string repo, string filter, Models.CommitSearchMethod method, bool onlyCurrentBranch)
@@ -81,7 +80,6 @@ namespace SourceGit.Commands
                     commit.Committer = Models.User.FindOrAdd(parts[5]);
                     commit.CommitterTime = ulong.Parse(parts[6]);
                     commit.Subject = parts[7];
-                    commit.IsCommitFilterHead = _patterns.Count > 0 && _patterns.Any(f => line.StartsWith(f));
                     commits.Add(commit);
 
                     if (!findHead && commit.IsMerged)
@@ -115,6 +113,5 @@ namespace SourceGit.Commands
         }
 
         private bool _markMerged = false;
-        private List<string> _patterns = new List<string>();
     }
 }

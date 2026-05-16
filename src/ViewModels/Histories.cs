@@ -71,7 +71,8 @@ namespace SourceGit.ViewModels
 
         public void UpdateDisplayCommits()
         {
-            var commits = FoldCommits(_rawCommits);
+            var filtered = FilterCommits(_rawCommits);
+            var commits = FoldCommits(filtered);
 
             GenerateGraph(_rawCommits, false);
 
@@ -79,6 +80,50 @@ namespace SourceGit.ViewModels
             {
                 PostCommitsChanged();
             }
+        }
+
+        public List<string> SoloTargets
+        {
+            get => _soloTargets;
+            set
+            {
+                if (SetProperty(ref _soloTargets, value))
+                    UpdateDisplayCommits();
+            }
+        }
+
+        private List<Models.Commit> FilterCommits(List<Models.Commit> commits)
+        {
+            if (commits == null || commits.Count == 0 || _soloTargets.Count == 0)
+                return commits;
+
+            var active = new bool[commits.Count];
+            var method = Models.CommitLineageSearchMethod.FullLineage;
+            foreach (var target in _soloTargets)
+            {
+                if (_commitMap.TryGetValue(target, out var commit) && commit.Index < commits.Count)
+                {
+                    var lineage = GetCommitLineageFast(commit, method, (uint)commits.Count);
+                    for (int i = 0; i < lineage.Length; i++)
+                    {
+                        if (lineage[i])
+                            active[i] = true;
+                    }
+                }
+            }
+
+            var result = new List<Models.Commit>();
+            for (int i = 0; i < commits.Count; i++)
+            {
+                if (active[i])
+                {
+                    var c = commits[i].Clone();
+                    c.IsCommitFilterHead = _soloTargets.Contains(c.SHA);
+                    result.Add(c);
+                }
+            }
+
+            return result;
         }
 
         private List<Models.Commit> FoldCommits(List<Models.Commit> commits)
@@ -875,5 +920,6 @@ namespace SourceGit.ViewModels
         private int _visibleTopIndex = -1;
         private int _visibleBottomIndex = -1;
         private Dictionary<string, Models.Commit> _commitMap = new();
+        private List<string> _soloTargets = [];
     }
 }

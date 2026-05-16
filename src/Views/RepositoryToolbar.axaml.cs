@@ -518,5 +518,14 @@ namespace SourceGit.Views
                 e.Handled = true;
             }
         }
+
+        private void ClearSoloMode(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.Repository repo)
+            {
+                repo.SoloTargets = [];
+                e.Handled = true;
+            }
+        }
     }
 }
