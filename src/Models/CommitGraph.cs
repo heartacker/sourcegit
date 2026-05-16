@@ -186,25 +186,11 @@ namespace SourceGit.Models
                     }
                     else if (highlighting == CommitGraphHighlighting.SelectedCommitsOnly)
                     {
-                        isHighlighted = highlightExtraCommits.Remove(commit.SHA);
-                        if (isHighlighted)
-                        {
-                            foreach (var p in commit.Parents)
-                                highlightExtraCommits.Add(p);
-                        }
+                        isHighlighted = highlightExtraCommits.Contains(commit.SHA);
                     }
                     else
                     {
-                        if (commit.IsMerged)
-                        {
-                            isHighlighted = true;
-                        }
-                        else if (highlightExtraCommits.Remove(commit.SHA))
-                        {
-                            isHighlighted = true;
-                            foreach (var p in commit.Parents)
-                                highlightExtraCommits.Add(p);
-                        }
+                        isHighlighted = commit.IsMerged || highlightExtraCommits.Contains(commit.SHA);
                     }
                 }
                 commit.IsHighlightedInGraph = isHighlighted;
@@ -231,7 +217,7 @@ namespace SourceGit.Models
                 {
                     // Break at every commit to ensure path-aware highlight is precise.
                     major.Path.EndCommitIndex = commit.Index;
-                    major.Replace(major.Path.Color, major.Path.IsHighlighted, commit.Index);
+                    major.Replace(major.Path.Color, isHighlighted, commit.Index);
                     temp.Paths.Add(major.Path);
                 }
 
