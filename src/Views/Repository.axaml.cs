@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 
 namespace SourceGit.Views
 {
@@ -478,6 +479,40 @@ namespace SourceGit.Views
                     ev.Handled = true;
                 };
 
+                var methodHeader = new MenuItem();
+                methodHeader.Header = new TextBlock() { Text = App.Text("Histories.Header.Highlights.LineageMethod"), FontWeight = FontWeight.Bold };
+                methodHeader.IsEnabled = false;
+
+                var parentsOnly = new MenuItem();
+                parentsOnly.Header = App.Text("Histories.Header.Highlights.LineageMethod.ParentsOnly");
+                if (histories.LineageSearchMethod == Models.CommitLineageSearchMethod.ParentsOnly)
+                    parentsOnly.Icon = this.CreateMenuIcon("Icons.Check");
+                parentsOnly.Click += (_, ev) =>
+                {
+                    histories.LineageSearchMethod = Models.CommitLineageSearchMethod.ParentsOnly;
+                    ev.Handled = true;
+                };
+
+                var childsOnly = new MenuItem();
+                childsOnly.Header = App.Text("Histories.Header.Highlights.LineageMethod.ChildsOnly");
+                if (histories.LineageSearchMethod == Models.CommitLineageSearchMethod.ChildsOnly)
+                    childsOnly.Icon = this.CreateMenuIcon("Icons.Check");
+                childsOnly.Click += (_, ev) =>
+                {
+                    histories.LineageSearchMethod = Models.CommitLineageSearchMethod.ChildsOnly;
+                    ev.Handled = true;
+                };
+
+                var fullLineage = new MenuItem();
+                fullLineage.Header = App.Text("Histories.Header.Highlights.LineageMethod.FullLineage");
+                if (histories.LineageSearchMethod == Models.CommitLineageSearchMethod.FullLineage)
+                    fullLineage.Icon = this.CreateMenuIcon("Icons.Check");
+                fullLineage.Click += (_, ev) =>
+                {
+                    histories.LineageSearchMethod = Models.CommitLineageSearchMethod.FullLineage;
+                    ev.Handled = true;
+                };
+
                 var menu = new ContextMenu();
                 menu.Placement = PlacementMode.BottomEdgeAlignedLeft;
                 menu.Items.Add(layout);
@@ -498,6 +533,11 @@ namespace SourceGit.Views
                 menu.Items.Add(currentBranchOnly);
                 menu.Items.Add(selectedCommitsOnly);
                 menu.Items.Add(currentBranchAndSelectedCommits);
+                menu.Items.Add(new MenuItem() { Header = "-" });
+                menu.Items.Add(methodHeader);
+                menu.Items.Add(childsOnly);
+                menu.Items.Add(parentsOnly);
+                menu.Items.Add(fullLineage);
                 menu.Open(button);
             }
 
