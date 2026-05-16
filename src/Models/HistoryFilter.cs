@@ -9,6 +9,7 @@ namespace SourceGit.Models
         RemoteBranch,
         RemoteBranchFolder,
         Tag,
+        SoloCommits,
     }
 
     public enum FilterMode
@@ -40,7 +41,12 @@ namespace SourceGit.Models
 
         public bool IsBranch
         {
-            get => Type != FilterType.Tag;
+            get => Type != FilterType.Tag && Type != FilterType.SoloCommits;
+        }
+
+        public bool IsSolo
+        {
+            get => Type == FilterType.SoloCommits;
         }
 
         public HistoryFilter()

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Avalonia.Collections;
@@ -59,6 +60,11 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public List<string> SoloTargets
+        {
+            get => _repo.UIStates.HistoryFilters.Where(f => f.Type == Models.FilterType.SoloCommits).Select(f => f.Pattern).ToList();
+        }
+
         public List<Models.Commit> Commits
         {
             get => _commits;
@@ -82,24 +88,18 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public List<string> SoloTargets
-        {
-            get => _soloTargets;
-            set
-            {
-                if (SetProperty(ref _soloTargets, value))
-                    UpdateDisplayCommits();
-            }
-        }
-
         private List<Models.Commit> FilterCommits(List<Models.Commit> commits)
         {
-            if (commits == null || commits.Count == 0 || _soloTargets.Count == 0)
+            if (commits == null || commits.Count == 0)
+                return commits;
+
+            var soloTargets = _repo.UIStates.HistoryFilters.Where(f => f.Type == Models.FilterType.SoloCommits).Select(f => f.Pattern).ToList();
+            if (soloTargets.Count == 0)
                 return commits;
 
             var active = new bool[commits.Count];
             var method = Models.CommitLineageSearchMethod.FullLineage;
-            foreach (var target in _soloTargets)
+            foreach (var target in soloTargets)
             {
                 if (_commitMap.TryGetValue(target, out var commit) && commit.Index < commits.Count)
                 {
@@ -118,7 +118,7 @@ namespace SourceGit.ViewModels
                 if (active[i])
                 {
                     var c = commits[i].Clone();
-                    c.IsCommitFilterHead = _soloTargets.Contains(c.SHA);
+                    c.IsCommitFilterHead = soloTargets.Contains(c.SHA);
                     result.Add(c);
                 }
             }
@@ -427,6 +427,7 @@ namespace SourceGit.ViewModels
         {
             _repo = repo;
             _commitDetailSharedData = new CommitDetailSharedData();
+            _repo.UIStates.HistoryFilters.CollectionChanged += (_, _) => UpdateDisplayCommits();
         }
 
         public void SetVisibleCommitRange(int top, int bottom)
@@ -920,6 +921,5 @@ namespace SourceGit.ViewModels
         private int _visibleTopIndex = -1;
         private int _visibleBottomIndex = -1;
         private Dictionary<string, Models.Commit> _commitMap = new();
-        private List<string> _soloTargets = [];
     }
 }

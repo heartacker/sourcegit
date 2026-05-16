@@ -510,22 +510,5 @@ namespace SourceGit.Views
                 e.Handled = true;
             }
         }
-        private void SoloModeOnCurrentHead(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ViewModels.Repository { CurrentBranch: not null } repo)
-            {
-                repo.SetSoloCommitFilterMode(new List<string> { "HEAD", repo.CurrentBranch.Head }, Models.FilterMode.Included);
-                e.Handled = true;
-            }
-        }
-
-        private void ClearSoloMode(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ViewModels.Repository repo)
-            {
-                repo.SoloTargets = [];
-                e.Handled = true;
-            }
-        }
     }
 }

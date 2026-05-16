@@ -1865,6 +1865,26 @@ namespace SourceGit.Views
                 await this.ShowDialogAsync(new ViewModels.InteractiveRebase(repo, on, prefill));
         }
 
+        private void OnSoloModeOnCurrentHead(object sender, RoutedEventArgs e)
+        {
+            var repoView = this.FindAncestorOfType<Repository>();
+            if (repoView is { DataContext: ViewModels.Repository { CurrentBranch: not null } repo })
+            {
+                repo.SetSoloCommitFilterMode(new List<string> { "HEAD", repo.CurrentBranch.Head }, Models.FilterMode.Included);
+                e.Handled = true;
+            }
+        }
+
+        private void OnClearSoloMode(object sender, RoutedEventArgs e)
+        {
+            var repoView = this.FindAncestorOfType<Repository>();
+            if (repoView is { DataContext: ViewModels.Repository repo })
+            {
+                repo.ClearSoloMode();
+                e.Handled = true;
+            }
+        }
+
         private double _lastGraphStartY = 0;
         private double _lastGraphClipWidth = 0;
         private double _lastGraphRowHeight = 0;
