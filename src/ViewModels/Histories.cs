@@ -74,6 +74,64 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _graph, value);
         }
 
+        public long HoveredCommitIndex
+        {
+            get => _hoveredCommitIndex;
+            set
+            {
+                if (SetProperty(ref _hoveredCommitIndex, value))
+                {
+                    if (Preferences.Instance.EnableHoverViewTracking && value >= 0 && value < _commits.Count)
+                    {
+                        var hoveredIndex = (int)value;
+                        var depth = 1000u;
+                        var topLimit = -1;
+                        var bottomLimit = -1;
+
+                        if (_visibleTopIndex >= 0 && _visibleBottomIndex >= _visibleTopIndex)
+                        {
+                            topLimit = Math.Max(0, _visibleTopIndex - 50);
+                            bottomLimit = Math.Min(_commits.Count - 1, _visibleBottomIndex + 50);
+
+                            if (hoveredIndex < topLimit || hoveredIndex > bottomLimit)
+                            {
+                                topLimit = -1;
+                                bottomLimit = -1;
+                            }
+                        }
+
+                        HoveredLineageCommits = GetCommitLineageFast(_commits[hoveredIndex], LineageSearchMethod, depth, topLimit, bottomLimit);
+                    }
+                    else
+                    {
+                        HoveredLineageCommits = null;
+                    }
+                }
+            }
+        }
+
+        public bool[] HoveredLineageCommits
+        {
+            get => _hoveredLineageCommits;
+            set => SetProperty(ref _hoveredLineageCommits, value);
+        }
+
+        public Models.CommitLineageSearchMethod LineageSearchMethod
+        {
+            get => _repo.UIStates.LineageSearchMethod;
+            set
+            {
+                if (_repo.UIStates.LineageSearchMethod != value)
+                {
+                    _repo.UIStates.LineageSearchMethod = value;
+                    OnPropertyChanged();
+
+                    if (_repo.UIStates.GraphHighlighting >= Models.CommitGraphHighlighting.SelectedCommitsOnly)
+                        GenerateGraph(_commits);
+                }
+            }
+        }
+
         public Models.CommitGraphHighlighting GraphHighlighting
         {
             get => _repo.UIStates.GraphHighlighting;
@@ -96,6 +154,18 @@ namespace SourceGit.ViewModels
                 if (SetProperty(ref _selectedCommits, value) && oldCount + value.Count > 0)
                     PostSelectedCommitsChanged();
             }
+        }
+
+        public HashSet<int> SelectedLineagePaths
+        {
+            get => _selectedLineagePaths;
+            set => SetProperty(ref _selectedLineagePaths, value);
+        }
+
+        public bool[] SelectedLineageCommits
+        {
+            get => _selectedLineageCommits;
+            set => SetProperty(ref _selectedLineageCommits, value);
         }
 
         public object DetailContext
@@ -180,6 +250,12 @@ namespace SourceGit.ViewModels
         {
             _repo = repo;
             _commitDetailSharedData = new CommitDetailSharedData();
+        }
+
+        public void SetVisibleCommitRange(int top, int bottom)
+        {
+            _visibleTopIndex = top;
+            _visibleBottomIndex = bottom;
         }
 
         public void NotifyCurrentBranchChanged()
@@ -409,6 +485,14 @@ namespace SourceGit.ViewModels
 
         private void PostCommitsChanged()
         {
+            _commitMap.Clear();
+            for (int i = 0; i < _commits.Count; i++)
+            {
+                var c = _commits[i];
+                c.Index = i;
+                _commitMap[c.SHA] = c;
+            }
+
             if (_selectedCommits.Count == 0)
                 return;
 
@@ -437,6 +521,40 @@ namespace SourceGit.ViewModels
             SelectedCommits = selected;
         }
 
+        private void CalculateTargetLineage(Models.Commit commit)
+        {
+            Task.Run(() =>
+            {
+                if (commit == null)
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        SelectedLineageCommits = null;
+                        SelectedLineagePaths = null;
+                    });
+                    return;
+                }
+
+                var paths = new HashSet<int>();
+                var lineage = GetCommitLineageFast(commit, LineageSearchMethod, 20000);
+                for (int i = 0; i < lineage.Length; i++)
+                {
+                    if (lineage[i])
+                    {
+                        var c = _commits[i];
+                        if (c.PathIndex >= 0)
+                            paths.Add(c.PathIndex);
+                    }
+                }
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    SelectedLineageCommits = lineage;
+                    SelectedLineagePaths = paths;
+                });
+            });
+        }
+
         private void PostSelectedCommitsChanged()
         {
             if (_ignoreSelectionChange)
@@ -446,6 +564,8 @@ namespace SourceGit.ViewModels
             {
                 _repo.SearchCommitContext.Selected = null;
                 DetailContext = new Models.Null();
+                SelectedLineageCommits = null;
+                SelectedLineagePaths = null;
             }
             else if (_selectedCommits.Count == 1)
             {
@@ -457,6 +577,11 @@ namespace SourceGit.ViewModels
                     detail.Commit = c;
                 else
                     DetailContext = new CommitDetail(_repo, _commitDetailSharedData) { Commit = c };
+
+                var highlightSelected = _repo.UIStates.GraphHighlighting == Models.CommitGraphHighlighting.SelectedCommitsOnly ||
+                                         _repo.UIStates.GraphHighlighting == Models.CommitGraphHighlighting.CurrentBranchAndSelectedCommits;
+                if (highlightSelected)
+                    CalculateTargetLineage(c);
             }
             else if (_selectedCommits.Count == 2)
             {
@@ -466,11 +591,16 @@ namespace SourceGit.ViewModels
                     compare.SetTargets(_selectedCommits[1], _selectedCommits[0]);
                 else
                     DetailContext = new RevisionCompare(_repo, _selectedCommits[1], _selectedCommits[0]);
+
+                SelectedLineageCommits = null;
+                SelectedLineagePaths = null;
             }
             else
             {
                 _repo.SearchCommitContext.Selected = null;
                 DetailContext = new Models.Count(_selectedCommits.Count);
+                SelectedLineageCommits = null;
+                SelectedLineagePaths = null;
             }
 
             if (_repo.UIStates.GraphHighlighting >= Models.CommitGraphHighlighting.SelectedCommitsOnly)
@@ -492,11 +622,70 @@ namespace SourceGit.ViewModels
             Graph = Models.CommitGraph.Generate(commits, commitsChanged, firstParentOnly, highlighting, extraHeads);
         }
 
+        public bool[] GetCommitLineageFast(
+            Models.Commit commit,
+            Models.CommitLineageSearchMethod method,
+            uint depth = 100,
+            int viewportTopIndex = -1,
+            int viewportBottomIndex = -1)
+        {
+            var active = new bool[_commits.Count];
+            if (commit == null || method == Models.CommitLineageSearchMethod.None)
+                return active;
+
+            active[commit.Index] = true;
+
+            int topLimit = Math.Max(0, commit.Index - (int)depth);
+            int bottomLimit = Math.Min(_commits.Count - 1, commit.Index + (int)depth);
+
+            if (viewportTopIndex >= 0 && viewportBottomIndex >= viewportTopIndex)
+            {
+                topLimit = Math.Max(topLimit, viewportTopIndex);
+                bottomLimit = Math.Min(bottomLimit, viewportBottomIndex);
+            }
+
+            if (method == Models.CommitLineageSearchMethod.ChildsOnly || method == Models.CommitLineageSearchMethod.FullLineage)
+            {
+                for (int i = commit.Index - 1; i >= topLimit; i--)
+                {
+                    foreach (var pSha in _commits[i].Parents)
+                    {
+                        if (_commitMap.TryGetValue(pSha, out var parent) && parent.Index < _commits.Count && active[parent.Index])
+                        {
+                            active[i] = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (method == Models.CommitLineageSearchMethod.ParentsOnly || method == Models.CommitLineageSearchMethod.FullLineage)
+            {
+                for (int i = commit.Index; i <= bottomLimit; i++)
+                {
+                    if (active[i])
+                    {
+                        foreach (var pSha in _commits[i].Parents)
+                        {
+                            if (_commitMap.TryGetValue(pSha, out var parent) && parent.Index <= bottomLimit)
+                            {
+                                active[parent.Index] = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return active;
+        }
+
         private Repository _repo = null;
         private CommitDetailSharedData _commitDetailSharedData = null;
         private bool _isLoading = true;
         private List<Models.Commit> _commits = [];
         private Models.CommitGraph _graph = null;
+        private long _hoveredCommitIndex = -1;
+        private bool[] _hoveredLineageCommits = null;
         private List<Models.Commit> _selectedCommits = [];
         private Models.Bisect _bisect = null;
         private object _detailContext = new Models.Null();
@@ -507,5 +696,11 @@ namespace SourceGit.ViewModels
         private GridLength _topArea = new(1, GridUnitType.Star);
         private GridLength _bottomArea = new(1, GridUnitType.Star);
         private bool _isCollapseDetails = false;
+        private HashSet<int> _selectedLineagePaths = null;
+        private bool[] _selectedLineageCommits = null;
+        private int _visibleTopIndex = -1;
+        private int _visibleBottomIndex = -1;
+        private Dictionary<string, Models.Commit> _commitMap = new();
     }
 }
+

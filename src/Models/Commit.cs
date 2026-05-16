@@ -14,6 +14,14 @@ namespace SourceGit.Models
         ByContent,
     }
 
+    public enum CommitLineageSearchMethod
+    {
+        None = 0,
+        ParentsOnly = 1,
+        ChildsOnly = 2,
+        FullLineage = 3,
+    }
+
     public class Commit : ObservableObject
     {
         public string SHA { get; set; } = string.Empty;
@@ -28,6 +36,8 @@ namespace SourceGit.Models
         public bool IsMerged { get; set; } = false;
         public int Color { get; set; } = 0;
         public double LeftMargin { get; set; } = 0;
+        public int Index { get; set; } = -1;
+        public int PathIndex { get; set; } = -1;
 
         public bool IsHighlightedInGraph
         {
