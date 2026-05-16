@@ -551,6 +551,7 @@ namespace SourceGit.ViewModels
                 {
                     SelectedLineageCommits = lineage;
                     SelectedLineagePaths = paths;
+                    GenerateGraph(_commits);
                 });
             });
         }
@@ -615,8 +616,19 @@ namespace SourceGit.ViewModels
 
             if (highlighting >= Models.CommitGraphHighlighting.SelectedCommitsOnly)
             {
-                foreach (var c in _selectedCommits)
-                    extraHeads.Add(c.SHA);
+                if (_selectedLineageCommits != null)
+                {
+                    for (int i = 0; i < _selectedLineageCommits.Length; i++)
+                    {
+                        if (_selectedLineageCommits[i])
+                            extraHeads.Add(_commits[i].SHA);
+                    }
+                }
+                else
+                {
+                    foreach (var c in _selectedCommits)
+                        extraHeads.Add(c.SHA);
+                }
             }
 
             Graph = Models.CommitGraph.Generate(commits, commitsChanged, firstParentOnly, highlighting, extraHeads);
@@ -703,4 +715,3 @@ namespace SourceGit.ViewModels
         private Dictionary<string, Models.Commit> _commitMap = new();
     }
 }
-
