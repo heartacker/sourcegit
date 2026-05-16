@@ -76,6 +76,93 @@ namespace SourceGit.Models
         public List<Link> Links { get; } = [];
         public List<Dot> Dots { get; } = [];
 
+        /// <summary>
+        /// 为指定提交记录构建谱系掩码。
+        ///
+        /// 返回的布尔数组与 _commits 按索引一一对应：
+        /// - true 代表该行记录属于计算得出的谱系范围。
+        /// - false 代表该行记录不在该谱系范围内。
+        ///
+        /// 提交记录集合内的索引排布规则：
+        /// - 索引数值越小，对应提交记录越新（在历史列表中位置越靠上）。
+        /// - 索引数值越大，对应提交记录越旧（在历史列表中位置越靠下）。
+        ///
+        /// 检索模式说明：
+        /// - ChildsOnly：向索引更小方向遍历，查找更新的后代提交记录。
+        /// - ParentsOnly：向索引更大方向遍历，查找更早的祖先提交记录。
+        /// - FullLineage：同时向两个方向进行遍历检索。
+        /// </summary>
+        public static bool[] GetCommitLineageFast(
+            List<Commit> commits,
+            Dictionary<string, Commit> map,
+            Commit commit,
+            CommitLineageSearchMethod method,
+            uint depth = 100,
+            int viewportTopIndex = -1,
+            int viewportBottomIndex = -1)
+        {
+            var active = new bool[commits.Count];
+            if (commit == null || method == Models.CommitLineageSearchMethod.None)
+                return active;
+
+            active[commit.Index] = true;
+
+            // First clamp by logical depth around the target commit.
+            int topLimit = Math.Max(0, commit.Index - (int)depth);
+            int bottomLimit = Math.Min(commits.Count - 1, commit.Index + (int)depth);
+
+            // Then optionally clamp by current viewport to reduce work for hover updates.
+            if (viewportTopIndex >= 0 && viewportBottomIndex >= viewportTopIndex)
+            {
+                topLimit = Math.Max(topLimit, viewportTopIndex);
+                bottomLimit = Math.Min(bottomLimit, viewportBottomIndex);
+            }
+
+            if (method == Models.CommitLineageSearchMethod.ChildsOnly ||
+                method == Models.CommitLineageSearchMethod.FullLineage)
+            {
+                // Descendant pass:
+                // Scan towards newer rows (smaller index). A commit is descendant-highlighted
+                // when any of its parents is already active.
+                for (int i = commit.Index - 1; i >= topLimit; i--)
+                {
+                    foreach (var pSha in commits[i].Parents)
+                    {
+                        if (map.TryGetValue(pSha, out var parent) &&
+                            parent.Index < commits.Count && active[parent.Index])
+                        {
+                            active[i] = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (method == Models.CommitLineageSearchMethod.ParentsOnly ||
+                method == Models.CommitLineageSearchMethod.FullLineage)
+            {
+                // Ancestor pass:
+                // Scan towards older rows (larger index). For each active commit,
+                // propagate highlight to all reachable parents in range.
+                for (int i = commit.Index; i <= bottomLimit; i++)
+                {
+                    if (active[i])
+                    {
+                        foreach (var pSha in commits[i].Parents)
+                        {
+                            if (map.TryGetValue(pSha, out var parent) &&
+                                parent.Index <= bottomLimit)
+                            {
+                                active[parent.Index] = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return active;
+        }
+
         public static CommitGraph Generate(List<Commit> commits, bool recalculateMergeState,
             bool firstParentOnlyEnabled, CommitGraphHighlighting highlighting,
             bool[] selectedLineage)
