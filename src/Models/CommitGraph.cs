@@ -61,6 +61,7 @@ namespace SourceGit.Models
             Default,
             Head,
             Merge,
+            Filter,
         }
 
         public class Dot
@@ -228,7 +229,7 @@ namespace SourceGit.Models
                 // Calculate link position of this commit.
                 var position = new Point(major?.LastX ?? offsetX, offsetY);
                 var dotColor = major?.Path.Color ?? 0;
-                temp.Dots.Add(new Dot() { Center = position, Color = dotColor, IsHighlighted = isHighlighted, Type = commit.IsCurrentHead ? DotType.Head : (commit.Parents.Count > 1 ? DotType.Merge : DotType.Default) });
+                temp.Dots.Add(new Dot() { Center = position, Color = dotColor, IsHighlighted = isHighlighted, Type = commit.IsCommitFilterHead ? DotType.Filter : (commit.IsCurrentHead ? DotType.Head : (commit.Parents.Count > 1 ? DotType.Merge : DotType.Default)) });
 
                 // Deal with other parents
                 if (!firstParentOnlyEnabled)

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1054,8 +1055,13 @@ namespace SourceGit.ViewModels
 
             if (clearExists)
             {
+                var soloFilters = _uiStates.HistoryFilters.Where(f => f.Type == Models.FilterType.SoloCommits).ToList();
                 _uiStates.HistoryFilters.Clear();
-                HistoryFilterMode = Models.FilterMode.None;
+                foreach (var f in soloFilters)
+                    _uiStates.HistoryFilters.Add(f);
+
+                if (_uiStates.HistoryFilters.Count == 0)
+                    HistoryFilterMode = Models.FilterMode.None;
             }
 
             if (node.Backend is Models.Branch branch)
@@ -1243,6 +1249,36 @@ namespace SourceGit.ViewModels
             }, token);
         }
 
+        public List<Models.Decorator> GetRefsContainsThisCommit(string hash = null)
+        {
+            return new Commands.QueryRefsContainsCommit(FullPath, hash ?? "HEAD").GetResultAsync().Result;
+        }
+
+        public void SetSoloCommitFilterMode(Models.Commit commit, Models.FilterMode mode)
+            => SetSoloCommitFilterMode(commit.SHA, mode);
+
+        public void SetSoloCommitFilterMode(IEnumerable<Models.Commit> commits, Models.FilterMode mode)
+            => SetSoloCommitFilterMode(commits.Select(x => x.SHA).ToList(), mode);
+
+        public void SetSoloCommitFilterMode(string sha, Models.FilterMode mode)
+        {
+            if (_uiStates.UpdateHistoryFilters(sha, Models.FilterType.SoloCommits, mode))
+                RefreshHistoryFilters(true);
+        }
+
+        public void SetSoloCommitFilterMode(IEnumerable<string> shas, Models.FilterMode mode)
+        {
+            var changed = false;
+            foreach (var sha in shas)
+            {
+                if (_uiStates.UpdateHistoryFilters(sha, Models.FilterType.SoloCommits, mode))
+                    changed = true;
+            }
+
+            if (changed)
+                RefreshHistoryFilters(true);
+        }
+
         public void RefreshCommits()
         {
             if (_cancellationRefreshCommits is { IsCancellationRequested: false })
@@ -1258,9 +1294,10 @@ namespace SourceGit.ViewModels
                 var builder = new StringBuilder();
                 builder
                     .Append('-').Append(Preferences.Instance.MaxHistoryCommits).Append(' ')
-                    .Append(_uiStates.BuildHistoryParams());
+                    .Append(_uiStates.BuildHistoryParams(this));
 
-                var commits = await new Commands.QueryCommits(FullPath, builder.ToString())
+                var patterns = _uiStates.HistoryFilters.Where(f => f.Type == Models.FilterType.SoloCommits).Select(f => f.Pattern).ToList();
+                var commits = await new Commands.QueryCommits(FullPath, builder.ToString(), true, patterns)
                     .GetResultAsync()
                     .ConfigureAwait(false);
 

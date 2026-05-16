@@ -39,6 +39,7 @@ namespace SourceGit.Models
         public int Index { get; set; } = -1;
         public int PathIndex { get; set; } = -1;
 
+        public bool IsCommitFilterHead { get; set; } = false;
         public bool IsFolded { get; set; } = false;
         public int FoldedCount { get; set; } = 0;
 

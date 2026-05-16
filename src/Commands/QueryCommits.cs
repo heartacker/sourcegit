@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -8,12 +9,13 @@ namespace SourceGit.Commands
 {
     public class QueryCommits : Command
     {
-        public QueryCommits(string repo, string limits, bool markMerged = true)
+        public QueryCommits(string repo, string limits, bool markMerged = true, List<string> patterns = null)
         {
             WorkingDirectory = repo;
             Context = repo;
             Args = $"log --no-show-signature --decorate=full --format=%H%x00%P%x00%D%x00%aN±%aE%x00%at%x00%cN±%cE%x00%ct%x00%s {limits}";
             _markMerged = markMerged;
+            _patterns = patterns ?? new List<string>();
         }
 
         public QueryCommits(string repo, string filter, Models.CommitSearchMethod method, bool onlyCurrentBranch)
@@ -57,6 +59,7 @@ namespace SourceGit.Commands
         public async Task<List<Models.Commit>> GetResultAsync()
         {
             var commits = new List<Models.Commit>();
+            var commitIdx = 0;
             try
             {
                 using var proc = new Process();
@@ -70,7 +73,7 @@ namespace SourceGit.Commands
                     if (parts.Length != 8)
                         continue;
 
-                    var commit = new Models.Commit() { SHA = parts[0] };
+                    var commit = new Models.Commit() { SHA = parts[0], Index = commitIdx++ };
                     commit.ParseParents(parts[1]);
                     commit.ParseDecorators(parts[2]);
                     commit.Author = Models.User.FindOrAdd(parts[3]);
@@ -78,6 +81,7 @@ namespace SourceGit.Commands
                     commit.Committer = Models.User.FindOrAdd(parts[5]);
                     commit.CommitterTime = ulong.Parse(parts[6]);
                     commit.Subject = parts[7];
+                    commit.IsCommitFilterHead = _patterns.Count > 0 && _patterns.Any(f => line.StartsWith(f));
                     commits.Add(commit);
 
                     if (!findHead && commit.IsMerged)
@@ -111,5 +115,6 @@ namespace SourceGit.Commands
         }
 
         private bool _markMerged = false;
+        private List<string> _patterns = new List<string>();
     }
 }

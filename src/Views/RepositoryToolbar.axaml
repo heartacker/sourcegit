@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:m="using:SourceGit.Models"
              xmlns:vm="using:SourceGit.ViewModels"
+             xmlns:c="using:SourceGit.Converters"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SourceGit.Views.RepositoryToolbar"
              x:DataType="vm:Repository">
@@ -130,6 +131,14 @@
 
       <Button Classes="icon_button" Width="32" Click="NavigateToHead" ToolTip.Tip="{DynamicResource Text.Repository.NavigateToCurrentHead}">
         <Path Width="13" Height="13" Margin="0,2,0,0" Data="{StaticResource Icons.Target}" Fill="{DynamicResource Brush.FG1}"/>
+      </Button>
+
+      <Button Classes="icon_button" Width="32" Click="SoloModeOnCurrentHead" ToolTip.Tip="{DynamicResource Text.Repository.SoloModeOnCurrentHead}">
+        <Path Width="13" Height="13" Margin="0,2,0,0" Data="{StaticResource Icons.LightOn}" Fill="{DynamicResource Brush.FG1}"/>
+      </Button>
+
+      <Button Classes="icon_button" Width="32" Click="ClearSoloMode" IsVisible="{Binding SoloTargets.Count, Converter={x:Static c:IntConverters.IsGreaterThanZero}}" ToolTip.Tip="{DynamicResource Text.Repository.ClearSoloMode}">
+        <Path Width="13" Height="13" Margin="0,2,0,0" Data="{StaticResource Icons.LightOff}" Fill="{DynamicResource Brush.FG1}"/>
       </Button>
     </StackPanel>
   </Grid>
