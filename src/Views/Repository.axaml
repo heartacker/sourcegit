@@ -410,7 +410,7 @@
                 <Setter Property="CornerRadius" Value="4"/>
               </Style>
             </ListBox.Styles>
-            <ListBox.ItemTemplate>              
+            <ListBox.ItemTemplate>
               <DataTemplate DataType="vm:Worktree">
                 <Border Height="24"
                         Background="Transparent"
@@ -436,7 +436,7 @@
                         <TextBlock Grid.Row="0" Grid.Column="3"
                                    Margin="6,0,0,0"
                                    Text="{Binding Branch, Mode=OneWay}"/>
-                        
+
                         <TextBlock Grid.Row="1" Grid.Column="0"
                                    Classes="info_label"
                                    HorizontalAlignment="Left" VerticalAlignment="Center"
@@ -911,7 +911,8 @@
                        CurrentBranch="{Binding CurrentBranch, Mode=OneWay}"
                        Branches="{Binding Repo.Branches, Mode=OneWay}"
                        Bisect="{Binding Bisect, Mode=OneWay}"
-                       IssueTrackers="{Binding IssueTrackers, Mode=OneWay}">
+                       IssueTrackers="{Binding IssueTrackers, Mode=OneWay}"
+                       GraphHighlighting="{Binding GraphHighlighting, Mode=OneWay}">
             <v:Histories.IsDetailsPanelExpanded>
               <MultiBinding Converter="{x:Static BoolConverters.Or}">
                 <Binding Source="{x:Static vm:Preferences.Instance}" Path="UseTwoColumnsLayoutInHistories" Mode="OneWay"/>

@@ -51,6 +51,12 @@ namespace SourceGit.Models
             set;
         } = CommitGraphHighlighting.All;
 
+        public CommitLineageSearchMethod LineageSearchMethod
+        {
+            get;
+            set;
+        } = CommitLineageSearchMethod.FullLineage;
+
         public BranchSortMode LocalBranchSortMode
         {
             get;

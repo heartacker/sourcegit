@@ -24,6 +24,33 @@ namespace SourceGit.Views
             set => SetValue(DotBrushProperty, value);
         }
 
+        public static readonly StyledProperty<bool> OnlyHighlightedProperty =
+            AvaloniaProperty.Register<CommitGraph, bool>(nameof(OnlyHighlighted), true);
+
+        public bool OnlyHighlighted
+        {
+            get => GetValue(OnlyHighlightedProperty);
+            set => SetValue(OnlyHighlightedProperty, value);
+        }
+
+        public static readonly StyledProperty<bool[]> HoveredLineageCommitsProperty =
+            AvaloniaProperty.Register<CommitGraph, bool[]>(nameof(HoveredLineageCommits));
+
+        public bool[] HoveredLineageCommits
+        {
+            get => GetValue(HoveredLineageCommitsProperty);
+            set => SetValue(HoveredLineageCommitsProperty, value);
+        }
+
+        public static readonly StyledProperty<long> HoveredCommitIndexProperty =
+            AvaloniaProperty.Register<CommitGraph, long>(nameof(HoveredCommitIndex), -1);
+
+        public long HoveredCommitIndex
+        {
+            get => GetValue(HoveredCommitIndexProperty);
+            set => SetValue(HoveredCommitIndexProperty, value);
+        }
+
         public static readonly StyledProperty<Models.CommitGraphLayout> LayoutProperty =
             AvaloniaProperty.Register<CommitGraph, Models.CommitGraphLayout>(nameof(Layout));
 
@@ -38,7 +65,46 @@ namespace SourceGit.Views
             AffectsRender<CommitGraph>(
                 GraphProperty,
                 DotBrushProperty,
+                OnlyHighlightedProperty,
+                HoveredLineageCommitsProperty,
+                HoveredCommitIndexProperty,
                 LayoutProperty);
+        }
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+
+            if (change.Property == GraphProperty ||
+                change.Property == HoveredCommitIndexProperty ||
+                change.Property == HoveredLineageCommitsProperty)
+            {
+                UpdateHoveredRelated();
+            }
+        }
+
+        private void UpdateHoveredRelated()
+        {
+            var graph = Graph;
+            if (graph == null)
+                return;
+
+            foreach (var line in graph.Paths)
+                line.IsHoveredRelated = false;
+
+            var hoveredLineage = HoveredLineageCommits;
+            if (hoveredLineage != null)
+            {
+                foreach (var line in graph.Paths)
+                {
+                    if (line.StartCommitIndex >= 0 && line.EndCommitIndex >= 0 &&
+                        line.StartCommitIndex < hoveredLineage.Length && line.EndCommitIndex < hoveredLineage.Length)
+                    {
+                        line.IsHoveredRelated = hoveredLineage[line.StartCommitIndex] &&
+                                                hoveredLineage[line.EndCommitIndex];
+                    }
+                }
+            }
         }
 
         public override void Render(DrawingContext context)
@@ -64,7 +130,10 @@ namespace SourceGit.Views
 
         private void DrawCurves(DrawingContext context, Models.CommitGraph graph, double top, double bottom, double rowHeight)
         {
+            var hoverBold = 2.0;
+            var onlyHighlighted = OnlyHighlighted;
             var grayedPen = new Pen(new SolidColorBrush(Colors.Gray, 0.4), Models.CommitGraph.Pens[0].Thickness);
+            var hoveredLineage = HoveredLineageCommits;
 
             foreach (var link in graph.Links)
             {
@@ -76,6 +145,19 @@ namespace SourceGit.Views
                 if (startY > bottom)
                     break;
 
+                var isLinkInHoveredLineage = hoveredLineage != null &&
+                    link.StartCommitIndex >= 0 && link.EndCommitIndex >= 0 &&
+                    link.StartCommitIndex < hoveredLineage.Length && link.EndCommitIndex < hoveredLineage.Length &&
+                    hoveredLineage[link.StartCommitIndex] &&
+                    hoveredLineage[link.EndCommitIndex];
+
+                var pen = Models.CommitGraph.Pens[link.Color];
+                if (onlyHighlighted && !link.IsHighlighted)
+                    pen = grayedPen;
+
+                if (isLinkInHoveredLineage)
+                    pen = new Pen(pen.Brush, pen.Thickness + hoverBold);
+
                 var geo = new StreamGeometry();
                 using (var ctx = geo.Open())
                 {
@@ -83,7 +165,6 @@ namespace SourceGit.Views
                     ctx.QuadraticBezierTo(new Point(link.Control.X, link.Control.Y * rowHeight), new Point(link.End.X, endY));
                 }
 
-                var pen = link.IsHighlighted ? Models.CommitGraph.Pens[link.Color] : grayedPen;
                 context.DrawGeometry(null, pen, geo);
             }
 
@@ -99,7 +180,12 @@ namespace SourceGit.Views
                     break;
 
                 var geo = new StreamGeometry();
-                var pen = line.IsHighlighted ? Models.CommitGraph.Pens[line.Color] : grayedPen;
+                var pen = Models.CommitGraph.Pens[line.Color];
+                if (onlyHighlighted && !line.IsHighlighted)
+                    pen = grayedPen;
+
+                if (line.IsHoveredRelated)
+                    pen = new Pen(pen.Brush, pen.Thickness + hoverBold);
 
                 using (var ctx = geo.Open())
                 {
@@ -161,10 +247,13 @@ namespace SourceGit.Views
         {
             var dotFill = DotBrush;
             var dotFillPen = new Pen(dotFill, 2);
+            var onlyHighlighted = OnlyHighlighted;
             var grayedPen = new Pen(Brushes.Gray, Models.CommitGraph.Pens[0].Thickness);
+            var hoveredLineage = HoveredLineageCommits;
 
-            foreach (var dot in graph.Dots)
+            for (int i = 0; i < graph.Dots.Count; i++)
             {
+                var dot = graph.Dots[i];
                 var center = new Point(dot.Center.X, dot.Center.Y * rowHeight);
 
                 if (center.Y < top)
@@ -172,7 +261,15 @@ namespace SourceGit.Views
                 if (center.Y > bottom)
                     break;
 
-                var pen = dot.IsHighlighted ? Models.CommitGraph.Pens[dot.Color] : grayedPen;
+                var isDotInHoveredLineage = hoveredLineage != null && i >= 0 && i < hoveredLineage.Length && hoveredLineage[i];
+
+                var pen = Models.CommitGraph.Pens[dot.Color];
+                if (!dot.IsHighlighted && onlyHighlighted)
+                    pen = grayedPen;
+
+                if (isDotInHoveredLineage)
+                    pen = new Pen(pen.Brush, pen.Thickness + 0.8);
+
                 switch (dot.Type)
                 {
                     case Models.CommitGraph.DotType.Head:
