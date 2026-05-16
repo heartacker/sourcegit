@@ -328,6 +328,15 @@ namespace SourceGit.Views
             set => SetValue(IsScrollToTopVisibleProperty, value);
         }
 
+        public static readonly StyledProperty<bool> IsDetailsPanelMaximizeProperty =
+            AvaloniaProperty.Register<Histories, bool>(nameof(IsDetailsPanelMaximize), false);
+
+        public bool IsDetailsPanelMaximize
+        {
+            get => GetValue(IsDetailsPanelMaximizeProperty);
+            set => SetValue(IsDetailsPanelMaximizeProperty, value);
+        }
+
         public static readonly StyledProperty<bool> IsDetailsPanelExpandedProperty =
             AvaloniaProperty.Register<Histories, bool>(nameof(IsDetailsPanelExpanded), true);
 
@@ -349,6 +358,22 @@ namespace SourceGit.Views
         public Histories()
         {
             InitializeComponent();
+        }
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+
+            if (change.Property == IsDetailsPanelExpandedProperty && IsDetailsPanelExpanded)
+            {
+                if (IsDetailsPanelMaximize)
+                    IsDetailsPanelMaximize = false;
+            }
+            else if (change.Property == IsDetailsPanelMaximizeProperty && IsDetailsPanelMaximize)
+            {
+                if (IsDetailsPanelExpanded)
+                    IsDetailsPanelExpanded = false;
+            }
         }
 
         public async Task GotoParent()
@@ -697,6 +722,32 @@ namespace SourceGit.Views
         {
             // Force-update the graph layout to ensure the graph is correctly rendered when it's loaded.
             OnCommitListLayoutUpdated(sender, e);
+        }
+
+        private void OnDetailsTitleBarDoubleTapped(object sender, TappedEventArgs e)
+        {
+            if (ViewModels.Preferences.Instance.UseTwoColumnsLayoutInHistories)
+                return;
+
+            if (DataContext is not ViewModels.Histories vm || sender is not Grid grid)
+                return;
+
+            // 只响应按钮栏高度范围内的双击
+            if (e.GetPosition(grid).Y > DetailsButtonBar.Bounds.Height)
+                return;
+
+            // 排除按钮内部触发
+            if (e.Source is Visual source &&
+                (source.FindAncestorOfType<Button>() != null
+                 || source.FindAncestorOfType<ToggleButton>() != null))
+                return;
+
+            if (vm.IsCollapseDetails || vm.IsMaximizeDetails)
+                vm.IsCollapseDetails = vm.IsMaximizeDetails = false;
+            else
+                vm.IsMaximizeDetails = true;
+
+            e.Handled = true;
         }
 
         private void OnTabHeaderPointerPressed(object sender, PointerPressedEventArgs e)
