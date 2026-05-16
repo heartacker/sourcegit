@@ -319,6 +319,15 @@ namespace SourceGit.Views
             set => SetValue(IsScrollToTopVisibleProperty, value);
         }
 
+        public static readonly StyledProperty<bool> IsDetailsPanelMaximizeProperty =
+            AvaloniaProperty.Register<Histories, bool>(nameof(IsDetailsPanelMaximize), false);
+
+        public bool IsDetailsPanelMaximize
+        {
+            get => GetValue(IsDetailsPanelMaximizeProperty);
+            set => SetValue(IsDetailsPanelMaximizeProperty, value);
+        }
+
         public static readonly StyledProperty<bool> IsDetailsPanelExpandedProperty =
             AvaloniaProperty.Register<Histories, bool>(nameof(IsDetailsPanelExpanded), true);
 
@@ -340,6 +349,22 @@ namespace SourceGit.Views
         public Histories()
         {
             InitializeComponent();
+        }
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+
+            if (change.Property == IsDetailsPanelExpandedProperty && IsDetailsPanelExpanded)
+            {
+                if (IsDetailsPanelMaximize)
+                    IsDetailsPanelMaximize = false;
+            }
+            else if (change.Property == IsDetailsPanelMaximizeProperty && IsDetailsPanelMaximize)
+            {
+                if (IsDetailsPanelExpanded)
+                    IsDetailsPanelExpanded = false;
+            }
         }
 
         public async Task GotoParent()
