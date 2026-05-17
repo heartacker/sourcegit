@@ -20,7 +20,8 @@
           IsVisible="{Binding HasActiveViewFilters}"
           PointerPressed="OnPointerPressed"
           PointerMoved="OnPointerMoved"
-          PointerReleased="OnPointerReleased">
+          PointerReleased="OnPointerReleased"
+          SizeChanged="OnContainerSizeChanged">
     <Border.RenderTransform>
       <TranslateTransform/>
     </Border.RenderTransform>

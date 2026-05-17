@@ -17,7 +17,7 @@ namespace SourceGit.Views
         private void OnPointerPressed(object sender, PointerPressedEventArgs e)
         {
             _isDragging = true;
-            _lastPoint = e.GetPosition(this.Parent as Visual);
+            _lastPoint = e.GetPosition(this);
             e.Pointer.Capture(this);
             e.Handled = true;
         }
@@ -29,11 +29,12 @@ namespace SourceGit.Views
                 var transform = Container.RenderTransform as TranslateTransform;
                 if (transform != null)
                 {
-                    var currentPoint = e.GetPosition(this.Parent as Visual);
+                    var currentPoint = e.GetPosition(this);
                     var delta = currentPoint - _lastPoint;
                     transform.X += delta.X;
                     transform.Y += delta.Y;
                     _lastPoint = currentPoint;
+                    _isMoved = true;
                 }
                 e.Handled = true;
             }
@@ -44,6 +45,19 @@ namespace SourceGit.Views
             _isDragging = false;
             e.Pointer.Capture(null);
             e.Handled = true;
+        }
+
+        private void OnContainerSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (!_isMoved && Parent is Control parent)
+            {
+                var transform = Container.RenderTransform as TranslateTransform;
+                if (transform != null)
+                {
+                    transform.X = (parent.Bounds.Width - e.NewSize.Width) / 2;
+                    transform.Y = 48;
+                }
+            }
         }
 
         private void OnRemoveViewFilter(object sender, RoutedEventArgs e)
@@ -66,6 +80,7 @@ namespace SourceGit.Views
         }
 
         private bool _isDragging = false;
+        private bool _isMoved = false;
         private Point _lastPoint;
     }
 }
