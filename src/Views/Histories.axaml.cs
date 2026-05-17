@@ -713,6 +713,32 @@ namespace SourceGit.Views
             }
         }
 
+        private void OnDetailsTitleBarDoubleTapped(object sender, TappedEventArgs e)
+        {
+            if (ViewModels.Preferences.Instance.UseTwoColumnsLayoutInHistories)
+                return;
+
+            if (DataContext is not ViewModels.Histories vm || sender is not Grid grid)
+                return;
+
+            // 只响应按钮栏高度范围内的双击
+            if (e.GetPosition(grid).Y > DetailsButtonBar.Bounds.Height)
+                return;
+
+            // 排除按钮内部触发
+            if (e.Source is Visual source &&
+                (source.FindAncestorOfType<Button>() != null
+                 || source.FindAncestorOfType<ToggleButton>() != null))
+                return;
+
+            if (vm.IsCollapseDetails || vm.IsMaximizeDetails)
+                vm.IsCollapseDetails = vm.IsMaximizeDetails = false;
+            else
+                vm.IsMaximizeDetails = true;
+
+            e.Handled = true;
+        }
+
         private void OnTabHeaderPointerPressed(object sender, PointerPressedEventArgs e)
         {
             if (ViewModels.Preferences.Instance.UseTwoColumnsLayoutInHistories)
