@@ -116,14 +116,36 @@ namespace SourceGit.ViewModels
         public Models.HistoryShowFlags HistoryShowFlags
         {
             get => _uiStates.HistoryShowFlags;
-            private set
+            set
             {
                 if (value != _uiStates.HistoryShowFlags)
                 {
                     _uiStates.HistoryShowFlags = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsReflogEnabled));
+                    OnPropertyChanged(nameof(IsFirstParentOnlyEnabled));
+                    OnPropertyChanged(nameof(IsSimplifyByDecorationEnabled));
                     RefreshCommits();
                 }
             }
+        }
+
+        public bool IsReflogEnabled
+        {
+            get => _uiStates.HistoryShowFlags.HasFlag(Models.HistoryShowFlags.Reflog);
+            set => ToggleHistoryShowFlag(Models.HistoryShowFlags.Reflog);
+        }
+
+        public bool IsFirstParentOnlyEnabled
+        {
+            get => _uiStates.HistoryShowFlags.HasFlag(Models.HistoryShowFlags.FirstParentOnly);
+            set => ToggleHistoryShowFlag(Models.HistoryShowFlags.FirstParentOnly);
+        }
+
+        public bool IsSimplifyByDecorationEnabled
+        {
+            get => _uiStates.HistoryShowFlags.HasFlag(Models.HistoryShowFlags.SimplifyByDecoration);
+            set => ToggleHistoryShowFlag(Models.HistoryShowFlags.SimplifyByDecoration);
         }
 
         public string Filter

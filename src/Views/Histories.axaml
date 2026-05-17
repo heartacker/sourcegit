@@ -31,7 +31,7 @@
                              ItemsSource="{Binding Commits, Mode=OneWay}"
                              TotalCommits="{Binding Commits.Count, Mode=OneWay}"
                              SelectedCommits="{Binding SelectedCommits, Mode=TwoWay}"
-                             ColumnHeaderHeight="24"
+                             ColumnHeaderHeight="32"
                              RowHeight="26"
                              LayoutUpdated="OnCommitListLayoutUpdated"
                              ContextRequested="OnCommitListContextRequested"
@@ -55,7 +55,7 @@
           </Style>
 
           <Style Selector="DataGridColumnHeader">
-            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="MinHeight" Value="32"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
               <ControlTemplate>
@@ -100,7 +100,41 @@
         <DataGrid.Columns>
           <DataGridTemplateColumn Width="*" IsReadOnly="True">
             <DataGridTemplateColumn.Header>
-              <TextBlock Classes="table_header" Text="{DynamicResource Text.Histories.Header.GraphAndSubject}" HorizontalAlignment="Center"/>
+              <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                  <ToggleButton x:Name="ToggleHeaderActions"
+                                Classes="line_path"
+                                Width="24" Height="24"
+                                Padding="4">
+                    <Path Width="14" Height="14" Data="{StaticResource Icons.Branch}"/>
+                  </ToggleButton>
+
+                  <StackPanel Orientation="Horizontal" IsVisible="{Binding #ToggleHeaderActions.IsChecked}">
+                    <ToggleButton Classes="line_path"
+                                  Width="24" Height="24"
+                                  Padding="4"
+                                  IsChecked="{Binding Repo.IsReflogEnabled, Mode=TwoWay}"
+                                  ToolTip.Tip="{DynamicResource Text.Repository.ShowLostCommits}">
+                      <Path Width="14" Height="14" Data="{StaticResource Icons.Logs}"/>
+                    </ToggleButton>
+                    <ToggleButton Classes="line_path"
+                                  Width="24" Height="24"
+                                  Padding="4"
+                                  IsChecked="{Binding Repo.IsFirstParentOnlyEnabled, Mode=TwoWay}"
+                                  ToolTip.Tip="{DynamicResource Text.Repository.ShowFirstParentOnly}">
+                      <Path Width="14" Height="14" Data="{StaticResource Icons.Merge}"/>
+                    </ToggleButton>
+                    <ToggleButton Classes="line_path"
+                                  Width="24" Height="24"
+                                  Padding="4"
+                                  IsChecked="{Binding Repo.IsSimplifyByDecorationEnabled, Mode=TwoWay}"
+                                  ToolTip.Tip="{DynamicResource Text.Repository.ShowDecoratedCommitsOnly}">
+                      <Path Width="14" Height="14" Data="{StaticResource Icons.Branch}"/>
+                    </ToggleButton>
+                  </StackPanel>
+                </StackPanel>
+                <TextBlock Classes="table_header" Text="{DynamicResource Text.Histories.Header.GraphAndSubject}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Grid>
             </DataGridTemplateColumn.Header>
 
             <DataGridTemplateColumn.CellTemplate>
@@ -228,7 +262,7 @@
               ContextRequested="OnCommitListHeaderContextRequested"/>              
 
       <v:CommitGraph x:Name="CommitGraph"
-                     Margin="0,24,0,0"
+                     Margin="0,32,0,0"
                      Graph="{Binding Graph}"
                      DotBrush="{DynamicResource Brush.Contents}"
                      OnlyHighlighted="{Binding GraphHighlighting, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter={x:Static m:CommitGraphHighlighting.All}}"
