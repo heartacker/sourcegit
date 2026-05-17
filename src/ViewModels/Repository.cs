@@ -1263,10 +1263,18 @@ namespace SourceGit.ViewModels
             var solo = _histories.ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
             if (solo != null)
             {
+                var targets = new List<string>(solo.Targets);
                 if (mode == Models.FilterMode.Included)
-                    solo.Targets = [commit.SHA];
+                {
+                    if (!targets.Contains(commit.SHA))
+                        targets.Add(commit.SHA);
+                }
                 else
-                    solo.Targets = [];
+                {
+                    targets.Remove(commit.SHA);
+                }
+
+                solo.Targets = targets;
                 _histories.UpdateDisplayCommits();
             }
         }
@@ -1276,10 +1284,22 @@ namespace SourceGit.ViewModels
             var solo = _histories.ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
             if (solo != null)
             {
+                var targets = new List<string>(solo.Targets);
                 if (mode == Models.FilterMode.Included)
-                    solo.Targets = commits.Select(x => x.SHA).ToList();
+                {
+                    foreach (var c in commits)
+                    {
+                        if (!targets.Contains(c.SHA))
+                            targets.Add(c.SHA);
+                    }
+                }
                 else
-                    solo.Targets = [];
+                {
+                    foreach (var c in commits)
+                        targets.Remove(c.SHA);
+                }
+
+                solo.Targets = targets;
                 _histories.UpdateDisplayCommits();
             }
         }
@@ -1289,10 +1309,18 @@ namespace SourceGit.ViewModels
             var solo = _histories.ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
             if (solo != null)
             {
+                var targets = new List<string>(solo.Targets);
                 if (mode == Models.FilterMode.Included)
-                    solo.Targets = [sha];
+                {
+                    if (!targets.Contains(sha))
+                        targets.Add(sha);
+                }
                 else
-                    solo.Targets = [];
+                {
+                    targets.Remove(sha);
+                }
+
+                solo.Targets = targets;
                 _histories.UpdateDisplayCommits();
             }
         }
@@ -1302,10 +1330,22 @@ namespace SourceGit.ViewModels
             var solo = _histories.ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
             if (solo != null)
             {
+                var targets = new List<string>(solo.Targets);
                 if (mode == Models.FilterMode.Included)
-                    solo.Targets = shas.ToList();
+                {
+                    foreach (var sha in shas)
+                    {
+                        if (!targets.Contains(sha))
+                            targets.Add(sha);
+                    }
+                }
                 else
-                    solo.Targets = [];
+                {
+                    foreach (var sha in shas)
+                        targets.Remove(sha);
+                }
+
+                solo.Targets = targets;
                 _histories.UpdateDisplayCommits();
             }
         }
