@@ -787,6 +787,7 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+
         private ContextMenu CreateContextMenuForMultipleCommits(ViewModels.Repository repo, List<Models.Commit> selected)
         {
             var canCherryPick = true;
@@ -896,6 +897,20 @@ namespace SourceGit.Views
                 e.Handled = true;
             };
             menu.Items.Add(saveToPatch);
+
+            var soloCommits = new MenuItem();
+            soloCommits.Header = App.Text("CommitCM.SoloCommits");
+            soloCommits.Icon = this.CreateMenuIcon("Icons.LightOn");
+            soloCommits.Click += (_, e) =>
+            {
+                ApplySoloTokens(repo, selected.Select(c => c.SHA));
+                e.Handled = true;
+            };
+
+            menu.Items.Add(new MenuItem() { Header = "-" });
+
+            menu.Items.Add(soloCommits);
+
             menu.Items.Add(new MenuItem() { Header = "-" });
 
             var copyInfos = new MenuItem();
@@ -963,6 +978,7 @@ namespace SourceGit.Views
             copy.Items.Add(copySubjects);
             copy.Items.Add(copyMessage);
             menu.Items.Add(copy);
+
             return menu;
         }
 
@@ -1500,6 +1516,18 @@ namespace SourceGit.Views
             copy.Items.Add(copyCommitterTime);
             menu.Items.Add(copy);
 
+            var soloCommits = new MenuItem();
+            soloCommits.Header = App.Text("CommitCM.SoloCommits");
+            soloCommits.Icon = this.CreateMenuIcon("Icons.LightOn");
+            soloCommits.Click += (_, e) =>
+            {
+                ApplySoloTokens(repo, [commit.SHA]);
+                e.Handled = true;
+            };
+
+            menu.Items.Add(new MenuItem() { Header = "-" });
+            menu.Items.Add(soloCommits);
+
             return menu;
         }
 
@@ -1836,6 +1864,46 @@ namespace SourceGit.Views
                 repo.SendNotification($"Commit '{start}' is not a valid revision for `git rebase -i`!", true);
             else
                 await this.ShowDialogAsync(new ViewModels.InteractiveRebase(repo, on, prefill));
+        }
+
+        private void OnSoloModeOnCurrentHead(object sender, RoutedEventArgs e)
+        {
+            var repoView = this.FindAncestorOfType<Repository>();
+            if (repoView is { DataContext: ViewModels.Repository { CurrentBranch: not null } repo })
+            {
+                ApplySoloTokens(repo, ["HEAD", repo.CurrentBranch.Head]);
+                e.Handled = true;
+            }
+        }
+
+        private void OnClearSoloMode(object sender, RoutedEventArgs e)
+        {
+            var repoView = this.FindAncestorOfType<Repository>();
+            if (repoView is { DataContext: ViewModels.Repository repo })
+            {
+                repoView.TokenFilterBox?.DeleteTokensByPrefix("solo:");
+                repo.ClearSoloMode();
+                e.Handled = true;
+            }
+        }
+
+        private void ApplySoloTokens(ViewModels.Repository repo, IEnumerable<string> targets)
+        {
+            var repoView = this.FindAncestorOfType<Repository>();
+            if (repoView?.TokenFilterBox == null)
+            {
+                repo.SetSoloCommitFilterMode(targets, Models.FilterMode.Included);
+                return;
+            }
+
+            // Keep one source of truth by clearing legacy SoloFilter state before token-based filtering.
+            repo.ClearSoloMode();
+
+            foreach (var target in targets)
+            {
+                if (!string.IsNullOrWhiteSpace(target))
+                    repoView.TokenFilterBox.InsertToken($"solo:{target}");
+            }
         }
 
         private bool _resizingAuthorColumn = false;

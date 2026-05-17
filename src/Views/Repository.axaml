@@ -6,9 +6,17 @@
              xmlns:vm="using:SourceGit.ViewModels"
              xmlns:v="using:SourceGit.Views"
              xmlns:c="using:SourceGit.Converters"
+             xmlns:ctrl="using:SourceGit.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SourceGit.Views.Repository"
              x:DataType="vm:Repository">
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Controls/TokenSearchBox/TokenSearchBox.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
   <Grid>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="{Binding Source={x:Static vm:Preferences.Instance}, Path=Layout.RepositorySidebarWidth, Mode=TwoWay}" MinWidth="200" MaxWidth="500"/>
@@ -690,7 +698,7 @@
                   Focusable="False"/>
 
     <!-- Right -->
-    <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*">
+    <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,Auto,*">
       <Grid Grid.Row="0" Height="28" ColumnDefinitions="*,Auto,Auto" Background="{DynamicResource Brush.Conflict}" IsVisible="{Binding InProgressContext, Converter={x:Static ObjectConverters.IsNotNull}}">
         <ContentControl Grid.Column="0" Margin="8,0" Content="{Binding InProgressContext}">
           <ContentControl.DataTemplates>
@@ -848,7 +856,35 @@
                 Tag="reset"/>
       </Grid>
 
-      <Border Grid.Row="2" Background="{DynamicResource Brush.ToolBar}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}">
+      <!-- TokenSearchBox for Commit Filtering (Histories View Only) -->
+      <Border Grid.Row="2" Padding="8,4" Background="{DynamicResource Brush.DataGridHeaderBG}">
+        <Border.IsVisible>
+          <Binding Path="SelectedViewIndex" Converter="{x:Static c:IntConverters.IsZero}"/>
+        </Border.IsVisible>
+        <Grid ColumnDefinitions="*,Auto">
+          <ctrl:TokenSearchBox Grid.Column="0"
+                               x:Name="TokenFilterBox"
+                               DataContext="{Binding Histories}"
+                               PlaceholderText="Filter Command Center，Type &quot;/&quot; or space..."
+                               MinHeight="30"
+                               CornerRadius="16"
+                               HorizontalAlignment="Stretch"
+                               Text="{Binding SearchText, Mode=TwoWay}"
+                               SelectedTokens="{Binding SearchTokens}"
+                               Providers="{Binding SearchProviders}"
+                               SlashCommands="{Binding SearchSlashCommands}"/>
+
+          <!-- Invisible Button to handle search hotkey pressed -->
+          <Button Grid.Column="1"
+                  Width="0" Height="0"
+                  Margin="0" Padding="0"
+                  HorizontalAlignment="Right"
+                  Click="OnTokenFilterHotKey"
+                  HotKey="{OnPlatform Ctrl+F, macOS=⌘+F}"/>
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="3" Background="{DynamicResource Brush.ToolBar}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}">
         <Border.IsVisible>
           <MultiBinding Converter="{x:Static BoolConverters.And}">
             <Binding Path="SelectedViewIndex" Converter="{x:Static c:IntConverters.IsZero}"/>
@@ -911,7 +947,7 @@
         </Grid>
       </Border>
 
-      <Grid Grid.Row="3">
+      <Grid Grid.Row="4">
         <Border IsVisible="{Binding IsHistoriesVisible, Mode=OneWay}" PropertyChanged="OnRightPagePropertyChanged">
           <v:Histories DataContext="{Binding Histories, Mode=OneWay}"
                        CurrentBranch="{Binding CurrentBranch, Mode=OneWay}"

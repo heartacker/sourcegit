@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -116,14 +117,36 @@ namespace SourceGit.ViewModels
         public Models.HistoryShowFlags HistoryShowFlags
         {
             get => _uiStates.HistoryShowFlags;
-            private set
+            set
             {
                 if (value != _uiStates.HistoryShowFlags)
                 {
                     _uiStates.HistoryShowFlags = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsReflogEnabled));
+                    OnPropertyChanged(nameof(IsFirstParentOnlyEnabled));
+                    OnPropertyChanged(nameof(IsSimplifyByDecorationEnabled));
                     RefreshCommits();
                 }
             }
+        }
+
+        public bool IsReflogEnabled
+        {
+            get => _uiStates.HistoryShowFlags.HasFlag(Models.HistoryShowFlags.Reflog);
+            set => ToggleHistoryShowFlag(Models.HistoryShowFlags.Reflog);
+        }
+
+        public bool IsFirstParentOnlyEnabled
+        {
+            get => _uiStates.HistoryShowFlags.HasFlag(Models.HistoryShowFlags.FirstParentOnly);
+            set => ToggleHistoryShowFlag(Models.HistoryShowFlags.FirstParentOnly);
+        }
+
+        public bool IsSimplifyByDecorationEnabled
+        {
+            get => _uiStates.HistoryShowFlags.HasFlag(Models.HistoryShowFlags.SimplifyByDecoration);
+            set => ToggleHistoryShowFlag(Models.HistoryShowFlags.SimplifyByDecoration);
         }
 
         public string Filter
@@ -477,6 +500,7 @@ namespace SourceGit.ViewModels
 
             _historyFilterMode = _uiStates.GetHistoryFilterMode();
             _histories = new Histories(this);
+            SyncSearchTokensFromPersistedHistoryFilters();
             _workingCopy = new WorkingCopy(this) { CommitMessage = _uiStates.LastCommitMessage };
             _stashesPage = new StashesPage(this);
             _searchCommitContext = new SearchCommitContext(this);
@@ -946,7 +970,10 @@ namespace SourceGit.ViewModels
 
         public void NavigateToBranch(string branch, bool isDelayMode = false)
         {
-            var b = _branches.Find(b => b.FullName.Equals(branch, StringComparison.Ordinal));
+            var b = _branches.Find(b =>
+                b.FullName.Equals(branch, StringComparison.Ordinal) ||
+                b.Name.Equals(branch, StringComparison.Ordinal) ||
+                (!b.IsLocal && b.FriendlyName.Equals(branch, StringComparison.Ordinal)));
             if (b != null)
                 NavigateToCommit(b.Head);
         }
@@ -978,19 +1005,27 @@ namespace SourceGit.ViewModels
         public void ClearHistoryFilters()
         {
             _uiStates.HistoryFilters.Clear();
-            HistoryFilterMode = Models.FilterMode.None;
+            if (_histories != null)
+            {
+                RemoveSearchTokensByPrefix("branch:");
+                RemoveSearchTokensByPrefix("b:");
+                RemoveSearchTokensByPrefix("remote:");
+                RemoveSearchTokensByPrefix("r:");
+                RemoveSearchTokensByPrefix("tag:");
+                RemoveSearchTokensByPrefix("t:");
+            }
 
+            HistoryFilterMode = Models.FilterMode.None;
             ResetBranchTreeFilterMode(LocalBranchTrees);
             ResetBranchTreeFilterMode(RemoteBranchTrees);
             ResetTagFilterMode();
-            RefreshCommits();
         }
 
         public void RemoveHistoryFilter(Models.HistoryFilter filter)
         {
             if (_uiStates.HistoryFilters.Remove(filter))
             {
-                HistoryFilterMode = _uiStates.GetHistoryFilterMode();
+                RemoveSearchTokensForHistoryFilter(filter);
                 RefreshHistoryFilters(true);
             }
         }
@@ -1013,9 +1048,80 @@ namespace SourceGit.ViewModels
 
         public void SetTagFilterMode(Models.Tag tag, Models.FilterMode mode)
         {
-            var changed = _uiStates.UpdateHistoryFilters(tag.Name, Models.FilterType.Tag, mode);
-            if (changed)
-                RefreshHistoryFilters(true);
+            var token = $"t:{tag.Name}";
+            var negToken = $"-t:{tag.Name}";
+
+            if (mode == Models.FilterMode.Included)
+            {
+                if (HistoryFilterMode == Models.FilterMode.Excluded)
+                    ClearHistoryFilters();
+
+                RemoveSearchTokenIgnoreCase(negToken);
+                AddSearchTokenIfMissing(token);
+            }
+            else if (mode == Models.FilterMode.Excluded)
+            {
+                if (HistoryFilterMode == Models.FilterMode.Included)
+                    ClearHistoryFilters();
+
+                RemoveSearchTokenIgnoreCase(token);
+                AddSearchTokenIfMissing(negToken);
+            }
+            else
+            {
+                RemoveSearchTokenIgnoreCase(token);
+                RemoveSearchTokenIgnoreCase(negToken);
+            }
+
+            _uiStates.UpdateHistoryFilters(tag.Name, Models.FilterType.Tag, mode);
+
+            RefreshHistoryFilters(true);
+        }
+
+        public Models.FilterMode GetTagFilterMode(Models.Tag tag)
+        {
+            return tag == null ? Models.FilterMode.None : GetTagFilterMode(tag.Name);
+        }
+
+        public Models.FilterMode GetBranchFilterMode(Models.Branch branch)
+        {
+            if (branch == null || _histories == null)
+                return Models.FilterMode.None;
+
+            var names = new List<string>() { branch.IsLocal ? branch.Name : branch.FriendlyName };
+            bool includes = false;
+            bool excludes = false;
+            foreach (var token in _histories.SearchTokens)
+            {
+                var neg = token.Raw.StartsWith("-", StringComparison.Ordinal);
+                var check = neg ? token.Raw[1..] : token.Raw;
+
+                bool match = false;
+                if (branch.IsLocal && (check.StartsWith("branch:", StringComparison.OrdinalIgnoreCase) || check.StartsWith("b:", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var value = check.Substring(check.IndexOf(':') + 1).Trim();
+                    match = names.Any(n => n.Contains(value, StringComparison.OrdinalIgnoreCase));
+                }
+                else if (!branch.IsLocal && (check.StartsWith("remote:", StringComparison.OrdinalIgnoreCase) || check.StartsWith("r:", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var value = check.Substring(check.IndexOf(':') + 1).Trim();
+                    match = names.Any(n => n.Contains(value, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (match)
+                {
+                    if (neg)
+                        excludes = true;
+                    else
+                        includes = true;
+                }
+            }
+
+            if (includes)
+                return Models.FilterMode.Included;
+            if (excludes)
+                return Models.FilterMode.Excluded;
+            return Models.FilterMode.None;
         }
 
         public void SetBranchFilterMode(Models.Branch branch, Models.FilterMode mode, bool clearExists, bool refresh)
@@ -1029,19 +1135,21 @@ namespace SourceGit.ViewModels
         {
             var isLocal = node.Path.StartsWith("refs/heads/", StringComparison.Ordinal);
             var tree = isLocal ? _localBranchTrees : _remoteBranchTrees;
+            var tokenPrefix = isLocal ? "b:" : "r:";
+            var tokenValue = node.Backend is Models.Branch b
+                ? (isLocal ? b.Name : b.FriendlyName)
+                : (isLocal ? node.Path.Substring("refs/heads/".Length) : node.Path.Substring("refs/remotes/".Length));
+
+            var token = $"{tokenPrefix}{tokenValue}";
+            var negToken = $"-{tokenPrefix}{tokenValue}";
 
             if (clearExists)
-            {
-                _uiStates.HistoryFilters.Clear();
-                HistoryFilterMode = Models.FilterMode.None;
-            }
+                ClearHistoryFilters();
 
             if (node.Backend is Models.Branch branch)
             {
                 var type = isLocal ? Models.FilterType.LocalBranch : Models.FilterType.RemoteBranch;
-                var changed = _uiStates.UpdateHistoryFilters(node.Path, type, mode);
-                if (!changed)
-                    return;
+                _uiStates.UpdateHistoryFilters(node.Path, type, mode);
 
                 if (isLocal && !string.IsNullOrEmpty(branch.Upstream) && !branch.IsUpstreamGone)
                     _uiStates.UpdateHistoryFilters(branch.Upstream, Models.FilterType.RemoteBranch, mode);
@@ -1049,10 +1157,7 @@ namespace SourceGit.ViewModels
             else
             {
                 var type = isLocal ? Models.FilterType.LocalBranchFolder : Models.FilterType.RemoteBranchFolder;
-                var changed = _uiStates.UpdateHistoryFilters(node.Path, type, mode);
-                if (!changed)
-                    return;
-
+                _uiStates.UpdateHistoryFilters(node.Path, type, mode);
                 _uiStates.RemoveBranchFiltersByPrefix(node.Path);
             }
 
@@ -1072,6 +1177,28 @@ namespace SourceGit.ViewModels
                 _uiStates.UpdateHistoryFilters(parent.Path, parentType, Models.FilterMode.None);
                 cur = parent;
             } while (true);
+
+            if (mode == Models.FilterMode.Included)
+            {
+                if (HistoryFilterMode == Models.FilterMode.Excluded)
+                    ClearHistoryFilters();
+
+                RemoveSearchTokenIgnoreCase(negToken);
+                AddSearchTokenIfMissing(token);
+            }
+            else if (mode == Models.FilterMode.Excluded)
+            {
+                if (HistoryFilterMode == Models.FilterMode.Included)
+                    ClearHistoryFilters();
+
+                RemoveSearchTokenIgnoreCase(token);
+                AddSearchTokenIfMissing(negToken);
+            }
+            else
+            {
+                RemoveSearchTokenIgnoreCase(token);
+                RemoveSearchTokenIgnoreCase(negToken);
+            }
 
             RefreshHistoryFilters(refresh);
         }
@@ -1219,6 +1346,85 @@ namespace SourceGit.ViewModels
                     VisibleTags = BuildVisibleTags();
                 });
             }, token);
+        }
+
+        public List<string> SoloTargets => _histories.SoloTargets;
+
+        public void ClearSoloMode()
+        {
+            _histories.SoloTargets = [];
+        }
+
+        public void SetSoloCommitFilterMode(Models.Commit commit, Models.FilterMode mode)
+        {
+            var targets = new List<string>(_histories.SoloTargets);
+            if (mode == Models.FilterMode.Included)
+            {
+                if (!targets.Contains(commit.SHA))
+                    targets.Add(commit.SHA);
+            }
+            else
+            {
+                targets.Remove(commit.SHA);
+            }
+
+            _histories.SoloTargets = targets;
+        }
+
+        public void SetSoloCommitFilterMode(IEnumerable<Models.Commit> commits, Models.FilterMode mode)
+        {
+            var targets = new List<string>(_histories.SoloTargets);
+            if (mode == Models.FilterMode.Included)
+            {
+                foreach (var c in commits)
+                {
+                    if (!targets.Contains(c.SHA))
+                        targets.Add(c.SHA);
+                }
+            }
+            else
+            {
+                foreach (var c in commits)
+                    targets.Remove(c.SHA);
+            }
+
+            _histories.SoloTargets = targets;
+        }
+
+        public void SetSoloCommitFilterMode(string sha, Models.FilterMode mode)
+        {
+            var targets = new List<string>(_histories.SoloTargets);
+            if (mode == Models.FilterMode.Included)
+            {
+                if (!targets.Contains(sha))
+                    targets.Add(sha);
+            }
+            else
+            {
+                targets.Remove(sha);
+            }
+
+            _histories.SoloTargets = targets;
+        }
+
+        public void SetSoloCommitFilterMode(IEnumerable<string> shas, Models.FilterMode mode)
+        {
+            var targets = new List<string>(_histories.SoloTargets);
+            if (mode == Models.FilterMode.Included)
+            {
+                foreach (var sha in shas)
+                {
+                    if (!targets.Contains(sha))
+                        targets.Add(sha);
+                }
+            }
+            else
+            {
+                foreach (var sha in shas)
+                    targets.Remove(sha);
+            }
+
+            _histories.SoloTargets = targets;
         }
 
         public void RefreshCommits()
@@ -1704,9 +1910,8 @@ namespace SourceGit.ViewModels
                 builder.Run(visibles, remotes, true);
             }
 
-            var filterMap = _uiStates.GetHistoryFiltersMap();
-            UpdateBranchTreeFilterMode(builder.Locals, filterMap);
-            UpdateBranchTreeFilterMode(builder.Remotes, filterMap);
+            UpdateBranchTreeFilterMode(builder.Locals);
+            UpdateBranchTreeFilterMode(builder.Remotes);
             return builder;
         }
 
@@ -1736,21 +1941,18 @@ namespace SourceGit.ViewModels
                 }
             }
 
-            var filterMap = _uiStates.GetHistoryFiltersMap();
-            UpdateTagFilterMode(filterMap);
-
             if (_uiStates.ShowTagsAsTree)
             {
                 var tree = TagCollectionAsTree.Build(visible, _visibleTags as TagCollectionAsTree);
                 foreach (var node in tree.Tree)
-                    node.UpdateFilterMode(filterMap);
+                    UpdateTagTreeFilterMode(node);
                 return tree;
             }
             else
             {
                 var list = new TagCollectionAsList(visible);
                 foreach (var item in list.TagItems)
-                    item.FilterMode = filterMap.GetValueOrDefault(item.Tag.Name, Models.FilterMode.None);
+                    item.FilterMode = GetTagFilterMode(item.Tag.Name);
                 return list;
             }
         }
@@ -1779,40 +1981,245 @@ namespace SourceGit.ViewModels
 
         private void RefreshHistoryFilters(bool refresh)
         {
-            HistoryFilterMode = _uiStates.GetHistoryFilterMode();
+            HistoryFilterMode = GetTokenFilterMode();
             if (!refresh)
                 return;
 
-            var map = _uiStates.GetHistoryFiltersMap();
-            UpdateBranchTreeFilterMode(LocalBranchTrees, map);
-            UpdateBranchTreeFilterMode(RemoteBranchTrees, map);
-            UpdateTagFilterMode(map);
-            RefreshCommits();
+            UpdateBranchTreeFilterMode(LocalBranchTrees);
+            UpdateBranchTreeFilterMode(RemoteBranchTrees);
+            UpdateTagFilterMode();
         }
 
-        private void UpdateBranchTreeFilterMode(List<BranchTreeNode> nodes, Dictionary<string, Models.FilterMode> map)
+        private void UpdateBranchTreeFilterMode(List<BranchTreeNode> nodes)
         {
             foreach (var node in nodes)
             {
-                node.FilterMode = map.GetValueOrDefault(node.Path, Models.FilterMode.None);
+                node.FilterMode = GetBranchNodeFilterMode(node);
 
                 if (!node.IsBranch)
-                    UpdateBranchTreeFilterMode(node.Children, map);
+                    UpdateBranchTreeFilterMode(node.Children);
             }
         }
 
-        private void UpdateTagFilterMode(Dictionary<string, Models.FilterMode> map)
+        private void UpdateTagFilterMode()
         {
             if (VisibleTags is TagCollectionAsTree tree)
             {
                 foreach (var node in tree.Tree)
-                    node.UpdateFilterMode(map);
+                    UpdateTagTreeFilterMode(node);
             }
             else if (VisibleTags is TagCollectionAsList list)
             {
                 foreach (var item in list.TagItems)
-                    item.FilterMode = map.GetValueOrDefault(item.Tag.Name, Models.FilterMode.None);
+                    item.FilterMode = GetTagFilterMode(item.Tag.Name);
             }
+        }
+
+        private void UpdateTagTreeFilterMode(TagTreeNode node)
+        {
+            if (node.IsFolder)
+            {
+                foreach (var child in node.Children)
+                    UpdateTagTreeFilterMode(child);
+
+                var include = node.Children.Any(c => c.FilterMode == Models.FilterMode.Included);
+                var exclude = node.Children.Any(c => c.FilterMode == Models.FilterMode.Excluded);
+                node.FilterMode = include ? Models.FilterMode.Included : (exclude ? Models.FilterMode.Excluded : Models.FilterMode.None);
+            }
+            else
+            {
+                node.FilterMode = GetTagFilterMode(node.FullPath);
+            }
+        }
+
+        private Models.FilterMode GetTokenFilterMode()
+        {
+            if (_histories == null)
+                return Models.FilterMode.None;
+
+            var hasIncluded = _histories.SearchTokens.Any(t =>
+                t.Raw.StartsWith("branch:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("b:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("remote:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("r:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("t:", StringComparison.OrdinalIgnoreCase));
+
+            if (hasIncluded)
+                return Models.FilterMode.Included;
+
+            var hasExcluded = _histories.SearchTokens.Any(t =>
+                t.Raw.StartsWith("-branch:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("-b:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("-remote:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("-r:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("-tag:", StringComparison.OrdinalIgnoreCase) ||
+                t.Raw.StartsWith("-t:", StringComparison.OrdinalIgnoreCase));
+
+            return hasExcluded ? Models.FilterMode.Excluded : Models.FilterMode.None;
+        }
+
+        private Models.FilterMode GetBranchNodeFilterMode(BranchTreeNode node)
+        {
+            if (_histories == null)
+                return Models.FilterMode.None;
+
+            var isLocal = node.Path.StartsWith("refs/heads/", StringComparison.Ordinal);
+            var names = new List<string>();
+
+            if (node.Backend is Models.Branch b)
+                names.Add(isLocal ? b.Name : b.FriendlyName);
+            else
+                names.Add(isLocal ? node.Path.Substring("refs/heads/".Length) : node.Path.Substring("refs/remotes/".Length));
+
+            bool includes = false;
+            bool excludes = false;
+            foreach (var token in _histories.SearchTokens)
+            {
+                var neg = token.Raw.StartsWith("-", StringComparison.Ordinal);
+                var check = neg ? token.Raw[1..] : token.Raw;
+
+                bool match = false;
+                if (isLocal && (check.StartsWith("branch:", StringComparison.OrdinalIgnoreCase) || check.StartsWith("b:", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var value = check.Substring(check.IndexOf(':') + 1).Trim();
+                    match = names.Any(n => n.Contains(value, StringComparison.OrdinalIgnoreCase));
+                }
+                else if (!isLocal && (check.StartsWith("remote:", StringComparison.OrdinalIgnoreCase) || check.StartsWith("r:", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var value = check.Substring(check.IndexOf(':') + 1).Trim();
+                    match = names.Any(n => n.Contains(value, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (match)
+                {
+                    if (neg)
+                        excludes = true;
+                    else
+                        includes = true;
+                }
+            }
+
+            if (includes)
+                return Models.FilterMode.Included;
+            if (excludes)
+                return Models.FilterMode.Excluded;
+            return Models.FilterMode.None;
+        }
+
+        private Models.FilterMode GetTagFilterMode(string tagName)
+        {
+            if (_histories == null)
+                return Models.FilterMode.None;
+
+            bool includes = false;
+            bool excludes = false;
+            foreach (var token in _histories.SearchTokens)
+            {
+                var neg = token.Raw.StartsWith("-", StringComparison.Ordinal);
+                var check = neg ? token.Raw[1..] : token.Raw;
+                if (!check.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) && !check.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var value = check.Substring(check.IndexOf(':') + 1).Trim();
+                if (tagName.Contains(value, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (neg)
+                        excludes = true;
+                    else
+                        includes = true;
+                }
+            }
+
+            if (includes)
+                return Models.FilterMode.Included;
+            if (excludes)
+                return Models.FilterMode.Excluded;
+            return Models.FilterMode.None;
+        }
+
+        private void AddSearchTokenIfMissing(string token)
+        {
+            if (_histories == null || string.IsNullOrEmpty(token))
+                return;
+
+            if (_histories.SearchTokens.Any(t => t.Raw.Equals(token, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            _histories.AddFilter(token);
+        }
+
+        private void RemoveSearchTokenIgnoreCase(string token)
+        {
+            if (_histories == null || string.IsNullOrEmpty(token))
+                return;
+
+            for (int i = _histories.SearchTokens.Count - 1; i >= 0; i--)
+            {
+                if (_histories.SearchTokens[i].Raw.Equals(token, StringComparison.OrdinalIgnoreCase))
+                    _histories.SearchTokens.RemoveAt(i);
+            }
+        }
+
+        private void RemoveSearchTokensByPrefix(string prefix)
+        {
+            if (_histories == null || string.IsNullOrEmpty(prefix))
+                return;
+
+            for (int i = _histories.SearchTokens.Count - 1; i >= 0; i--)
+            {
+                var token = _histories.SearchTokens[i];
+                var check = token.Raw.StartsWith("-", StringComparison.Ordinal) ? token.Raw[1..] : token.Raw;
+                if (check.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    _histories.SearchTokens.RemoveAt(i);
+            }
+        }
+
+        private void SyncSearchTokensFromPersistedHistoryFilters()
+        {
+            if (_histories == null || _uiStates.HistoryFilters.Count == 0)
+                return;
+
+            foreach (var filter in _uiStates.HistoryFilters.ToArray())
+            {
+                var token = BuildTokenFromHistoryFilter(filter);
+                if (!string.IsNullOrEmpty(token))
+                    AddSearchTokenIfMissing(token);
+            }
+        }
+
+        private void RemoveSearchTokensForHistoryFilter(Models.HistoryFilter filter)
+        {
+            var token = BuildTokenFromHistoryFilter(filter);
+            if (string.IsNullOrEmpty(token))
+                return;
+
+            RemoveSearchTokenIgnoreCase(token);
+        }
+
+        private string BuildTokenFromHistoryFilter(Models.HistoryFilter filter)
+        {
+            if (filter == null || filter.Mode == Models.FilterMode.None || string.IsNullOrEmpty(filter.Pattern))
+                return null;
+
+            var prefix = filter.Mode == Models.FilterMode.Excluded ? "-" : string.Empty;
+            return filter.Type switch
+            {
+                Models.FilterType.Tag => $"{prefix}t:{filter.Pattern}",
+                Models.FilterType.LocalBranch => $"{prefix}b:{TrimBranchRef(filter.Pattern, "refs/heads/")}",
+                Models.FilterType.LocalBranchFolder => $"{prefix}b:{TrimBranchRef(filter.Pattern, "refs/heads/")}",
+                Models.FilterType.RemoteBranch => $"{prefix}r:{TrimBranchRef(filter.Pattern, "refs/remotes/")}",
+                Models.FilterType.RemoteBranchFolder => $"{prefix}r:{TrimBranchRef(filter.Pattern, "refs/remotes/")}",
+                _ => null,
+            };
+        }
+
+        private static string TrimBranchRef(string pattern, string prefix)
+        {
+            if (string.IsNullOrEmpty(pattern))
+                return pattern;
+
+            return pattern.StartsWith(prefix, StringComparison.Ordinal) ? pattern[prefix.Length..] : pattern;
         }
 
         private void ResetBranchTreeFilterMode(List<BranchTreeNode> nodes)
