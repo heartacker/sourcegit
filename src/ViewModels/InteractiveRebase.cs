@@ -91,6 +91,12 @@ namespace SourceGit.ViewModels
             set;
         } = false;
 
+        public bool IsFromExternalBranch
+        {
+            get;
+            set;
+        } = false;
+
         public InteractiveRebaseItem(int order, Models.Commit c, string message)
         {
             OriginalOrder = order;
@@ -442,7 +448,10 @@ namespace SourceGit.ViewModels
                     continue;
 
                 var message = await new Commands.QueryCommitFullMessage(_repo.FullPath, sha).GetResultAsync();
-                moving.Add(new InteractiveRebaseItem(0, commit, string.IsNullOrEmpty(message) ? commit.Subject : message));
+                moving.Add(new InteractiveRebaseItem(0, commit, string.IsNullOrEmpty(message) ? commit.Subject : message)
+                {
+                    IsFromExternalBranch = true,
+                });
             }
 
             if (moving.Count == 0)
