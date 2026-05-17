@@ -23,7 +23,7 @@
           PointerReleased="OnPointerReleased"
           SizeChanged="OnContainerSizeChanged">
     <Border.RenderTransform>
-      <TranslateTransform/>
+      <TranslateTransform X="{Binding Repo.UIStates.ViewFilterBarX}" Y="{Binding Repo.UIStates.ViewFilterBarY}"/>
     </Border.RenderTransform>
 
     <StackPanel Orientation="Horizontal">

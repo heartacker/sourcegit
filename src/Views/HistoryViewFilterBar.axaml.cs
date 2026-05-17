@@ -24,18 +24,13 @@ namespace SourceGit.Views
 
         private void OnPointerMoved(object sender, PointerEventArgs e)
         {
-            if (_isDragging)
+            if (_isDragging && DataContext is ViewModels.Histories histories)
             {
-                var transform = Container.RenderTransform as TranslateTransform;
-                if (transform != null)
-                {
-                    var currentPoint = e.GetPosition(this);
-                    var delta = currentPoint - _lastPoint;
-                    transform.X += delta.X;
-                    transform.Y += delta.Y;
-                    _lastPoint = currentPoint;
-                    _isMoved = true;
-                }
+                var currentPoint = e.GetPosition(this.Parent as Visual);
+                var delta = currentPoint - _lastPoint;
+                histories.Repo.UIStates.ViewFilterBarX += delta.X;
+                histories.Repo.UIStates.ViewFilterBarY += delta.Y;
+                _lastPoint = currentPoint;
                 e.Handled = true;
             }
         }
@@ -49,14 +44,10 @@ namespace SourceGit.Views
 
         private void OnContainerSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (!_isMoved && Parent is Control parent)
+            if (DataContext is ViewModels.Histories histories && histories.Repo.UIStates.ViewFilterBarX < 0 && Parent is Control parent)
             {
-                var transform = Container.RenderTransform as TranslateTransform;
-                if (transform != null)
-                {
-                    transform.X = (parent.Bounds.Width - e.NewSize.Width) / 2;
-                    transform.Y = 48;
-                }
+                histories.Repo.UIStates.ViewFilterBarX = (parent.Bounds.Width - e.NewSize.Width) / 2;
+                histories.Repo.UIStates.ViewFilterBarY = 48;
             }
         }
 
@@ -80,7 +71,6 @@ namespace SourceGit.Views
         }
 
         private bool _isDragging = false;
-        private bool _isMoved = false;
         private Point _lastPoint;
     }
 }
