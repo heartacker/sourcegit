@@ -166,6 +166,8 @@
   <x:String x:Key="Text.CommitCM.InteractiveRebase.Drop" xml:space="preserve">丢弃...</x:String>
   <x:String x:Key="Text.CommitCM.InteractiveRebase.Edit" xml:space="preserve">编辑...</x:String>
   <x:String x:Key="Text.CommitCM.InteractiveRebase.Fixup" xml:space="preserve">修复至父提交...</x:String>
+  <x:String x:Key="Text.CommitCM.InteractiveRebase.InsertSelectedAfter" xml:space="preserve">将选中的 ${0}$ 个提交插入到当前分支 ${1}$ 的 ${2}$ 之后...</x:String>
+  <x:String x:Key="Text.CommitCM.InteractiveRebase.InvalidBase" xml:space="preserve">提交 ${0}$ 不能作为 `git rebase -i` 的基点！</x:String>
   <x:String x:Key="Text.CommitCM.InteractiveRebase.Manually" xml:space="preserve">交互式变基 ${0}$ 到 ${1}$</x:String>
   <x:String x:Key="Text.CommitCM.InteractiveRebase.Reword" xml:space="preserve">修改提交信息...</x:String>
   <x:String x:Key="Text.CommitCM.InteractiveRebase.Squash" xml:space="preserve">合并至父提交...</x:String>
@@ -214,7 +216,7 @@
   <x:String x:Key="Text.Configure" xml:space="preserve">仓库配置</x:String>
   <x:String x:Key="Text.Configure.CommitMessageTemplate" xml:space="preserve">提交信息模板</x:String>
   <x:String x:Key="Text.Configure.CommitMessageTemplate.BuiltinVars" xml:space="preserve">内置变量：
-  
+
   ${branch_name} 当前分支名
   ${files_num} 变更文件数量
   ${files} 变更文件路径列表
