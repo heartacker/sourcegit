@@ -17,6 +17,7 @@
           Effect="drop-shadow(0 0 8 #40000000)"
           HorizontalAlignment="Left"
           VerticalAlignment="Top"
+          IsVisible="{Binding HasActiveViewFilters}"
           PointerPressed="OnPointerPressed"
           PointerMoved="OnPointerMoved"
           PointerReleased="OnPointerReleased">

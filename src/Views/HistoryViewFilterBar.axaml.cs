@@ -17,8 +17,8 @@ namespace SourceGit.Views
         private void OnPointerPressed(object sender, PointerPressedEventArgs e)
         {
             _isDragging = true;
-            _lastPoint = e.GetPosition(this);
-            e.Pointer.Capture(sender as Control);
+            _lastPoint = e.GetPosition(this.Parent as Visual);
+            e.Pointer.Capture(this);
             e.Handled = true;
         }
 
@@ -29,10 +29,11 @@ namespace SourceGit.Views
                 var transform = Container.RenderTransform as TranslateTransform;
                 if (transform != null)
                 {
-                    var currentPoint = e.GetPosition(this);
+                    var currentPoint = e.GetPosition(this.Parent as Visual);
                     var delta = currentPoint - _lastPoint;
                     transform.X += delta.X;
                     transform.Y += delta.Y;
+                    _lastPoint = currentPoint;
                 }
                 e.Handled = true;
             }

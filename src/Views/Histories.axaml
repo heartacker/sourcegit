@@ -288,7 +288,7 @@
               PointerReleased="OnCommitListHeaderPointerReleased"
               ContextRequested="OnCommitListHeaderContextRequested"/>              
 
-      <v:HistoryViewFilterBar HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,40,0,0"/>
+      <v:HistoryViewFilterBar HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,48,0,0" ZIndex="100"/>
 
       <v:CommitGraph x:Name="CommitGraph"
                      Margin="0,32,0,0"

@@ -71,6 +71,11 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public bool HasActiveViewFilters
+        {
+            get => ViewFilters.Any(x => x.IsActive);
+        }
+
         public List<Models.Commit> Commits
         {
             get => _commits;
@@ -93,6 +98,8 @@ namespace SourceGit.ViewModels
             {
                 PostCommitsChanged();
             }
+
+            OnPropertyChanged(nameof(HasActiveViewFilters));
         }
 
         public Models.CommitGraph Graph
@@ -324,6 +331,14 @@ namespace SourceGit.ViewModels
                     UpdateDisplayCommits();
                 }
             };
+
+            foreach (var filter in ViewFilters)
+            {
+                if (filter is Models.SoloFilter soloFilter)
+                    soloFilter.PropertyChanged += (_, e) => OnPropertyChanged(nameof(HasActiveViewFilters));
+                if (filter is Models.FoldingFilter foldingFilter)
+                    foldingFilter.PropertyChanged += (_, e) => OnPropertyChanged(nameof(HasActiveViewFilters));
+            }
         }
 
         public void SetVisibleCommitRange(int top, int bottom)
