@@ -60,9 +60,15 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public AvaloniaList<Models.IHistoryViewFilter> ViewFilters { get; } = [];
+
         public List<string> SoloTargets
         {
-            get => _repo.UIStates.HistoryFilters.Where(f => f.Type == Models.FilterType.SoloCommits).Select(f => f.Pattern).ToList();
+            get
+            {
+                var solo = ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
+                return solo?.Targets ?? [];
+            }
         }
 
         public List<Models.Commit> Commits
@@ -77,15 +83,8 @@ namespace SourceGit.ViewModels
 
         public void UpdateDisplayCommits()
         {
-            var soloTargets = SoloTargets;
-            var pipeline = new List<Models.IHistoryViewFilter>
-            {
-                new Models.SoloFilter { Targets = soloTargets },
-                new Models.FoldingFilter()
-            };
-
             var processed = _rawCommits;
-            foreach (var filter in pipeline)
+            foreach (var filter in ViewFilters)
                 processed = filter.Process(processed, _commitMap);
 
             GenerateGraph(_rawCommits, false);
@@ -309,7 +308,22 @@ namespace SourceGit.ViewModels
         {
             _repo = repo;
             _commitDetailSharedData = new CommitDetailSharedData();
+
+            var solo = new Models.SoloFilter();
+            var folding = new Models.FoldingFilter();
+            ViewFilters.Add(solo);
+            ViewFilters.Add(folding);
+
+            ViewFilters.CollectionChanged += (_, _) => UpdateDisplayCommits();
             _repo.UIStates.HistoryFilters.CollectionChanged += (_, _) => UpdateDisplayCommits();
+            Preferences.Instance.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(Preferences.EnableLinearCommitFolding))
+                {
+                    ViewFilters.OfType<Models.FoldingFilter>().FirstOrDefault()?.NotifyStateChanged();
+                    UpdateDisplayCommits();
+                }
+            };
         }
 
         public void SetVisibleCommitRange(int top, int bottom)

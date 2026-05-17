@@ -1,26 +1,49 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SourceGit.Models
 {
     public interface IHistoryViewFilter
     {
+        bool IsActive { get; }
+        string Description { get; }
         List<Commit> Process(List<Commit> commits, Dictionary<string, Commit> map);
     }
 
-    public class SoloFilter : IHistoryViewFilter
+    public class SoloFilter : ObservableObject, IHistoryViewFilter
     {
-        public List<string> Targets { get; set; } = [];
+        public bool IsActive => _targets.Count > 0;
+        public string Description => "Solo: " + string.Join(", ", _targets);
+
+        public List<string> Targets
+        {
+            get => _targets;
+            set
+            {
+                _targets = value;
+                OnPropertyChanged(nameof(IsActive));
+                OnPropertyChanged(nameof(Description));
+            }
+        }
 
         public List<Commit> Process(List<Commit> commits, Dictionary<string, Commit> map)
         {
-            if (commits == null || commits.Count == 0 || Targets.Count == 0)
+            if (commits == null || commits.Count == 0 || _targets.Count == 0)
                 return commits;
 
             var active = new bool[commits.Count];
-            foreach (var target in Targets)
+            foreach (var target in _targets)
             {
-                if (map.TryGetValue(target, out var commit) && commit.Index < commits.Count)
+                string sha = target;
+                if (target.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
+                {
+                    var head = commits.Find(x => x.IsCurrentHead);
+                    if (head != null) sha = head.SHA;
+                }
+
+                if (map.TryGetValue(sha, out var commit) && commit.Index < commits.Count)
                 {
                     var lineage = CommitGraph.GetCommitLineageFast(commits, map, commit, CommitLineageSearchMethod.FullLineage, (uint)commits.Count);
                     for (int i = 0; i < lineage.Length; i++)
@@ -37,23 +60,34 @@ namespace SourceGit.Models
                 if (active[i])
                 {
                     var c = commits[i].Clone();
-                    c.IsCommitFilterHead = Targets.Contains(c.SHA);
+                    c.IsCommitFilterHead = _targets.Any(t => t.Equals(c.SHA, StringComparison.OrdinalIgnoreCase) || 
+                                                           (t.Equals("HEAD", StringComparison.OrdinalIgnoreCase) && c.IsCurrentHead));
                     result.Add(c);
                 }
             }
 
             return result;
         }
+
+        private List<string> _targets = [];
     }
 
-    public class FoldingFilter : IHistoryViewFilter
+    public class FoldingFilter : ObservableObject, IHistoryViewFilter
     {
+        public bool IsActive => ViewModels.Preferences.Instance.EnableLinearCommitFolding;
+        public string Description => "Linear Folding";
+
+        public void NotifyStateChanged()
+        {
+            OnPropertyChanged(nameof(IsActive));
+        }
+
         public List<Commit> Process(List<Commit> commits, Dictionary<string, Commit> map)
         {
             if (commits == null || commits.Count == 0)
                 return commits;
 
-            if (!ViewModels.Preferences.Instance.EnableLinearCommitFolding)
+            if (!IsActive)
             {
                 foreach (var c in commits)
                     c.IsFolded = false;
@@ -68,7 +102,6 @@ namespace SourceGit.Models
                 return commits;
             }
 
-            // Build local map for children count since the input commits might be already filtered by SoloFilter
             var childrenCount = new Dictionary<string, int>();
             foreach (var c in commits)
             {

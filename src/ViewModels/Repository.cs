@@ -40,6 +40,8 @@ namespace SourceGit.ViewModels
             get => _uiStates;
         }
 
+        public AvaloniaList<Models.IHistoryViewFilter> ViewFilters => _histories.ViewFilters;
+
         public Models.GitFlow GitFlow
         {
             get;
@@ -1248,52 +1250,64 @@ namespace SourceGit.ViewModels
 
         public void ClearSoloMode()
         {
-            var dirty = _uiStates.HistoryFilters.Where(f => f.Type == Models.FilterType.SoloCommits).ToList();
-            if (dirty.Count > 0)
+            var solo = _histories.ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
+            if (solo != null && solo.Targets.Count > 0)
             {
-                foreach (var f in dirty)
-                    _uiStates.HistoryFilters.Remove(f);
-
-                RefreshHistoryFilters(true);
+                solo.Targets = [];
+                _histories.UpdateDisplayCommits();
             }
         }
 
         public void SetSoloCommitFilterMode(Models.Commit commit, Models.FilterMode mode)
         {
-            if (_uiStates.UpdateHistoryFilters(commit.SHA, Models.FilterType.SoloCommits, mode))
-                RefreshHistoryFilters(true);
+            var solo = _histories.ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
+            if (solo != null)
+            {
+                if (mode == Models.FilterMode.Included)
+                    solo.Targets = [commit.SHA];
+                else
+                    solo.Targets = [];
+                _histories.UpdateDisplayCommits();
+            }
         }
 
         public void SetSoloCommitFilterMode(IEnumerable<Models.Commit> commits, Models.FilterMode mode)
         {
-            var changed = false;
-            foreach (var c in commits)
+            var solo = _histories.ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
+            if (solo != null)
             {
-                if (_uiStates.UpdateHistoryFilters(c.SHA, Models.FilterType.SoloCommits, mode))
-                    changed = true;
+                if (mode == Models.FilterMode.Included)
+                    solo.Targets = commits.Select(x => x.SHA).ToList();
+                else
+                    solo.Targets = [];
+                _histories.UpdateDisplayCommits();
             }
-
-            if (changed)
-                RefreshHistoryFilters(true);
         }
 
         public void SetSoloCommitFilterMode(string sha, Models.FilterMode mode)
         {
-            if (_uiStates.UpdateHistoryFilters(sha, Models.FilterType.SoloCommits, mode))
-                RefreshHistoryFilters(true);
+            var solo = _histories.ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
+            if (solo != null)
+            {
+                if (mode == Models.FilterMode.Included)
+                    solo.Targets = [sha];
+                else
+                    solo.Targets = [];
+                _histories.UpdateDisplayCommits();
+            }
         }
 
         public void SetSoloCommitFilterMode(IEnumerable<string> shas, Models.FilterMode mode)
         {
-            var changed = false;
-            foreach (var sha in shas)
+            var solo = _histories.ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
+            if (solo != null)
             {
-                if (_uiStates.UpdateHistoryFilters(sha, Models.FilterType.SoloCommits, mode))
-                    changed = true;
+                if (mode == Models.FilterMode.Included)
+                    solo.Targets = shas.ToList();
+                else
+                    solo.Targets = [];
+                _histories.UpdateDisplayCommits();
             }
-
-            if (changed)
-                RefreshHistoryFilters(true);
         }
 
         public void RefreshCommits()
