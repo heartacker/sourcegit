@@ -15,7 +15,15 @@ namespace SourceGit.Models
     public class SoloFilter : ObservableObject, IHistoryViewFilter
     {
         public bool IsActive => _targets.Count > 0;
-        public string Description => "Solo: " + string.Join(", ", _targets);
+        public string Description
+        {
+            get
+            {
+                if (_targets.Count == 0) return string.Empty;
+                var list = _targets.Select(x => x.Length > 7 ? x.Substring(0, 7) : x);
+                return "Solo: " + string.Join(", ", list);
+            }
+        }
 
         public List<string> Targets
         {
