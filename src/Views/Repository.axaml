@@ -870,40 +870,70 @@
                 Fill="{DynamicResource Brush.FG2}"
                 IsVisible="{Binding HistoryFilterMode, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static m:FilterMode.Excluded}}"/>
 
-          <ItemsControl Grid.Column="1" Margin="8,4" ItemsSource="{Binding UIStates.HistoryFilters}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <WrapPanel Orientation="Horizontal" ItemHeight="22"/>
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <ItemsControl ItemsSource="{Binding UIStates.HistoryFilters}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" ItemHeight="22"/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
 
-            <ItemsControl.ItemTemplate>
-              <DataTemplate DataType="m:HistoryFilter">
-                <Border Height="20"
-                        Margin="0,0,6,0"
-                        CornerRadius="12"
-                        BorderThickness="1"
-                        BorderBrush="{Binding Mode, Converter={x:Static c:FilterModeConverters.ToBorderBrush}}"
-                        VerticalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" Margin="8,0">
-                    <Path Width="10" Height="10" Data="{StaticResource Icons.Branch}" IsVisible="{Binding IsBranch}"/>
-                    <Path Width="10" Height="10" Data="{StaticResource Icons.Tag}" IsVisible="{Binding !IsBranch}"/>
-                    <Button Margin="4,0,8,0"
-                            Padding="0"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Classes="icon_button"
-                            Click="OnNavigateToFilter"
-                            Content="{Binding Pattern, Converter={x:Static c:StringConverters.TrimRefsPrefix}}"
-                            />
-                    <Button Classes="icon_button" VerticalAlignment="Center" Margin="0" Padding="0" Click="OnRemoveSelectedHistoryFilter">
-                      <Path Width="8" Height="8" Data="{StaticResource Icons.Close}"/>
-                    </Button>
-                  </StackPanel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="m:HistoryFilter">
+                  <Border Height="20"
+                          Margin="0,0,6,0"
+                          CornerRadius="12"
+                          BorderThickness="1"
+                          BorderBrush="{Binding Mode, Converter={x:Static c:FilterModeConverters.ToBorderBrush}}"
+                          VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="8,0">
+                      <Path Width="10" Height="10" Data="{StaticResource Icons.Branch}" IsVisible="{Binding IsBranch}"/>
+                      <Path Width="10" Height="10" Data="{StaticResource Icons.Tag}" IsVisible="{Binding !IsBranch}"/>
+                      <Button Margin="4,0,8,0"
+                              Padding="0"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              Classes="icon_button"
+                              Click="OnNavigateToFilter"
+                              Content="{Binding Pattern, Converter={x:Static c:StringConverters.TrimRefsPrefix}}"
+                              />
+                      <Button Classes="icon_button" VerticalAlignment="Center" Margin="0" Padding="0" Click="OnRemoveSelectedHistoryFilter">
+                        <Path Width="8" Height="8" Data="{StaticResource Icons.Close}"/>
+                      </Button>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <ItemsControl ItemsSource="{Binding Histories.ViewFilters}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" ItemHeight="22"/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="m:IHistoryViewFilter">
+                  <Border Height="20"
+                          IsVisible="{Binding IsActive}"
+                          Margin="0,0,6,0"
+                          CornerRadius="10"
+                          BorderThickness="1"
+                          BorderBrush="{DynamicResource Brush.Accent}"
+                          VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="8,0">
+                      <Path Width="10" Height="10" Data="{StaticResource Icons.LightOn}"/>
+                      <TextBlock Margin="4,0,8,0" Text="{Binding Description}" FontSize="12" VerticalAlignment="Center"/>
+                      <Button Classes="icon_button" VerticalAlignment="Center" Margin="0" Padding="0" Click="OnRemoveViewFilter">
+                        <Path Width="8" Height="8" Data="{StaticResource Icons.Close}"/>
+                      </Button>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
 
           <Button Grid.Column="2" Classes="icon_button" Command="{Binding ClearHistoryFilters}" ToolTip.Tip="{DynamicResource Text.Repository.ClearAllCommitsFilter}">
             <Path Width="14" Height="14" Margin="16,0,8,0" Data="{StaticResource Icons.RemoveAll}"/>

@@ -201,18 +201,6 @@ namespace SourceGit.Models
             set;
         } = false;
 
-        public double ViewFilterBarX
-        {
-            get;
-            set;
-        } = -1;
-
-        public double ViewFilterBarY
-        {
-            get;
-            set;
-        } = 48;
-
         public bool IsSubmodulesExpandedInSideBar
         {
             get;
