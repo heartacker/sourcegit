@@ -398,7 +398,7 @@ namespace SourceGit.Controls
                 {
                     var desc = p.Description;
                     if (p.Aliases != null && p.Aliases.Length > 0)
-                        desc = $"{desc} (别名: {string.Join(", ", p.Aliases)})";
+                        desc = $"{desc} ({string.Join(", ", p.Aliases)})";
 
                     flatList.Add(new TokenSuggestion { Name = p.Prefix, Description = desc, Icon = p.Icon });
                 }
