@@ -20,6 +20,7 @@ namespace SourceGit.Controls {
     public class TokenSuggestion {
         public string Name { get; set; }
         public string Description { get; set; }
+        public string Icon { get; set; }
     }
 
     /// <summary>
@@ -52,9 +53,19 @@ namespace SourceGit.Controls {
         string Prefix { get; }
 
         /// <summary>
+        ///     Optional alternative prefixes that also trigger this provider (e.g., "a:" for "author:").
+        /// </summary>
+        string[] Aliases { get; }
+
+        /// <summary>
         ///     An optional description for this provider (e.g., "Filter by author").
         /// </summary>
         string Description { get; }
+
+        /// <summary>
+        ///     An optional icon key for this provider displayed in the suggestions list.
+        /// </summary>
+        string Icon { get; }
 
         /// <summary>
         ///     An optional group for categorizing this provider in the suggestions list.
@@ -80,24 +91,30 @@ namespace SourceGit.Controls {
     /// </summary>
     public class StaticTokenSuggestionProvider : ITokenSuggestionProvider {
         public string Prefix { get; }
+        public string[] Aliases { get; }
         public string Description { get; }
+        public string Icon { get; }
         public TokenSuggestionGroup Group { get; }
         public TokenLogicMode LogicMode { get; }
 
         private readonly Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> _suggester;
         private readonly IEnumerable<TokenSuggestion> _staticOptions;
 
-        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group = null, Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null, TokenLogicMode logicMode = TokenLogicMode.None) {
+        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group = null, Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null) {
             Prefix = prefix;
+            Aliases = alias;
             Description = description;
+            Icon = icon;
             Group = group;
             _suggester = suggester;
             LogicMode = logicMode;
         }
 
-        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group, IEnumerable<string> staticOptions, TokenLogicMode logicMode = TokenLogicMode.None) {
+        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group, IEnumerable<string> staticOptions, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null) {
             Prefix = prefix;
+            Aliases = alias;
             Description = description;
+            Icon = icon;
             Group = group;
             _staticOptions = staticOptions.Select(x => new TokenSuggestion { Name = x }).ToList();
             LogicMode = logicMode;

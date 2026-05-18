@@ -4,7 +4,7 @@
                     xmlns:conv="using:SourceGit.Converters">
   <conv:TokenToColorConverter x:Key="TokenToColorConverter" />
   <conv:TokenToBackgroundConverter x:Key="TokenToBackgroundConverter" />
-  
+
   <Design.PreviewWith>
     <Border Padding="20">
       <c:TokenSearchBox Width="400" Watermark="Search or type filter..." />
@@ -25,19 +25,19 @@
                 CornerRadius="{TemplateBinding CornerRadius}"
                 Padding="{TemplateBinding Padding}">
           <Grid ColumnDefinitions="*,Auto">
-            <ScrollViewer Grid.Column="0" 
-                          MaxHeight="{TemplateBinding MaxListHeight}" 
+            <ScrollViewer Grid.Column="0"
+                          MaxHeight="{TemplateBinding MaxListHeight}"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
               <WrapPanel VerticalAlignment="Center">
                 <!-- Tokens (Chips) -->
-                <ListBox Name="PART_TokensList" 
-                         ItemsSource="{TemplateBinding SelectedTokens}" 
-                         Background="Transparent" 
-                         BorderThickness="0" 
-                         Padding="0" 
-                         Margin="0" 
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" 
+                <ListBox Name="PART_TokensList"
+                         ItemsSource="{TemplateBinding SelectedTokens}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0"
+                         Margin="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          ScrollViewer.VerticalScrollBarVisibility="Disabled">
                   <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -136,8 +136,8 @@
                       MinWidth="200"
                       MaxHeight="260"
                       Effect="drop-shadow(0 0 8 #40000000)">
-                <ListBox Name="PART_SuggestionsList" 
-                         Background="Transparent" 
+                <ListBox Name="PART_SuggestionsList"
+                         Background="Transparent"
                          BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                   <ListBox.Styles>
@@ -149,16 +149,22 @@
                   </ListBox.Styles>
                   <ListBox.DataTemplates>
                     <DataTemplate DataType="c:TokenSuggestionHeader">
-                      <TextBlock Text="{Binding Name}" 
-                                 Foreground="{DynamicResource Brush.FG2}" 
-                                 FontWeight="Bold" 
-                                 FontSize="11" 
+                      <TextBlock Text="{Binding Name}"
+                                 Foreground="{DynamicResource Brush.FG2}"
+                                 FontWeight="Bold"
+                                 FontSize="11"
                                  Margin="0,8,0,2" />
                     </DataTemplate>
                     <DataTemplate DataType="c:TokenSuggestion">
-                      <Grid ColumnDefinitions="Auto,*">
-                        <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Description}" Foreground="{DynamicResource Brush.FG2}" Margin="16,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                      <Grid ColumnDefinitions="Auto,Auto,*">
+                        <Path Grid.Column="0"
+                              Data="{Binding Icon}"
+                              Width="12" Height="12"
+                              Fill="{DynamicResource Brush.FG2}"
+                              Margin="0,0,6,0"
+                              VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Description}" Foreground="{DynamicResource Brush.FG2}" Margin="16,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                       </Grid>
                     </DataTemplate>
                   </ListBox.DataTemplates>

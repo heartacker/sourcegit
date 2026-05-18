@@ -132,7 +132,7 @@ namespace SourceGit.Controls {
                 if (_tokensList.SelectedIndex >= 0 && _tokensList.SelectedIndex < SelectedTokens.Count) {
                     var idx = _tokensList.SelectedIndex;
                     SelectedTokens.RemoveAt(idx);
-                    
+
                     if (SelectedTokens.Count > 0) {
                         _tokensList.SelectedIndex = Math.Min(idx, SelectedTokens.Count - 1);
                         _tokensList.Focus();
@@ -170,22 +170,52 @@ namespace SourceGit.Controls {
             }
         }
 
+        private static string GetMatchedPrefix(ITokenSuggestionProvider provider, string text) {
+            if (text.StartsWith(provider.Prefix, StringComparison.OrdinalIgnoreCase))
+                return provider.Prefix;
+            if (provider.Aliases != null) {
+                foreach (var alias in provider.Aliases) {
+                    if (text.StartsWith(alias, StringComparison.OrdinalIgnoreCase))
+                        return alias;
+                }
+            }
+            return null;
+        }
+
+        private static ITokenSuggestionProvider MatchProvider(IEnumerable<ITokenSuggestionProvider> providers, string text, out string matchedPrefix) {
+            foreach (var p in providers) {
+                var prefix = GetMatchedPrefix(p, text);
+                if (prefix != null) {
+                    matchedPrefix = prefix;
+                    return p;
+                }
+            }
+            matchedPrefix = null;
+            return null;
+        }
+
+        private static bool MatchesPattern(ITokenSuggestionProvider provider, string pattern) {
+            if (provider.Prefix.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (provider.Aliases != null) {
+                foreach (var alias in provider.Aliases) {
+                    if (alias.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            return false;
+        }
+
         private void CommitSuggestion(TokenSuggestion suggestion) {
             var currentText = Text ?? string.Empty;
             var isNegated = currentText.StartsWith("!");
             var checkStr = isNegated ? currentText.Substring(1) : currentText;
-            
-            ITokenSuggestionProvider matchedProvider = null;
-            foreach (var p in Providers) {
-                if (checkStr.StartsWith(p.Prefix, StringComparison.OrdinalIgnoreCase)) {
-                    matchedProvider = p;
-                    break;
-                }
-            }
+
+            var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
 
             if (matchedProvider != null) {
                 // Value selected for a prefix -> Complete token
-                var prefixPart = isNegated ? "!" + matchedProvider.Prefix : matchedProvider.Prefix;
+                var prefixPart = isNegated ? "!" + matchedPrefix : matchedPrefix;
                 AddToken(prefixPart + suggestion.Name);
             } else {
                 // Prefix selected -> Append to textbox and keep typing
@@ -197,7 +227,7 @@ namespace SourceGit.Controls {
                 }
                 return; // Do not close popup, let PropertyChanged trigger new suggestions
             }
-            
+
             if (_popup != null) _popup.IsOpen = false;
             _suggestionList.SelectedItem = null;
             _textBox?.Focus();
@@ -210,7 +240,7 @@ namespace SourceGit.Controls {
                 }
 
                 var val = Text ?? string.Empty;
-                
+
                 // GitHub style: Only trigger space commit if it's a FULL token (prefix + value) or an operator
                 if (val.EndsWith(" ") && val.Trim().Length > 0) {
                     var trimmed = val.Trim();
@@ -222,12 +252,10 @@ namespace SourceGit.Controls {
                     var isNegated = trimmed.StartsWith("!");
                     var checkStr = isNegated ? trimmed.Substring(1) : trimmed;
 
-                    foreach (var provider in Providers) {
-                        // Check if it starts with prefix AND has some value after it
-                        if (checkStr.StartsWith(provider.Prefix, StringComparison.OrdinalIgnoreCase) && checkStr.Length > provider.Prefix.Length) {
-                            AddToken(trimmed);
-                            return;
-                        }
+                    var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
+                    if (matchedProvider != null && checkStr.Length > matchedPrefix.Length) {
+                        AddToken(trimmed);
+                        return;
                     }
                 }
 
@@ -251,16 +279,10 @@ namespace SourceGit.Controls {
             var isNegated = text.StartsWith("!");
             var checkStr = isNegated ? text.Substring(1) : text;
 
-            ITokenSuggestionProvider matchedProvider = null;
-            foreach (var p in Providers) {
-                if (checkStr.StartsWith(p.Prefix, StringComparison.OrdinalIgnoreCase)) {
-                    matchedProvider = p;
-                    break;
-                }
-            }
+            var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
 
             if (matchedProvider != null) {
-                var pattern = checkStr.Substring(matchedProvider.Prefix.Length);
+                var pattern = checkStr.Substring(matchedPrefix.Length);
                 try {
                     var suggestions = await matchedProvider.GetSuggestionsAsync(pattern, token);
                     if (token.IsCancellationRequested) return;
@@ -286,25 +308,40 @@ namespace SourceGit.Controls {
             var flatList = new List<object>();
 
             var groups = Providers
-                .Where(p => string.IsNullOrEmpty(pattern) || p.Prefix.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                .Where(p => string.IsNullOrEmpty(pattern) || MatchesPattern(p, pattern))
                 .GroupBy(p => p.Group)
                 .OrderByDescending(g => g.Key != null) // Groups with instances first
                 .ThenBy(g => g.Key?.Id);
 
-            foreach (var g in groups) {
-                if (g.Key != null) {
+            foreach (var g in groups)
+            {
+                if (g.Key != null)
+                {
                     flatList.Add(new TokenSuggestionHeader { Name = g.Key.Name });
                 }
-                foreach (var p in g) {
-                    flatList.Add(new TokenSuggestion { Name = p.Prefix, Description = p.Description });
+                foreach (var p in g)
+                {
+                    var desc = p.Description;
+                    if (p.Aliases != null && p.Aliases.Length > 0)
+                        desc = $"{desc} (别名: {string.Join(", ", p.Aliases)})";
+
+                    flatList.Add(new TokenSuggestion { Name = p.Prefix, Description = desc, Icon = p.Icon });
                 }
             }
 
-            if (!token.IsCancellationRequested) {
-                if (flatList.Count > 0) {
+            if (!token.IsCancellationRequested)
+            {
+                if (flatList.Count > 0)
+                {
                     _suggestionList.ItemsSource = flatList;
                     _popup.IsOpen = true;
-                } else {
+
+                    // Auto-select first item when user has typed something
+                    if (!string.IsNullOrEmpty(pattern))
+                        _suggestionList.SelectedIndex = 0;
+                }
+                else
+                {
                     _popup.IsOpen = false;
                 }
             }
@@ -381,23 +418,17 @@ namespace SourceGit.Controls {
         public void AddToken(string token) {
             var isNegated = token.StartsWith("!");
             var checkStr = isNegated ? token.Substring(1) : token;
-            
-            ITokenSuggestionProvider matchedProvider = null;
-            if (token != "|" && token != "&") {
-                foreach (var p in Providers) {
-                    if (checkStr.StartsWith(p.Prefix, StringComparison.OrdinalIgnoreCase)) {
-                        matchedProvider = p;
-                        break;
-                    }
-                }
-            }
+
+            var matchedProvider = token != "|" && token != "&"
+                ? MatchProvider(Providers, checkStr, out var _)
+                : null;
 
             if (matchedProvider != null) {
                 if (matchedProvider.LogicMode == TokenLogicMode.SingleReplace) {
                     for (int i = 0; i < SelectedTokens.Count; i++) {
                         var existing = SelectedTokens[i];
                         var existingCheck = existing.StartsWith("!") ? existing.Substring(1) : existing;
-                        if (existingCheck.StartsWith(matchedProvider.Prefix, StringComparison.OrdinalIgnoreCase)) {
+                        if (MatchProvider(Providers, existingCheck, out var _) == matchedProvider) {
                             SelectedTokens[i] = token;
                             SetCurrentValue(TextProperty, string.Empty);
                             if (_popup != null) _popup.IsOpen = false;
@@ -408,7 +439,7 @@ namespace SourceGit.Controls {
                     bool hasSamePrefix = false;
                     foreach (var existing in SelectedTokens) {
                         var existingCheck = existing.StartsWith("!") ? existing.Substring(1) : existing;
-                        if (existingCheck.StartsWith(matchedProvider.Prefix, StringComparison.OrdinalIgnoreCase)) {
+                        if (MatchProvider(Providers, existingCheck, out var _) == matchedProvider) {
                             hasSamePrefix = true;
                             break;
                         }

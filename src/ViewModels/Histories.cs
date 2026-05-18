@@ -393,8 +393,7 @@ namespace SourceGit.ViewModels
             var groupGit = new Controls.TokenSuggestionGroup("git", "Git 选项");
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤 (如 is:unread, is:merged)", groupAdvanced));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", groupFilters, authorSuggester, Controls.TokenLogicMode.AutoOr));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者简写", groupFilters, authorSuggester, Controls.TokenLogicMode.AutoOr));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", groupFilters, authorSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "a:" }));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称", groupFilters));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息简写", groupFilters));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称", groupFilters, logicMode: Controls.TokenLogicMode.AutoOr));
@@ -426,18 +425,18 @@ namespace SourceGit.ViewModels
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令 (如 ui:author)", groupView, logicMode: Controls.TokenLogicMode.SingleReplace));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] {
-                                                                                                    "Commit Date",
-                                                                                                    "Topologically" },
-                                                                                                    Controls.TokenLogicMode.SingleReplace));
+                            "Commit Date",
+                            "Topologically" },
+                            Controls.TokenLogicMode.SingleReplace));
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("git:", "git 解析选项", groupGit,
-                                                                                                new[]
-                                                                                                {
-                                                                                                    "--reflog",
-                                                                                                    "--first-parent",
-                                                                                                    "--simplify-by-decoration",
-                                                                                                },
-                                                                                                logicMode: Controls.TokenLogicMode.AutoOr));
+                            new[]
+                            {
+                                "--reflog",
+                                "--first-parent",
+                                "--simplify-by-decoration",
+                            },
+                            logicMode: Controls.TokenLogicMode.AutoOr));
 
             SearchTokens.CollectionChanged += (_, e) =>
             {
