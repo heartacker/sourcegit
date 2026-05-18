@@ -50,14 +50,22 @@ namespace SourceGit.Models
             {
                 var code = job.Action switch
                 {
-                    InteractiveRebaseAction.Pick => 'p',
-                    InteractiveRebaseAction.Edit => 'e',
-                    InteractiveRebaseAction.Reword => 'r',
-                    InteractiveRebaseAction.Squash => 's',
-                    InteractiveRebaseAction.Fixup => 'f',
-                    _ => 'd'
+                    InteractiveRebaseAction.Pick => "pick",
+                    InteractiveRebaseAction.Edit => "edit",
+                    InteractiveRebaseAction.Reword => "reword",
+                    InteractiveRebaseAction.Squash => "squash",
+                    InteractiveRebaseAction.Fixup => "fixup",
+                    _ => "drop"
                 };
-                writer.WriteLine($"{code} {job.SHA}");
+
+                var title = "";
+                if (!string.IsNullOrEmpty(job.Message))
+                {
+                    var lines = job.Message.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+                    if (lines.Length > 0)
+                        title = " " + lines[0];
+                }
+                writer.WriteLine($"{code} {job.SHA}{title}");
             }
 
             writer.Flush();
