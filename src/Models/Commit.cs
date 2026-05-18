@@ -20,6 +20,7 @@ namespace SourceGit.Models
         ParentsOnly = 1,
         ChildsOnly = 2,
         FullLineage = 3,
+        FirstParentLineage = 4,
     }
 
     public class Commit : ObservableObject

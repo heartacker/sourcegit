@@ -972,6 +972,7 @@ namespace SourceGit.Views
                 ApplySoloTokens(repo, selected.Select(c => c.SHA));
                 e.Handled = true;
             };
+
             menu.Items.Add(new MenuItem() { Header = "-" });
             menu.Items.Add(soloCommits);
 
@@ -1485,6 +1486,7 @@ namespace SourceGit.Views
                 ApplySoloTokens(repo, [commit.SHA]);
                 e.Handled = true;
             };
+
             menu.Items.Add(new MenuItem() { Header = "-" });
             menu.Items.Add(soloCommits);
 

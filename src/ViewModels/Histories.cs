@@ -452,13 +452,21 @@ namespace SourceGit.ViewModels
 
                 if (soloFilters.Count > 0)
                 {
-                    var tokenSolo = new Models.SoloFilter { Targets = soloFilters };
+                    var tokenSolo = new Models.SoloFilter
+                    {
+                        Targets = soloFilters,
+                        Method = LineageSearchMethod
+                    };
                     processed = tokenSolo.Process(processed, _commitMap);
                 }
             }
 
             foreach (var filter in ViewFilters)
+            {
+                if (filter is Models.SoloFilter solo)
+                    solo.Method = LineageSearchMethod;
                 processed = filter.Process(processed, _commitMap);
+            }
 
             GenerateGraph(_rawCommits, false);
 
@@ -528,6 +536,7 @@ namespace SourceGit.ViewModels
                     _repo.UIStates.LineageSearchMethod = value;
                     OnPropertyChanged();
 
+                    UpdateDisplayCommits();
                     if (_repo.UIStates.GraphHighlighting >= Models.CommitGraphHighlighting.SelectedCommitsOnly)
                     {
                         if (_selectedCommits.Count == 1)

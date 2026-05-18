@@ -118,28 +118,42 @@ namespace SourceGit.Models
                 bottomLimit = Math.Min(bottomLimit, viewportBottomIndex);
             }
 
-            if (method == Models.CommitLineageSearchMethod.ChildsOnly ||
-                method == Models.CommitLineageSearchMethod.FullLineage)
+            if (method == CommitLineageSearchMethod.ChildsOnly ||
+                method == CommitLineageSearchMethod.FullLineage ||
+                method == CommitLineageSearchMethod.FirstParentLineage)
             {
                 // Descendant pass:
                 // Scan towards newer rows (smaller index). A commit is descendant-highlighted
                 // when any of its parents is already active.
                 for (int i = commit.Index - 1; i >= topLimit; i--)
                 {
-                    foreach (var pSha in commits[i].Parents)
+                    if (method == CommitLineageSearchMethod.FirstParentLineage)
                     {
-                        if (map.TryGetValue(pSha, out var parent) &&
+                        var pSha = commits[i].Parents.Count > 0 ? commits[i].Parents[0] : null;
+                        if (pSha != null && map.TryGetValue(pSha, out var parent) &&
                             parent.Index < commits.Count && active[parent.Index])
                         {
                             active[i] = true;
-                            break;
+                        }
+                    }
+                    else
+                    {
+                        foreach (var pSha in commits[i].Parents)
+                        {
+                            if (map.TryGetValue(pSha, out var parent) &&
+                                parent.Index < commits.Count && active[parent.Index])
+                            {
+                                active[i] = true;
+                                break;
+                            }
                         }
                     }
                 }
             }
 
-            if (method == Models.CommitLineageSearchMethod.ParentsOnly ||
-                method == Models.CommitLineageSearchMethod.FullLineage)
+            if (method == CommitLineageSearchMethod.ParentsOnly ||
+                method == CommitLineageSearchMethod.FullLineage ||
+                method == CommitLineageSearchMethod.FirstParentLineage)
             {
                 // Ancestor pass:
                 // Scan towards older rows (larger index). For each active commit,
@@ -148,12 +162,25 @@ namespace SourceGit.Models
                 {
                     if (active[i])
                     {
-                        foreach (var pSha in commits[i].Parents)
+                        if (method == CommitLineageSearchMethod.FirstParentLineage)
                         {
-                            if (map.TryGetValue(pSha, out var parent) &&
-                                parent.Index <= bottomLimit)
+                            if (commits[i].Parents.Count > 0)
                             {
-                                active[parent.Index] = true;
+                                var pSha = commits[i].Parents[0];
+                                if (map.TryGetValue(pSha, out var parent) && parent.Index <= bottomLimit)
+                                {
+                                    active[parent.Index] = true;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            foreach (var pSha in commits[i].Parents)
+                            {
+                                if (map.TryGetValue(pSha, out var parent) && parent.Index <= bottomLimit)
+                                {
+                                    active[parent.Index] = true;
+                                }
                             }
                         }
                     }

@@ -21,7 +21,18 @@ namespace SourceGit.Models
             {
                 if (_targets.Count == 0) return string.Empty;
                 var list = _targets.Select(x => x.Length > 7 ? x.Substring(0, 7) : x);
-                return "Solo: " + string.Join(", ", list);
+                var prefix = Method == CommitLineageSearchMethod.FirstParentLineage ? "Solo(1st): " : "Solo: ";
+                return prefix + string.Join(", ", list);
+            }
+        }
+
+        public CommitLineageSearchMethod Method
+        {
+            get => _method;
+            set
+            {
+                if (SetProperty(ref _method, value))
+                    OnPropertyChanged(nameof(Description));
             }
         }
 
@@ -78,6 +89,7 @@ namespace SourceGit.Models
         }
 
         private List<string> _targets = [];
+        private CommitLineageSearchMethod _method = CommitLineageSearchMethod.FullLineage;
     }
 
     public class FoldingFilter : ObservableObject, IHistoryViewFilter
@@ -177,3 +189,4 @@ namespace SourceGit.Models
         }
     }
 }
+

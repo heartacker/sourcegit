@@ -513,6 +513,16 @@ namespace SourceGit.Views
                     ev.Handled = true;
                 };
 
+                var firstParentLineage = new MenuItem();
+                firstParentLineage.Header = App.Text("Histories.Header.Highlights.LineageMethod.FirstParentLineage");
+                if (histories.LineageSearchMethod == Models.CommitLineageSearchMethod.FirstParentLineage)
+                    firstParentLineage.Icon = this.CreateMenuIcon("Icons.Check");
+                firstParentLineage.Click += (_, ev) =>
+                {
+                    histories.LineageSearchMethod = Models.CommitLineageSearchMethod.FirstParentLineage;
+                    ev.Handled = true;
+                };
+
                 var menu = new ContextMenu();
                 menu.Placement = PlacementMode.BottomEdgeAlignedLeft;
                 menu.Items.Add(layout);
@@ -538,6 +548,7 @@ namespace SourceGit.Views
                 menu.Items.Add(childsOnly);
                 menu.Items.Add(parentsOnly);
                 menu.Items.Add(fullLineage);
+                menu.Items.Add(firstParentLineage);
                 menu.Open(button);
             }
 

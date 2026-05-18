@@ -512,6 +512,7 @@
   <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.ParentsOnly" xml:space="preserve">Ancestors Only</x:String>
   <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.ChildsOnly" xml:space="preserve">Descendants Only</x:String>
   <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.FullLineage" xml:space="preserve">Full Lineage</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.FirstParentLineage" xml:space="preserve">Only First Parent</x:String>
   <x:String x:Key="Text.Histories.Header.SHA" xml:space="preserve">SHA</x:String>
   <x:String x:Key="Text.Histories.HighlightsInGraph" xml:space="preserve">HIGHLIGHTS IN GRAPH</x:String>
   <x:String x:Key="Text.Histories.HighlightsInGraph.All" xml:space="preserve">All</x:String>
