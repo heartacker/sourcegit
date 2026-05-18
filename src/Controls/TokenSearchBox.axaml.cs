@@ -20,7 +20,7 @@ namespace SourceGit.Controls {
     ///     A search box that supports tokenized filters (chips), providing a GitHub-style filtering experience.
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
-    [TemplatePart("PART_ItemsControl", typeof(ItemsControl))]
+    [TemplatePart("PART_TokensList", typeof(ListBox))]
     [TemplatePart("PART_SuggestionsPopup", typeof(Popup))]
     [TemplatePart("PART_SuggestionsList", typeof(ListBox))]
     public class TokenSearchBox : TemplatedControl {
@@ -70,6 +70,7 @@ namespace SourceGit.Controls {
         }
 
         private TextBox _textBox;
+        private ListBox _tokensList;
         private Popup _popup;
         private ListBox _suggestionList;
         private CancellationTokenSource _cts;
@@ -81,14 +82,57 @@ namespace SourceGit.Controls {
                 _textBox.KeyDown += OnTextBoxKeyDown;
                 _textBox.PropertyChanged += OnTextBoxPropertyChanged;
                 _textBox.GotFocus += (s, e) => {
+                    if (_tokensList != null) _tokensList.SelectedIndex = -1;
                     _ = UpdateSuggestionsAsync(Text ?? string.Empty);
                 };
+            }
+
+            _tokensList = e.NameScope.Find<ListBox>("PART_TokensList");
+            if (_tokensList != null) {
+                _tokensList.KeyDown += OnTokensListKeyDown;
             }
 
             _popup = e.NameScope.Find<Popup>("PART_SuggestionsPopup");
             _suggestionList = e.NameScope.Find<ListBox>("PART_SuggestionsList");
             if (_suggestionList != null) {
                 _suggestionList.PointerReleased += OnSuggestionPointerReleased;
+            }
+        }
+
+        private void OnTokensListKeyDown(object sender, KeyEventArgs e) {
+            if (_tokensList == null) return;
+
+            if (e.Key == Key.Back || e.Key == Key.Delete || e.Key == Key.Enter) {
+                if (_tokensList.SelectedIndex >= 0 && _tokensList.SelectedIndex < SelectedTokens.Count) {
+                    var idx = _tokensList.SelectedIndex;
+                    SelectedTokens.RemoveAt(idx);
+                    
+                    if (SelectedTokens.Count > 0) {
+                        _tokensList.SelectedIndex = Math.Min(idx, SelectedTokens.Count - 1);
+                        _tokensList.Focus();
+                    } else {
+                        _tokensList.SelectedIndex = -1;
+                        _textBox?.Focus();
+                    }
+                    e.Handled = true;
+                }
+            } else if (e.Key == Key.Left) {
+                if (_tokensList.SelectedIndex > 0) {
+                    _tokensList.SelectedIndex--;
+                }
+                e.Handled = true;
+            } else if (e.Key == Key.Right) {
+                if (_tokensList.SelectedIndex < SelectedTokens.Count - 1) {
+                    _tokensList.SelectedIndex++;
+                } else {
+                    _tokensList.SelectedIndex = -1;
+                    _textBox?.Focus();
+                }
+                e.Handled = true;
+            } else if (e.Key == Key.Escape) {
+                _tokensList.SelectedIndex = -1;
+                _textBox?.Focus();
+                e.Handled = true;
             }
         }
 
@@ -259,7 +303,12 @@ namespace SourceGit.Controls {
                 if (_popup != null) _popup.IsOpen = false;
                 e.Handled = true;
             } else if (e.Key == Key.Back && string.IsNullOrEmpty(Text) && SelectedTokens.Count > 0) {
-                SelectedTokens.RemoveAt(SelectedTokens.Count - 1);
+                if (_tokensList != null) {
+                    _tokensList.SelectedIndex = SelectedTokens.Count - 1;
+                    _tokensList.Focus();
+                } else {
+                    SelectedTokens.RemoveAt(SelectedTokens.Count - 1);
+                }
                 if (_popup != null) _popup.IsOpen = false;
                 e.Handled = true;
             }

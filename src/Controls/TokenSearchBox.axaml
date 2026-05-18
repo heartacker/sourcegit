@@ -31,15 +31,39 @@
                           HorizontalScrollBarVisibility="Disabled">
               <WrapPanel VerticalAlignment="Center">
                 <!-- Tokens (Chips) -->
-                <ItemsControl ItemsSource="{TemplateBinding SelectedTokens}">
-                  <ItemsControl.ItemsPanel>
+                <ListBox Name="PART_TokensList" 
+                         ItemsSource="{TemplateBinding SelectedTokens}" 
+                         Background="Transparent" 
+                         BorderThickness="0" 
+                         Padding="0" 
+                         Margin="0" 
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" 
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                  <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
                       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" />
                     </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.ItemTemplate>
+                  </ListBox.ItemsPanel>
+                  <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                      <Setter Property="Padding" Value="0"/>
+                      <Setter Property="Margin" Value="0"/>
+                      <Setter Property="CornerRadius" Value="4"/>
+                      <Setter Property="FocusAdorner" Value="{x:Null}"/>
+                      <Setter Property="Background" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                      <Setter Property="Background" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:selected Border#ChipBorder">
+                      <Setter Property="BorderBrush" Value="{DynamicResource Brush.FG1}"/>
+                      <Setter Property="BorderThickness" Value="2"/>
+                    </Style>
+                  </ListBox.Styles>
+                  <ListBox.ItemTemplate>
                     <DataTemplate>
-                      <Border Background="{Binding Converter={StaticResource TokenToBackgroundConverter}}"
+                      <Border Name="ChipBorder"
+                              Background="{Binding Converter={StaticResource TokenToBackgroundConverter}}"
                               CornerRadius="4"
                               Margin="2"
                               Padding="8,2"
@@ -68,8 +92,8 @@
                         </StackPanel>
                       </Border>
                     </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                  </ListBox.ItemTemplate>
+                </ListBox>
 
                 <!-- Input TextBox -->
                 <TextBox Name="PART_TextPresenter"
