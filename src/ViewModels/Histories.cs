@@ -245,55 +245,32 @@ namespace SourceGit.ViewModels
 
                 HashSet<string> CollectBranchLineageShas(IEnumerable<string> filters)
                 {
-                    var commitsBySha = _rawCommits.ToDictionary(c => c.SHA, c => c);
-                    var childrenBySha = new Dictionary<string, List<string>>();
-                    foreach (var commit in _rawCommits)
+                    var commits = _rawCommits;
+                    var map = new Dictionary<string, Models.Commit>(commits.Count);
+                    for (int i = 0; i < commits.Count; i++)
                     {
-                        foreach (var parent in commit.Parents)
-                        {
-                            if (!commitsBySha.ContainsKey(parent))
-                                continue;
-
-                            if (!childrenBySha.TryGetValue(parent, out var children))
-                            {
-                                children = new List<string>();
-                                childrenBySha[parent] = children;
-                            }
-
-                            children.Add(commit.SHA);
-                        }
+                        commits[i].Index = i;
+                        map[commits[i].SHA] = commits[i];
                     }
 
-                    var seeds = _rawCommits
+                    var seeds = commits
                         .Where(c => filters.Any(f => MatchesBranchHead(c, f)))
-                        .Select(c => c.SHA)
                         .ToList();
 
                     var result = new HashSet<string>();
-                    var queue = new Queue<string>(seeds);
-
-                    while (queue.Count > 0)
+                    foreach (var seed in seeds)
                     {
-                        var sha = queue.Dequeue();
-                        if (!result.Add(sha))
-                            continue;
+                        var lineage = Models.CommitGraph.GetLineage(
+                            commits,
+                            map,
+                            seed,
+                            Models.CommitLineageSearchMethod.FullLineage,
+                            (uint)commits.Count);
 
-                        if (!commitsBySha.TryGetValue(sha, out var commit))
-                            continue;
-
-                        foreach (var parent in commit.Parents)
+                        for (int i = 0; i < lineage.Length; i++)
                         {
-                            if (commitsBySha.ContainsKey(parent) && !result.Contains(parent))
-                                queue.Enqueue(parent);
-                        }
-
-                        if (childrenBySha.TryGetValue(sha, out var children))
-                        {
-                            foreach (var child in children)
-                            {
-                                if (!result.Contains(child))
-                                    queue.Enqueue(child);
-                            }
+                            if (lineage[i])
+                                result.Add(commits[i].SHA);
                         }
                     }
 
