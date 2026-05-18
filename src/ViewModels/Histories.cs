@@ -140,17 +140,210 @@ namespace SourceGit.ViewModels
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
 
+                var tagFilters = SearchTokens
+                    .Where(t => t.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var excludedTagFilters = SearchTokens
+                    .Where(t => t.StartsWith("!tag:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!t:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var remoteFilters = SearchTokens
+                    .Where(t => t.StartsWith("remote:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("r:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var excludedRemoteFilters = SearchTokens
+                    .Where(t => t.StartsWith("!remote:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!r:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var shaFilters = SearchTokens
+                    .Where(t => t.StartsWith("sha:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("s:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var excludedShaFilters = SearchTokens
+                    .Where(t => t.StartsWith("!sha:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!s:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var committerFilters = SearchTokens
+                    .Where(t => t.StartsWith("committer:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("c:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var excludedCommitterFilters = SearchTokens
+                    .Where(t => t.StartsWith("!committer:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!c:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var emailFilters = SearchTokens
+                    .Where(t => t.StartsWith("email:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("e:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var excludedEmailFilters = SearchTokens
+                    .Where(t => t.StartsWith("!email:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!e:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var sinceFilters = SearchTokens
+                    .Where(t => t.StartsWith("since:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("after:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
+                    .Where(dt => dt.HasValue)
+                    .Select(dt => dt.Value)
+                    .ToList();
+
+                var excludedSinceFilters = SearchTokens
+                    .Where(t => t.StartsWith("!since:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!after:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
+                    .Where(dt => dt.HasValue)
+                    .Select(dt => dt.Value)
+                    .ToList();
+
+                var untilFilters = SearchTokens
+                    .Where(t => t.StartsWith("until:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("before:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
+                    .Where(dt => dt.HasValue)
+                    .Select(dt => dt.Value)
+                    .ToList();
+
+                var excludedUntilFilters = SearchTokens
+                    .Where(t => t.StartsWith("!until:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!before:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
+                    .Where(dt => dt.HasValue)
+                    .Select(dt => dt.Value)
+                    .ToList();
+
+                bool MatchesBranchHead(Models.Commit commit, string filter)
+                {
+                    return commit.Decorators.Any(d =>
+                        (d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.RemoteBranchHead or Models.DecoratorType.CurrentBranchHead) &&
+                        d.Name.Contains(filter, StringComparison.OrdinalIgnoreCase));
+                }
+
+                HashSet<string> CollectBranchLineageShas(IEnumerable<string> filters)
+                {
+                    var commitsBySha = _rawCommits.ToDictionary(c => c.SHA, c => c);
+                    var childrenBySha = new Dictionary<string, List<string>>();
+                    foreach (var commit in _rawCommits)
+                    {
+                        foreach (var parent in commit.Parents)
+                        {
+                            if (!commitsBySha.ContainsKey(parent))
+                                continue;
+
+                            if (!childrenBySha.TryGetValue(parent, out var children))
+                            {
+                                children = new List<string>();
+                                childrenBySha[parent] = children;
+                            }
+
+                            children.Add(commit.SHA);
+                        }
+                    }
+
+                    var seeds = _rawCommits
+                        .Where(c => filters.Any(f => MatchesBranchHead(c, f)))
+                        .Select(c => c.SHA)
+                        .ToList();
+
+                    var result = new HashSet<string>();
+                    var queue = new Queue<string>(seeds);
+
+                    while (queue.Count > 0)
+                    {
+                        var sha = queue.Dequeue();
+                        if (!result.Add(sha))
+                            continue;
+
+                        if (!commitsBySha.TryGetValue(sha, out var commit))
+                            continue;
+
+                        foreach (var parent in commit.Parents)
+                        {
+                            if (commitsBySha.ContainsKey(parent) && !result.Contains(parent))
+                                queue.Enqueue(parent);
+                        }
+
+                        if (childrenBySha.TryGetValue(sha, out var children))
+                        {
+                            foreach (var child in children)
+                            {
+                                if (!result.Contains(child))
+                                    queue.Enqueue(child);
+                            }
+                        }
+                    }
+
+                    return result;
+                }
+
                 if (branchFilters.Count > 0 || excludedBranchFilters.Count > 0)
+                {
+                    HashSet<string> includeSet = null;
+                    HashSet<string> excludeSet = null;
+
+                    if (branchFilters.Count > 0)
+                        includeSet = CollectBranchLineageShas(branchFilters);
+                    if (excludedBranchFilters.Count > 0)
+                        excludeSet = CollectBranchLineageShas(excludedBranchFilters);
+
+                    processed = processed.Where(c =>
+                    {
+                        var include = includeSet == null || includeSet.Contains(c.SHA);
+                        var exclude = excludeSet != null && excludeSet.Contains(c.SHA);
+                        return include && !exclude;
+                    }).ToList();
+                }
+
+                if (tagFilters.Count > 0 || excludedTagFilters.Count > 0)
                 {
                     processed = processed.Where(c =>
                     {
-                        var branchNames = c.Decorators
-                            .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.RemoteBranchHead or Models.DecoratorType.CurrentBranchHead)
+                        var tagNames = c.Decorators
+                            .Where(d => d.Type == Models.DecoratorType.Tag)
                             .Select(d => d.Name)
                             .ToList();
 
-                        var include = branchFilters.Count == 0 || branchFilters.Any(f => branchNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
-                        var exclude = excludedBranchFilters.Any(f => branchNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
+                        var include = tagFilters.Count == 0 || tagFilters.Any(f => tagNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
+                        var exclude = excludedTagFilters.Any(f => tagNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
+                        return include && !exclude;
+                    }).ToList();
+                }
+
+                if (remoteFilters.Count > 0 || excludedRemoteFilters.Count > 0)
+                {
+                    processed = processed.Where(c =>
+                    {
+                        var remoteNames = c.Decorators
+                            .Where(d => d.Type == Models.DecoratorType.RemoteBranchHead)
+                            .Select(d => d.Name)
+                            .ToList();
+
+                        var include = remoteFilters.Count == 0 || remoteFilters.Any(f => remoteNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
+                        var exclude = excludedRemoteFilters.Any(f => remoteNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
                         return include && !exclude;
                     }).ToList();
                 }
@@ -162,6 +355,55 @@ namespace SourceGit.ViewModels
                         var include = authorFilters.Count == 0 || authorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
                         var exclude = excludedAuthorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
                         return include && !exclude;
+                    }).ToList();
+                }
+
+                if (committerFilters.Count > 0 || excludedCommitterFilters.Count > 0)
+                {
+                    processed = processed.Where(c =>
+                    {
+                        var include = committerFilters.Count == 0 || committerFilters.Any(f => c.Committer.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Committer.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        var exclude = excludedCommitterFilters.Any(f => c.Committer.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Committer.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        return include && !exclude;
+                    }).ToList();
+                }
+
+                if (emailFilters.Count > 0 || excludedEmailFilters.Count > 0)
+                {
+                    processed = processed.Where(c =>
+                    {
+                        var include = emailFilters.Count == 0 || emailFilters.Any(f =>
+                            c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase) ||
+                            c.Committer.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        var exclude = excludedEmailFilters.Any(f =>
+                            c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase) ||
+                            c.Committer.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        return include && !exclude;
+                    }).ToList();
+                }
+
+                if (shaFilters.Count > 0 || excludedShaFilters.Count > 0)
+                {
+                    processed = processed.Where(c =>
+                    {
+                        var include = shaFilters.Count == 0 || shaFilters.Any(f => c.SHA.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        var exclude = excludedShaFilters.Any(f => c.SHA.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        return include && !exclude;
+                    }).ToList();
+                }
+
+                if (sinceFilters.Count > 0 || excludedSinceFilters.Count > 0 || untilFilters.Count > 0 || excludedUntilFilters.Count > 0)
+                {
+                    processed = processed.Where(c =>
+                    {
+                        var commitTime = DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime);
+
+                        var includeSince = sinceFilters.Count == 0 || sinceFilters.Any(t => commitTime >= t);
+                        var excludeSince = excludedSinceFilters.Any(t => commitTime >= t);
+                        var includeUntil = untilFilters.Count == 0 || untilFilters.Any(t => commitTime <= t);
+                        var excludeUntil = excludedUntilFilters.Any(t => commitTime <= t);
+
+                        return includeSince && !excludeSince && includeUntil && !excludeUntil;
                     }).ToList();
                 }
 
