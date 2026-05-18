@@ -116,13 +116,63 @@ namespace SourceGit.ViewModels
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
 
+                var branchFilters = SearchTokens
+                    .Where(t => t.StartsWith("branch:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("b:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var excludedBranchFilters = SearchTokens
+                    .Where(t => t.StartsWith("!branch:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!b:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var messageFilters = SearchTokens
+                    .Where(t => t.StartsWith("message:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("m:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var excludedMessageFilters = SearchTokens
+                    .Where(t => t.StartsWith("!message:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!m:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                if (branchFilters.Count > 0 || excludedBranchFilters.Count > 0)
+                {
+                    processed = processed.Where(c =>
+                    {
+                        var branchNames = c.Decorators
+                            .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.RemoteBranchHead or Models.DecoratorType.CurrentBranchHead)
+                            .Select(d => d.Name)
+                            .ToList();
+
+                        var include = branchFilters.Count == 0 || branchFilters.Any(f => branchNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
+                        var exclude = excludedBranchFilters.Any(f => branchNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
+                        return include && !exclude;
+                    }).ToList();
+                }
+
                 if (authorFilters.Count > 0 || excludedAuthorFilters.Count > 0)
                 {
                     processed = processed.Where(c =>
                     {
-                        var matchInclude = authorFilters.Count == 0 || authorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        var matchExclude = excludedAuthorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        return matchInclude && !matchExclude;
+                        var include = authorFilters.Count == 0 || authorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        var exclude = excludedAuthorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        return include && !exclude;
+                    }).ToList();
+                }
+
+                if (messageFilters.Count > 0 || excludedMessageFilters.Count > 0)
+                {
+                    processed = processed.Where(c =>
+                    {
+                        var message = c.Subject ?? string.Empty;
+                        var include = messageFilters.Count == 0 || messageFilters.Any(f => message.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        var exclude = excludedMessageFilters.Any(f => message.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        return include && !exclude;
                     }).ToList();
                 }
             }
@@ -387,6 +437,37 @@ namespace SourceGit.ViewModels
                 return Task.FromResult(suggestions);
             };
 
+            Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> branchSuggester = (pattern, ct) =>
+            {
+                var branchNames = _rawCommits
+                    .SelectMany(c => c.Decorators)
+                    .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.RemoteBranchHead or Models.DecoratorType.CurrentBranchHead)
+                    .Select(d => d.Name)
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                var suggestions = branchNames
+                    .Where(n => string.IsNullOrEmpty(pattern) || n.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(n => n)
+                    .Take(100)
+                    .Select(n => new Controls.TokenSuggestion { Name = n });
+                return Task.FromResult(suggestions);
+            };
+
+            Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> messageSuggester = (pattern, ct) =>
+            {
+                var subjects = _rawCommits
+                    .Select(c => c.Subject)
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                var suggestions = subjects
+                    .Where(s => string.IsNullOrEmpty(pattern) || s.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    .Take(100)
+                    .Select(s => new Controls.TokenSuggestion { Name = s });
+                return Task.FromResult(suggestions);
+            };
+
             var groupFilters = new Controls.TokenSuggestionGroup("filters", "常规过滤");
             var groupAdvanced = new Controls.TokenSuggestionGroup("advanced", "高级检索");
             var groupView = new Controls.TokenSuggestionGroup("view", "视图控制");
@@ -394,10 +475,8 @@ namespace SourceGit.ViewModels
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤 (如 is:unread, is:merged)", groupAdvanced));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", groupFilters, authorSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "a:" }));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息简写", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称", groupFilters, logicMode: Controls.TokenLogicMode.AutoOr));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支简写", groupFilters, logicMode: Controls.TokenLogicMode.AutoOr));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称", groupFilters, messageSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "m:" }));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称", groupFilters, branchSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "b:" }));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "标签全称", groupFilters));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签简写", groupFilters));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("remote:", "远程分支全称", groupFilters));
