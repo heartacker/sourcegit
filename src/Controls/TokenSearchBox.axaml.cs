@@ -320,7 +320,17 @@ namespace SourceGit.Controls
                 }
 
                 // If not committed, update suggestions
-                await UpdateSuggestionsAsync(val.TrimEnd());
+                if (string.IsNullOrEmpty(val) && SelectedTokens.Count > 0)
+                {
+                    // Text cleared while tokens exist → close popup and focus last token
+                    if (_popup != null)
+                        _popup.IsOpen = false;
+                    _tokensList.SelectedIndex = SelectedTokens.Count - 1;
+                }
+                else
+                {
+                    await UpdateSuggestionsAsync(val.TrimEnd());
+                }
             }
         }
 
@@ -473,12 +483,6 @@ namespace SourceGit.Controls
                     e.Handled = true;
                     return;
                 }
-                else if (e.Key == Key.Back)
-                {
-                    // Close popup first when pressing Backspace while popup is open,
-                    // then fall through to normal Backspace handling below
-                    _popup.IsOpen = false;
-                }
             }
 
             // Normal text box logic
@@ -493,27 +497,32 @@ namespace SourceGit.Controls
                     _popup.IsOpen = false;
                 e.Handled = true;
             }
-            else if (e.Key == Key.Back && string.IsNullOrEmpty(Text) && SelectedTokens.Count > 0)
+            else if (e.Key == Key.Back && SelectedTokens.Count > 0)
             {
-                if (_tokensList != null)
+                // Close popup first to avoid focus conflicts
+                if (_popup != null)
+                    _popup.IsOpen = false;
+
+                if (string.IsNullOrEmpty(Text))
                 {
-                    if (_tokensList.SelectedIndex >= 0 && _tokensList.SelectedIndex < SelectedTokens.Count)
+                    if (_tokensList != null)
                     {
-                        SelectedTokens.RemoveAt(_tokensList.SelectedIndex);
-                        _tokensList.SelectedIndex = -1;
+                        if (_tokensList.SelectedIndex >= 0 && _tokensList.SelectedIndex < SelectedTokens.Count)
+                        {
+                            SelectedTokens.RemoveAt(_tokensList.SelectedIndex);
+                            _tokensList.SelectedIndex = -1;
+                        }
+                        else
+                        {
+                            _tokensList.SelectedIndex = SelectedTokens.Count - 1;
+                        }
                     }
                     else
                     {
-                        _tokensList.SelectedIndex = SelectedTokens.Count - 1;
+                        SelectedTokens.RemoveAt(SelectedTokens.Count - 1);
                     }
+                    e.Handled = true;
                 }
-                else
-                {
-                    SelectedTokens.RemoveAt(SelectedTokens.Count - 1);
-                }
-                if (_popup != null)
-                    _popup.IsOpen = false;
-                e.Handled = true;
             }
             else if (e.Key == Key.Left && string.IsNullOrEmpty(Text) && SelectedTokens.Count > 0)
             {
