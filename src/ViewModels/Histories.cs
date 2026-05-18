@@ -140,6 +140,54 @@ namespace SourceGit.ViewModels
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
 
+                var knownPrefixes = new[]
+                {
+                    "is:",
+                    "author:", "a:",
+                    "message:", "m:",
+                    "branch:", "b:",
+                    "tag:", "t:",
+                    "remote:", "r:",
+                    "file:", "f:",
+                    "path:", "p:",
+                    "sha:", "s:",
+                    "since:", "after:", "until:", "before:",
+                    "committer:", "c:",
+                    "email:", "e:",
+                    "S:", "G:",
+                    "change:", "signed:", "parent:",
+                    "ui:", "sort:", "git:",
+                };
+
+                static string ExtractUnknownMessageTerm(string token, string[] prefixes)
+                {
+                    if (string.IsNullOrWhiteSpace(token) || token == "|" || token == "&")
+                        return null;
+
+                    var check = token.StartsWith("!", StringComparison.Ordinal) ? token[1..] : token;
+                    if (prefixes.Any(p => check.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+                        return null;
+
+                    var idx = check.IndexOf(':');
+                    var term = idx >= 0 ? check[(idx + 1)..].Trim() : check.Trim();
+                    return string.IsNullOrEmpty(term) ? null : term;
+                }
+
+                var fallbackMessageFilters = SearchTokens
+                    .Where(t => !t.StartsWith("!", StringComparison.Ordinal))
+                    .Select(t => ExtractUnknownMessageTerm(t, knownPrefixes))
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var fallbackExcludedMessageFilters = SearchTokens
+                    .Where(t => t.StartsWith("!", StringComparison.Ordinal))
+                    .Select(t => ExtractUnknownMessageTerm(t, knownPrefixes))
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                messageFilters.AddRange(fallbackMessageFilters);
+                excludedMessageFilters.AddRange(fallbackExcludedMessageFilters);
+
                 var tagFilters = SearchTokens
                     .Where(t => t.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
