@@ -157,6 +157,7 @@ namespace SourceGit.ViewModels
                     "S:", "G:",
                     "change:", "signed:", "parent:",
                     "ui:", "sort:", "git:",
+                    "solo:",
                 };
 
                 static string ExtractUnknownMessageTerm(string token, string[] prefixes)
@@ -282,6 +283,12 @@ namespace SourceGit.ViewModels
                     .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
                     .Where(dt => dt.HasValue)
                     .Select(dt => dt.Value)
+                    .ToList();
+
+                var soloFilters = SearchTokens
+                    .Where(t => t.StartsWith("solo:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
 
                 bool MatchesBranchHead(Models.Commit commit, string filter)
@@ -441,6 +448,12 @@ namespace SourceGit.ViewModels
                         var exclude = excludedMessageFilters.Any(f => message.Contains(f, StringComparison.OrdinalIgnoreCase));
                         return include && !exclude;
                     }).ToList();
+                }
+
+                if (soloFilters.Count > 0)
+                {
+                    var tokenSolo = new Models.SoloFilter { Targets = soloFilters };
+                    processed = tokenSolo.Process(processed, _commitMap);
                 }
             }
 
@@ -745,6 +758,7 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", groupFilters, authorSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "a:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称", groupFilters, messageSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "m:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称", groupFilters, branchSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "b:" }, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("solo:", "Solo 提交链过滤 (如 solo:HEAD 或 solo:<sha>)", groupView, new[] { "HEAD" }, Controls.TokenLogicMode.AutoOr, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "标签全称", groupFilters, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签简写", groupFilters, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("remote:", "远程分支全称", groupFilters, icon: implementedIcon));
