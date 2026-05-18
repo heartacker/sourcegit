@@ -260,16 +260,26 @@ namespace SourceGit.Controls {
         }
 
         private void ShowDefaultProviders(string pattern, CancellationToken token) {
-            var defaultSuggestions = new List<TokenSuggestion>();
-            foreach (var p in Providers) {
-                if (string.IsNullOrEmpty(pattern) || p.Prefix.StartsWith(pattern, StringComparison.OrdinalIgnoreCase)) {
-                    defaultSuggestions.Add(new TokenSuggestion { Name = p.Prefix, Description = p.Description });
+            var flatList = new List<object>();
+
+            var groups = Providers
+                .Where(p => string.IsNullOrEmpty(pattern) || p.Prefix.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                .GroupBy(p => p.GroupName ?? string.Empty)
+                .OrderByDescending(g => !string.IsNullOrEmpty(g.Key)) // Groups with names first
+                .ThenBy(g => g.Key);
+
+            foreach (var g in groups) {
+                if (!string.IsNullOrEmpty(g.Key)) {
+                    flatList.Add(new TokenSuggestionHeader { Name = g.Key });
+                }
+                foreach (var p in g) {
+                    flatList.Add(new TokenSuggestion { Name = p.Prefix, Description = p.Description });
                 }
             }
 
             if (!token.IsCancellationRequested) {
-                if (defaultSuggestions.Count > 0) {
-                    _suggestionList.ItemsSource = defaultSuggestions;
+                if (flatList.Count > 0) {
+                    _suggestionList.ItemsSource = flatList;
                     _popup.IsOpen = true;
                 } else {
                     _popup.IsOpen = false;
@@ -281,11 +291,15 @@ namespace SourceGit.Controls {
             // Keyboard navigation for suggestions
             if (_popup?.IsOpen == true && _suggestionList != null) {
                 if (e.Key == Key.Down) {
-                    _suggestionList.SelectedIndex = Math.Min(_suggestionList.SelectedIndex + 1, _suggestionList.ItemCount - 1);
+                    int next = _suggestionList.SelectedIndex + 1;
+                    while (next < _suggestionList.ItemCount && _suggestionList.Items.Cast<object>().ElementAt(next) is TokenSuggestionHeader) next++;
+                    if (next < _suggestionList.ItemCount) _suggestionList.SelectedIndex = next;
                     e.Handled = true;
                     return;
                 } else if (e.Key == Key.Up) {
-                    _suggestionList.SelectedIndex = Math.Max(_suggestionList.SelectedIndex - 1, 0);
+                    int prev = _suggestionList.SelectedIndex - 1;
+                    while (prev >= 0 && _suggestionList.Items.Cast<object>().ElementAt(prev) is TokenSuggestionHeader) prev--;
+                    if (prev >= 0) _suggestionList.SelectedIndex = prev;
                     e.Handled = true;
                     return;
                 } else if (e.Key == Key.Enter) {

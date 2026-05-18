@@ -26,7 +26,7 @@
                 Padding="{TemplateBinding Padding}">
           <Grid ColumnDefinitions="*,Auto">
             <ScrollViewer Grid.Column="0" 
-                          MaxHeight="64" 
+                          MaxHeight="100" 
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
               <WrapPanel VerticalAlignment="Center">
@@ -147,14 +147,21 @@
                       <Setter Property="CornerRadius" Value="4"/>
                     </Style>
                   </ListBox.Styles>
-                  <ListBox.ItemTemplate>
+                  <ListBox.DataTemplates>
+                    <DataTemplate DataType="c:TokenSuggestionHeader">
+                      <TextBlock Text="{Binding Name}" 
+                                 Foreground="{DynamicResource Brush.FG2}" 
+                                 FontWeight="Bold" 
+                                 FontSize="11" 
+                                 Margin="0,8,0,2" />
+                    </DataTemplate>
                     <DataTemplate DataType="c:TokenSuggestion">
                       <Grid ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="Bold" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Description}" Foreground="{DynamicResource Brush.FG2}" Margin="16,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                       </Grid>
                     </DataTemplate>
-                  </ListBox.ItemTemplate>
+                  </ListBox.DataTemplates>
                 </ListBox>
               </Border>
             </Popup>
