@@ -411,9 +411,20 @@ namespace SourceGit.Controls
                     _suggestionList.ItemsSource = flatList;
                     _popup.IsOpen = true;
 
-                    // Auto-select first item when user has typed something
+                    // Auto-select first suggestion (skip headers) when user has typed something
                     if (!string.IsNullOrEmpty(pattern))
-                        _suggestionList.SelectedIndex = 0;
+                    {
+                        var firstSuggestion = -1;
+                        for (int i = 0; i < flatList.Count; i++)
+                        {
+                            if (flatList[i] is TokenSuggestion)
+                            {
+                                firstSuggestion = i;
+                                break;
+                            }
+                        }
+                        _suggestionList.SelectedIndex = firstSuggestion;
+                    }
                 }
                 else
                 {
