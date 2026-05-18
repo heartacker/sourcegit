@@ -478,7 +478,7 @@ namespace SourceGit.Controls
                     e.Handled = true;
                     return;
                 }
-                else if (e.Key == Key.Enter)
+                else if (e.Key == Key.Enter || e.Key == Key.Tab)
                 {
                     if (_suggestionList.SelectedItem is TokenSuggestion suggestion)
                     {
