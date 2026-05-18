@@ -473,6 +473,12 @@ namespace SourceGit.Controls
                     e.Handled = true;
                     return;
                 }
+                else if (e.Key == Key.Back)
+                {
+                    // Close popup first when pressing Backspace while popup is open,
+                    // then fall through to normal Backspace handling below
+                    _popup.IsOpen = false;
+                }
             }
 
             // Normal text box logic
