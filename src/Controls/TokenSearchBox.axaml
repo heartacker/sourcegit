@@ -1,0 +1,137 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:c="using:SourceGit.Controls"
+                    xmlns:conv="using:SourceGit.Converters">
+  <conv:TokenToColorConverter x:Key="TokenToColorConverter" />
+  <conv:TokenToBackgroundConverter x:Key="TokenToBackgroundConverter" />
+  
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <c:TokenSearchBox Width="400" Watermark="Search or type filter..." />
+    </Border>
+  </Design.PreviewWith>
+
+  <ControlTheme x:Key="{x:Type c:TokenSearchBox}" TargetType="c:TokenSearchBox">
+    <Setter Property="Background" Value="{DynamicResource Brush.Contents}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border2}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="4,2" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}"
+                Padding="{TemplateBinding Padding}">
+          <Grid ColumnDefinitions="*,Auto">
+            <ScrollViewer Grid.Column="0" 
+                          MaxHeight="64" 
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+              <WrapPanel VerticalAlignment="Center">
+                <!-- Tokens (Chips) -->
+                <ItemsControl ItemsSource="{TemplateBinding SelectedTokens}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Background="{Binding Converter={StaticResource TokenToBackgroundConverter}}"
+                              CornerRadius="4"
+                              Margin="2"
+                              Padding="8,2"
+                              BorderBrush="{Binding Converter={StaticResource TokenToColorConverter}}"
+                              BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                          <TextBlock Text="{Binding}"
+                                     FontSize="12"
+                                     VerticalAlignment="Center"
+                                     Foreground="{Binding Converter={StaticResource TokenToColorConverter}}" />
+                          <Button Classes="icon"
+                                  Command="{Binding $parent[c:TokenSearchBox].RemoveToken}"
+                                  CommandParameter="{Binding}"
+                                  Margin="6,0,0,0"
+                                  Padding="0"
+                                  Width="12" Height="12"
+                                  Background="Transparent"
+                                  BorderThickness="0">
+                            <Path Data="M 0 0 L 8 8 M 0 8 L 8 0"
+                                  Stroke="{Binding $parent[TextBlock].Foreground}"
+                                  StrokeThickness="1.5"
+                                  Width="8"
+                                  Height="8"
+                                  VerticalAlignment="Center" />
+                          </Button>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Input TextBox -->
+                <TextBox Name="PART_TextPresenter"
+                         Text="{TemplateBinding Text, Mode=TwoWay}"
+                         PlaceholderText="{TemplateBinding Watermark}"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         MinWidth="120"
+                         Margin="0"
+                         Padding="4,4"
+                         VerticalAlignment="Center"
+                         Theme="{StaticResource {x:Type TextBox}}">
+                  <TextBox.Styles>
+                    <Style Selector="TextBox /template/ Border#PART_BorderElement">
+                      <Setter Property="IsVisible" Value="False" />
+                    </Style>
+                  </TextBox.Styles>
+                </TextBox>
+              </WrapPanel>
+            </ScrollViewer>
+
+            <Path Grid.Column="1"
+                  Data="{StaticResource Icons.Search}"
+                  Width="14" Height="14"
+                  Fill="{DynamicResource Brush.FG2}"
+                  Margin="8,4"
+                  VerticalAlignment="Top"/>
+
+            <Popup Name="PART_SuggestionsPopup"
+                   PlacementTarget="{Binding ElementName=PART_TextPresenter}"
+                   Placement="BottomEdgeAlignedLeft"
+                   IsOpen="False">
+              <Border Background="{DynamicResource Brush.Popup}"
+                      BorderBrush="{DynamicResource Brush.Border2}"
+                      BorderThickness="1"
+                      CornerRadius="4"
+                      Padding="4"
+                      MinWidth="200"
+                      Effect="drop-shadow(0 0 8 #40000000)">
+                <ListBox Name="PART_SuggestionsList" Background="Transparent" BorderThickness="0">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate DataType="c:TokenSuggestion">
+                      <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="Bold" Padding="4,2"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Description}" Foreground="{DynamicResource Brush.FG2}" Margin="16,0,0,0" Padding="4,2" HorizontalAlignment="Right"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </Border>
+            </Popup>
+          </Grid>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+
+    <Style Selector="^:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border1}" />
+    </Style>
+    <Style Selector="^:focus-within">
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
+  </ControlTheme>
+</ResourceDictionary>

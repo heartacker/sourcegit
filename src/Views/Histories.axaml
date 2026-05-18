@@ -6,10 +6,18 @@
              xmlns:vm="using:SourceGit.ViewModels"
              xmlns:v="using:SourceGit.Views"
              xmlns:c="using:SourceGit.Converters"
+             xmlns:ctrl="using:SourceGit.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SourceGit.Views.Histories"
              x:DataType="vm:Histories"
              x:Name="ThisControl">
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Controls/TokenSearchBox.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
   <v:HistoriesLayout UseHorizontal="{Binding Source={x:Static vm:Preferences.Instance}, Path=UseTwoColumnsLayoutInHistories}">
     <v:HistoriesLayout.RowDefinitions>
       <RowDefinition Height="{Binding TopArea, Mode=TwoWay}" MinHeight="100"/>
@@ -23,8 +31,17 @@
       <ColumnDefinition Width="{Binding RightArea, Mode=TwoWay}" MinWidth="100"/>
     </v:HistoriesLayout.ColumnDefinitions>
 
-    <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">
-      <v:HistoriesCommitList x:Name="CommitListContainer"
+    <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" RowDefinitions="Auto,*">
+      <Border Grid.Row="0" Padding="8,4" Background="{DynamicResource Brush.DataGridHeaderBG}">
+        <ctrl:TokenSearchBox Watermark="Filter commits (e.g. is:unread author:me) ..." 
+                            Height="28" 
+                            HorizontalAlignment="Stretch"
+                            Text="{Binding SearchText, Mode=TwoWay}"
+                            SelectedTokens="{Binding SearchTokens}"
+                            Providers="{Binding SearchProviders}"/>
+      </Border>
+
+      <v:HistoriesCommitList Grid.Row="1" x:Name="CommitListContainer"
                              Classes="static_scrollbar"
                              ScrollViewer.AllowAutoHide="False"
                              Background="{DynamicResource Brush.DataGridHeaderBG}"
@@ -288,9 +305,10 @@
               PointerReleased="OnCommitListHeaderPointerReleased"
               ContextRequested="OnCommitListHeaderContextRequested"/>              
 
-      <v:HistoryViewFilterBar ZIndex="100"/>
+      <v:HistoryViewFilterBar Grid.Row="1" ZIndex="100"/>
 
       <v:CommitGraph x:Name="CommitGraph"
+                     Grid.Row="1"
                      Margin="0,32,0,0"
                      Graph="{Binding Graph}"
                      DotBrush="{DynamicResource Brush.Contents}"
@@ -301,7 +319,8 @@
                      IsHitTestVisible="False"
                      ClipToBounds="True"/>
 
-      <Border Width="28" Height="28"
+      <Border Grid.Row="1"
+              Width="28" Height="28"
               Margin="0,0,16,8"
               CornerRadius="14"
               Background="{DynamicResource Brush.Popup}"
@@ -315,7 +334,7 @@
               Opacity=".8"/>
       </Border>
 
-      <v:LoadingIcon Width="48" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsLoading}"/>
+      <v:LoadingIcon Grid.Row="1" Width="48" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsLoading}"/>
     </Grid>
 
     <GridSplitter Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"

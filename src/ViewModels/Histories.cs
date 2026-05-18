@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,6 +15,16 @@ namespace SourceGit.ViewModels
     public class Histories : ObservableObject
     {
         public Repository Repo => _repo;
+
+        public string SearchText
+        {
+            get => _searchText;
+            set => SetProperty(ref _searchText, value);
+        }
+
+        public ObservableCollection<string> SearchTokens { get; } = new();
+
+        public ObservableCollection<Controls.ITokenSuggestionProvider> SearchProviders { get; } = new();
 
         public bool IsLoading
         {
@@ -339,6 +350,46 @@ namespace SourceGit.ViewModels
                 if (filter is Models.FoldingFilter foldingFilter)
                     foldingFilter.PropertyChanged += (_, e) => OnPropertyChanged(nameof(HasActiveViewFilters));
             }
+
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "Filter by Author Name"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "Filter by Author Name (Alias)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "Filter by Commit Message"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "Filter by Commit Message (Alias)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "Filter by Branch"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "Filter by Branch (Alias)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI Control Commands (e.g. ui:author)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "State Filter (e.g. is:unread)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "Filter by Tag"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "Filter by Tag (Alias)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("file:", "Filter by File Path"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "Filter by File Path (Alias)"));
+
+            SearchTokens.CollectionChanged += (_, e) =>
+            {
+                if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+                {
+                    foreach (string token in e.NewItems)
+                    {
+                        if (token.Equals("ui:author", StringComparison.OrdinalIgnoreCase))
+                        {
+                            IsAuthorColumnVisible = !IsAuthorColumnVisible;
+                            Dispatcher.UIThread.Post(() => SearchTokens.Remove(token));
+                        }
+                        else if (token.Equals("ui:sha", StringComparison.OrdinalIgnoreCase))
+                        {
+                            IsSHAColumnVisible = !IsSHAColumnVisible;
+                            Dispatcher.UIThread.Post(() => SearchTokens.Remove(token));
+                        }
+                        else if (token.Equals("ui:time", StringComparison.OrdinalIgnoreCase))
+                        {
+                            IsDateTimeColumnVisible = !IsDateTimeColumnVisible;
+                            Dispatcher.UIThread.Post(() => SearchTokens.Remove(token));
+                        }
+                    }
+                }
+
+                UpdateDisplayCommits();
+            };
         }
 
         public void SetVisibleCommitRange(int top, int bottom)
@@ -726,6 +777,7 @@ namespace SourceGit.ViewModels
         private Repository _repo = null;
         private CommitDetailSharedData _commitDetailSharedData = null;
         private bool _isLoading = true;
+        private string _searchText = string.Empty;
         private List<Models.Commit> _commits = [];
         private List<Models.Commit> _rawCommits = [];
         private Models.CommitGraph _graph = null;
