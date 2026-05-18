@@ -48,6 +48,9 @@ namespace SourceGit.Controls
         public static readonly StyledProperty<ICommand> SearchCommandProperty =
             AvaloniaProperty.Register<TokenSearchBox, ICommand>(nameof(SearchCommand));
 
+        public static readonly StyledProperty<ICommand> TokenDoubleClickCommandProperty =
+            AvaloniaProperty.Register<TokenSearchBox, ICommand>(nameof(TokenDoubleClickCommand));
+
         public string Text
         {
             get => GetValue(TextProperty);
@@ -88,6 +91,12 @@ namespace SourceGit.Controls
         {
             get => GetValue(SearchCommandProperty);
             set => SetValue(SearchCommandProperty, value);
+        }
+
+        public ICommand TokenDoubleClickCommand
+        {
+            get => GetValue(TokenDoubleClickCommandProperty);
+            set => SetValue(TokenDoubleClickCommandProperty, value);
         }
 
         public TokenSearchBox()
@@ -145,6 +154,7 @@ namespace SourceGit.Controls
             if (_tokensList != null)
             {
                 _tokensList.KeyDown += OnTokensListKeyDown;
+                _tokensList.DoubleTapped += OnTokensListDoubleTapped;
             }
 
             _popup = e.NameScope.Find<Popup>("PART_SuggestionsPopup");
@@ -160,7 +170,7 @@ namespace SourceGit.Controls
             if (_tokensList == null)
                 return;
 
-            if (e.Key == Key.Back || e.Key == Key.Delete || e.Key == Key.Enter)
+            if (e.Key == Key.Delete)
             {
                 if (_tokensList.SelectedIndex >= 0 && _tokensList.SelectedIndex < SelectedTokens.Count)
                 {
@@ -177,6 +187,14 @@ namespace SourceGit.Controls
                         _tokensList.SelectedIndex = -1;
                         _textBox?.Focus();
                     }
+                    e.Handled = true;
+                }
+            }
+            else if (e.Key == Key.Back)
+            {
+                if (_tokensList.SelectedIndex >= 0 && _tokensList.SelectedIndex < SelectedTokens.Count)
+                {
+                    BeginEditToken(SelectedTokens[_tokensList.SelectedIndex]);
                     e.Handled = true;
                 }
             }
@@ -207,6 +225,20 @@ namespace SourceGit.Controls
                 _textBox?.Focus();
                 e.Handled = true;
             }
+        }
+
+        private void OnTokensListDoubleTapped(object sender, TappedEventArgs e)
+        {
+            var item = (e.Source as Visual)?.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
+            var token = item?.DataContext as string;
+            if (string.IsNullOrEmpty(token))
+                return;
+
+            if (TokenDoubleClickCommand?.CanExecute(token) == true)
+                TokenDoubleClickCommand.Execute(token);
+
+            BeginEditToken(token);
+            e.Handled = true;
         }
 
         private void OnSuggestionPointerReleased(object sender, PointerReleasedEventArgs e)
@@ -519,8 +551,7 @@ namespace SourceGit.Controls
                     {
                         if (_tokensList.SelectedIndex >= 0 && _tokensList.SelectedIndex < SelectedTokens.Count)
                         {
-                            SelectedTokens.RemoveAt(_tokensList.SelectedIndex);
-                            _tokensList.SelectedIndex = -1;
+                            BeginEditToken(SelectedTokens[_tokensList.SelectedIndex]);
                         }
                         else
                         {
@@ -699,6 +730,24 @@ namespace SourceGit.Controls
         public void RemoveToken(string token)
         {
             SelectedTokens.Remove(token);
+        }
+
+        private void BeginEditToken(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+                return;
+
+            var idx = SelectedTokens.IndexOf(token);
+            if (idx >= 0)
+                SelectedTokens.RemoveAt(idx);
+
+            if (_tokensList != null)
+                _tokensList.SelectedIndex = -1;
+
+            SetCurrentValue(TextProperty, token);
+            _textBox?.Focus();
+            if (_textBox != null)
+                _textBox.CaretIndex = _textBox.Text?.Length ?? 0;
         }
     }
 }
