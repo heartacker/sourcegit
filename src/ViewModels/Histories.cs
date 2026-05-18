@@ -801,6 +801,35 @@ namespace SourceGit.ViewModels
 
             SearchTokens.CollectionChanged += (_, e) =>
             {
+                var gitOptions = SearchTokens
+                    .Where(t => t.StartsWith("git:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                if (gitOptions.Count > 0)
+                {
+                    var flags = Models.HistoryShowFlags.None;
+                    if (gitOptions.Any(o => o.Equals("--reflog", StringComparison.OrdinalIgnoreCase)))
+                        flags |= Models.HistoryShowFlags.Reflog;
+                    if (gitOptions.Any(o => o.Equals("--first-parent", StringComparison.OrdinalIgnoreCase)))
+                        flags |= Models.HistoryShowFlags.FirstParentOnly;
+                    if (gitOptions.Any(o => o.Equals("--simplify-by-decoration", StringComparison.OrdinalIgnoreCase)))
+                        flags |= Models.HistoryShowFlags.SimplifyByDecoration;
+
+                    if (_repo.HistoryShowFlags != flags)
+                        _repo.HistoryShowFlags = flags;
+
+                    _gitOptionsDrivenByTokens = true;
+                }
+                else if (_gitOptionsDrivenByTokens)
+                {
+                    if (_repo.HistoryShowFlags != Models.HistoryShowFlags.None)
+                        _repo.HistoryShowFlags = Models.HistoryShowFlags.None;
+
+                    _gitOptionsDrivenByTokens = false;
+                }
+
                 if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
                 {
                     foreach (string token in e.NewItems)
@@ -1234,5 +1263,6 @@ namespace SourceGit.ViewModels
         private int _visibleTopIndex = -1;
         private int _visibleBottomIndex = -1;
         private Dictionary<string, Models.Commit> _commitMap = new();
+        private bool _gitOptionsDrivenByTokens = false;
     }
 }
