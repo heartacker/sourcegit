@@ -388,12 +388,12 @@ namespace SourceGit.ViewModels
             };
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤 (如 is:unread, is:merged)"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", authorSuggester));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者简写", authorSuggester));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", authorSuggester, Controls.TokenLogicMode.AutoOr));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者简写", authorSuggester, Controls.TokenLogicMode.AutoOr));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息简写"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称", logicMode: Controls.TokenLogicMode.AutoOr));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支简写", logicMode: Controls.TokenLogicMode.AutoOr));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "标签全称"));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签简写"));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("remote:", "远程分支全称"));
@@ -417,8 +417,8 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("change:", "变更类型 (added, deleted)"));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态"));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令 (如 ui:author)"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", new[] { "Commit Date", "Topologically" }));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令 (如 ui:author)", logicMode: Controls.TokenLogicMode.SingleReplace));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", new[] { "Commit Date", "Topologically" }, Controls.TokenLogicMode.SingleReplace));
 
             SearchTokens.CollectionChanged += (_, e) =>
             {

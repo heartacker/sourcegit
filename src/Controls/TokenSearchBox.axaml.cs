@@ -85,6 +85,9 @@ namespace SourceGit.Controls {
                     if (_tokensList != null) _tokensList.SelectedIndex = -1;
                     _ = UpdateSuggestionsAsync(Text ?? string.Empty);
                 };
+                _textBox.LostFocus += (s, e) => {
+                    if (_popup != null) _popup.IsOpen = false;
+                };
             }
 
             _tokensList = e.NameScope.Find<ListBox>("PART_TokensList");
@@ -339,6 +342,52 @@ namespace SourceGit.Controls {
         }
 
         public void AddToken(string token) {
+            var isNegated = token.StartsWith("!");
+            var checkStr = isNegated ? token.Substring(1) : token;
+            
+            ITokenSuggestionProvider matchedProvider = null;
+            if (token != "|" && token != "&") {
+                foreach (var p in Providers) {
+                    if (checkStr.StartsWith(p.Prefix, StringComparison.OrdinalIgnoreCase)) {
+                        matchedProvider = p;
+                        break;
+                    }
+                }
+            }
+
+            if (matchedProvider != null) {
+                if (matchedProvider.LogicMode == TokenLogicMode.SingleReplace) {
+                    for (int i = 0; i < SelectedTokens.Count; i++) {
+                        var existing = SelectedTokens[i];
+                        var existingCheck = existing.StartsWith("!") ? existing.Substring(1) : existing;
+                        if (existingCheck.StartsWith(matchedProvider.Prefix, StringComparison.OrdinalIgnoreCase)) {
+                            SelectedTokens[i] = token;
+                            SetCurrentValue(TextProperty, string.Empty);
+                            if (_popup != null) _popup.IsOpen = false;
+                            return;
+                        }
+                    }
+                } else if (matchedProvider.LogicMode == TokenLogicMode.AutoOr) {
+                    bool hasSamePrefix = false;
+                    foreach (var existing in SelectedTokens) {
+                        var existingCheck = existing.StartsWith("!") ? existing.Substring(1) : existing;
+                        if (existingCheck.StartsWith(matchedProvider.Prefix, StringComparison.OrdinalIgnoreCase)) {
+                            hasSamePrefix = true;
+                            break;
+                        }
+                    }
+                    if (hasSamePrefix) {
+                        var last = SelectedTokens.LastOrDefault();
+                        if (last == "&") {
+                            // Enforce "Cannot AND" rule for AutoOr: Correct illegal '&' to '|'
+                            SelectedTokens[SelectedTokens.Count - 1] = "|";
+                        } else if (last != null && last != "|") {
+                            SelectedTokens.Add("|");
+                        }
+                    }
+                }
+            }
+
             if (!SelectedTokens.Contains(token)) {
                 SelectedTokens.Add(token);
             }

@@ -6,6 +6,15 @@ using System.Threading.Tasks;
 
 namespace SourceGit.Controls {
     /// <summary>
+    ///     Defines the logic mode for how tokens from a provider should be combined.
+    /// </summary>
+    public enum TokenLogicMode {
+        None,
+        SingleReplace,
+        AutoOr
+    }
+
+    /// <summary>
     ///     Represents a suggestion item for the token search box.
     /// </summary>
     public class TokenSuggestion {
@@ -28,6 +37,11 @@ namespace SourceGit.Controls {
         string Description { get; }
 
         /// <summary>
+        ///     The logic mode for this provider (e.g., SingleReplace, AutoOr).
+        /// </summary>
+        TokenLogicMode LogicMode { get; }
+
+        /// <summary>
         ///     Returns a list of suggestions based on the user's current input after the prefix.
         /// </summary>
         /// <param name="pattern">The text user typed after the prefix.</param>
@@ -42,20 +56,23 @@ namespace SourceGit.Controls {
     public class StaticTokenSuggestionProvider : ITokenSuggestionProvider {
         public string Prefix { get; }
         public string Description { get; }
+        public TokenLogicMode LogicMode { get; }
 
         private readonly Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> _suggester;
         private readonly IEnumerable<TokenSuggestion> _staticOptions;
 
-        public StaticTokenSuggestionProvider(string prefix, string description, Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null) {
+        public StaticTokenSuggestionProvider(string prefix, string description, Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null, TokenLogicMode logicMode = TokenLogicMode.None) {
             Prefix = prefix;
             Description = description;
             _suggester = suggester;
+            LogicMode = logicMode;
         }
 
-        public StaticTokenSuggestionProvider(string prefix, string description, IEnumerable<string> staticOptions) {
+        public StaticTokenSuggestionProvider(string prefix, string description, IEnumerable<string> staticOptions, TokenLogicMode logicMode = TokenLogicMode.None) {
             Prefix = prefix;
             Description = description;
             _staticOptions = staticOptions.Select(x => new TokenSuggestion { Name = x }).ToList();
+            LogicMode = logicMode;
         }
 
         public Task<IEnumerable<TokenSuggestion>> GetSuggestionsAsync(string pattern, CancellationToken cancellationToken) {
