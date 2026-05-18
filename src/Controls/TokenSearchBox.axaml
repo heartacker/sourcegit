@@ -125,6 +125,7 @@
             <Popup Name="PART_SuggestionsPopup"
                    PlacementTarget="{Binding ElementName=PART_TextPresenter}"
                    Placement="BottomEdgeAlignedLeft"
+                   IsLightDismissEnabled="True"
                    IsOpen="False">
               <Border Background="{DynamicResource Brush.Popup}"
                       BorderBrush="{DynamicResource Brush.Border2}"
