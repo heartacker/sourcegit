@@ -13,6 +13,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 namespace SourceGit.Controls
@@ -126,8 +127,17 @@ namespace SourceGit.Controls
                 };
                 _textBox.LostFocus += (s, e) =>
                 {
-                    if (_popup != null)
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (_popup == null)
+                            return;
+
+                        // Keep popup open when focus moves from textbox into suggestion list.
+                        if ((_textBox?.IsKeyboardFocusWithin ?? false) || (_suggestionList?.IsKeyboardFocusWithin ?? false))
+                            return;
+
                         _popup.IsOpen = false;
+                    }, DispatcherPriority.Input);
                 };
             }
 
