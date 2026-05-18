@@ -48,7 +48,7 @@
                     <Style Selector="ListBoxItem">
                       <Setter Property="Padding" Value="0"/>
                       <Setter Property="Margin" Value="0"/>
-                      <Setter Property="CornerRadius" Value="4"/>
+                      <Setter Property="CornerRadius" Value="12"/>
                       <Setter Property="FocusAdorner" Value="{x:Null}"/>
                       <Setter Property="Background" Value="Transparent"/>
                     </Style>
@@ -57,7 +57,7 @@
                     </Style>
                     <Style Selector="ListBoxItem:selected Border#ChipBorder">
                       <Setter Property="BorderBrush" Value="{DynamicResource Brush.FG1}"/>
-                      <Setter Property="BorderThickness" Value="2"/>
+                      <Setter Property="BorderThickness" Value="1"/>
                     </Style>
                     <Style Selector="Border#ChipBorder:pointerover Button#RemoveButton">
                       <Setter Property="IsVisible" Value="True"/>
@@ -70,16 +70,17 @@
                     <DataTemplate>
                       <Border Name="ChipBorder"
                               Background="{Binding Converter={StaticResource TokenToBackgroundConverter}}"
-                              CornerRadius="4"
-                              Margin="2"
-                              Padding="8,5"
+                              Height="20"
+                              CornerRadius="12"
+                              Margin="0,0,6,0"
+                              Padding="8,0"
                               BorderBrush="{Binding Converter={StaticResource TokenToColorConverter}}"
                               BorderThickness="1">
                         <Grid>
                           <TextBlock Text="{Binding}"
                                      FontSize="12"
                                      VerticalAlignment="Center"
-                                     HorizontalAlignment="Center"
+                                     HorizontalAlignment="Left"
                                      Foreground="{Binding Converter={StaticResource TokenToColorConverter}}" />
                           <Button Name="RemoveButton"
                                   IsVisible="False"

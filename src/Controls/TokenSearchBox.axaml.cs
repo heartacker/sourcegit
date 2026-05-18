@@ -91,8 +91,8 @@ namespace SourceGit.Controls
 
         public TokenSearchBox()
         {
-            SelectedTokens = new ObservableCollection<string>();
-            Providers = new ObservableCollection<ITokenSuggestionProvider>();
+            SetCurrentValue(SelectedTokensProperty, new ObservableCollection<string>());
+            SetCurrentValue(ProvidersProperty, new ObservableCollection<ITokenSuggestionProvider>());
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
