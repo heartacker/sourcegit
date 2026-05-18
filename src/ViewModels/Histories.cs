@@ -100,6 +100,33 @@ namespace SourceGit.ViewModels
         public void UpdateDisplayCommits()
         {
             var processed = _rawCommits;
+            
+            // Apply Token Filters
+            if (SearchTokens.Count > 0)
+            {
+                var authorFilters = SearchTokens
+                    .Where(t => t.StartsWith("author:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("a:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var excludedAuthorFilters = SearchTokens
+                    .Where(t => t.StartsWith("!author:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!a:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                if (authorFilters.Count > 0 || excludedAuthorFilters.Count > 0)
+                {
+                    processed = processed.Where(c => 
+                    {
+                        var matchInclude = authorFilters.Count == 0 || authorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        var matchExclude = excludedAuthorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        return matchInclude && !matchExclude;
+                    }).ToList();
+                }
+            }
+
             foreach (var filter in ViewFilters)
                 processed = filter.Process(processed, _commitMap);
 
@@ -351,18 +378,47 @@ namespace SourceGit.ViewModels
                     foldingFilter.PropertyChanged += (_, e) => OnPropertyChanged(nameof(HasActiveViewFilters));
             }
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "Filter by Author Name"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "Filter by Author Name (Alias)"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "Filter by Commit Message"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "Filter by Commit Message (Alias)"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "Filter by Branch"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "Filter by Branch (Alias)"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI Control Commands (e.g. ui:author)"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "State Filter (e.g. is:unread)"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "Filter by Tag"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "Filter by Tag (Alias)"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("file:", "Filter by File Path"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "Filter by File Path (Alias)"));
+            Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> authorSuggester = (pattern, ct) =>
+            {
+                var authors = _rawCommits.Select(c => c.Author).DistinctBy(a => a.Name);
+                var suggestions = authors
+                    .Where(a => string.IsNullOrEmpty(pattern) || a.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase) || a.Email.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    .Select(a => new Controls.TokenSuggestion { Name = a.Name, Description = a.Email });
+                return Task.FromResult(suggestions);
+            };
+
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤 (如 is:unread, is:merged)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", authorSuggester));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者简写", authorSuggester));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "标签全称"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("remote:", "远程分支全称"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("file:", "文件路径全称"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("path:", "路径别名"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sha:", "哈希全称"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("after:", "起始时间别名"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("before:", "结束时间别名"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("committer:", "提交者全称"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("c:", "提交者简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("email:", "邮箱全称"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("e:", "邮箱简写"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("S:", "内容搜索 (Pickaxe)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("G:", "正则搜索 (Grep)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("change:", "变更类型 (added, deleted)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令 (如 ui:author)"));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", new[] { "Commit Date", "Topologically" }));
 
             SearchTokens.CollectionChanged += (_, e) =>
             {

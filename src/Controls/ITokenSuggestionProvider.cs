@@ -44,6 +44,7 @@ namespace SourceGit.Controls {
         public string Description { get; }
 
         private readonly Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> _suggester;
+        private readonly IEnumerable<TokenSuggestion> _staticOptions;
 
         public StaticTokenSuggestionProvider(string prefix, string description, Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null) {
             Prefix = prefix;
@@ -51,9 +52,20 @@ namespace SourceGit.Controls {
             _suggester = suggester;
         }
 
+        public StaticTokenSuggestionProvider(string prefix, string description, IEnumerable<string> staticOptions) {
+            Prefix = prefix;
+            Description = description;
+            _staticOptions = staticOptions.Select(x => new TokenSuggestion { Name = x }).ToList();
+        }
+
         public Task<IEnumerable<TokenSuggestion>> GetSuggestionsAsync(string pattern, CancellationToken cancellationToken) {
             if (_suggester != null) {
                 return _suggester(pattern, cancellationToken);
+            }
+
+            if (_staticOptions != null) {
+                var filtered = _staticOptions.Where(x => string.IsNullOrEmpty(pattern) || x.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+                return Task.FromResult(filtered);
             }
 
             return Task.FromResult(Enumerable.Empty<TokenSuggestion>());
