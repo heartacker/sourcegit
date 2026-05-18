@@ -36,6 +36,12 @@ namespace SourceGit.Controls {
         public static readonly StyledProperty<string> WatermarkProperty =
             AvaloniaProperty.Register<TokenSearchBox, string>(nameof(Watermark));
 
+        public static readonly StyledProperty<int> MaxRowsProperty =
+            AvaloniaProperty.Register<TokenSearchBox, int>(nameof(MaxRows), 3);
+
+        public static readonly StyledProperty<double> MaxListHeightProperty =
+            AvaloniaProperty.Register<TokenSearchBox, double>(nameof(MaxListHeight), 96.0);
+
         public static readonly StyledProperty<ICommand> SearchCommandProperty =
             AvaloniaProperty.Register<TokenSearchBox, ICommand>(nameof(SearchCommand));
 
@@ -59,6 +65,16 @@ namespace SourceGit.Controls {
             set => SetValue(WatermarkProperty, value);
         }
 
+        public int MaxRows {
+            get => GetValue(MaxRowsProperty);
+            set => SetValue(MaxRowsProperty, value);
+        }
+
+        public double MaxListHeight {
+            get => GetValue(MaxListHeightProperty);
+            set => SetValue(MaxListHeightProperty, value);
+        }
+
         public ICommand SearchCommand {
             get => GetValue(SearchCommandProperty);
             set => SetValue(SearchCommandProperty, value);
@@ -67,6 +83,13 @@ namespace SourceGit.Controls {
         public TokenSearchBox() {
             SelectedTokens = new ObservableCollection<string>();
             Providers = new ObservableCollection<ITokenSuggestionProvider>();
+        }
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change) {
+            base.OnPropertyChanged(change);
+            if (change.Property == MaxRowsProperty) {
+                SetCurrentValue(MaxListHeightProperty, MaxRows * 32.0);
+            }
         }
 
         private TextBox _textBox;
@@ -264,13 +287,13 @@ namespace SourceGit.Controls {
 
             var groups = Providers
                 .Where(p => string.IsNullOrEmpty(pattern) || p.Prefix.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
-                .GroupBy(p => p.GroupName ?? string.Empty)
-                .OrderByDescending(g => !string.IsNullOrEmpty(g.Key)) // Groups with names first
-                .ThenBy(g => g.Key);
+                .GroupBy(p => p.Group)
+                .OrderByDescending(g => g.Key != null) // Groups with instances first
+                .ThenBy(g => g.Key?.Id);
 
             foreach (var g in groups) {
-                if (!string.IsNullOrEmpty(g.Key)) {
-                    flatList.Add(new TokenSuggestionHeader { Name = g.Key });
+                if (g.Key != null) {
+                    flatList.Add(new TokenSuggestionHeader { Name = g.Key.Name });
                 }
                 foreach (var p in g) {
                     flatList.Add(new TokenSuggestion { Name = p.Prefix, Description = p.Description });

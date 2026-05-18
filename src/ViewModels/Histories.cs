@@ -100,7 +100,7 @@ namespace SourceGit.ViewModels
         public void UpdateDisplayCommits()
         {
             var processed = _rawCommits;
-            
+
             // Apply Token Filters
             if (SearchTokens.Count > 0)
             {
@@ -118,7 +118,7 @@ namespace SourceGit.ViewModels
 
                 if (authorFilters.Count > 0 || excludedAuthorFilters.Count > 0)
                 {
-                    processed = processed.Where(c => 
+                    processed = processed.Where(c =>
                     {
                         var matchInclude = authorFilters.Count == 0 || authorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
                         var matchExclude = excludedAuthorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
@@ -387,43 +387,57 @@ namespace SourceGit.ViewModels
                 return Task.FromResult(suggestions);
             };
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤 (如 is:unread, is:merged)", groupName: "高级检索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", groupName: "常规过滤", suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者简写", groupName: "常规过滤", suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息简写", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称", groupName: "常规过滤", logicMode: Controls.TokenLogicMode.AutoOr));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支简写", groupName: "常规过滤", logicMode: Controls.TokenLogicMode.AutoOr));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "标签全称", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签简写", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("remote:", "远程分支全称", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支简写", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("file:", "文件路径全称", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径简写", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("path:", "路径别名", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径简写", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sha:", "哈希全称", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希简写", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("after:", "起始时间别名", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("before:", "结束时间别名", groupName: "常规过滤"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("committer:", "提交者全称", groupName: "高级检索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("c:", "提交者简写", groupName: "高级检索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("email:", "邮箱全称", groupName: "高级检索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("e:", "邮箱简写", groupName: "高级检索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("S:", "内容搜索 (Pickaxe)", groupName: "高级检索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("G:", "正则搜索 (Grep)", groupName: "高级检索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("change:", "变更类型 (added, deleted)", groupName: "高级检索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态", groupName: "高级检索"));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索", groupName: "高级检索"));
-            
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令 (如 ui:author)", groupName: "视图控制", logicMode: Controls.TokenLogicMode.SingleReplace));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupName: "视图控制", staticOptions: new[] { "Commit Date", "Topologically" }, logicMode: Controls.TokenLogicMode.SingleReplace));
+            var groupFilters = new Controls.TokenSuggestionGroup("filters", "常规过滤");
+            var groupAdvanced = new Controls.TokenSuggestionGroup("advanced", "高级检索");
+            var groupView = new Controls.TokenSuggestionGroup("view", "视图控制");
+            var groupGit = new Controls.TokenSuggestionGroup("git", "Git 选项");
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("--reflog", "显示丢失引用的提交", groupName: "Git 选项", logicMode: Controls.TokenLogicMode.SingleReplace));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("--first-parent", "仅显示合并提交中的第一个提交", groupName: "Git 选项", logicMode: Controls.TokenLogicMode.SingleReplace));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("--simplify-by-decoration", "仅显示分支、标签所引用的提交", groupName: "Git 选项", logicMode: Controls.TokenLogicMode.SingleReplace));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤 (如 is:unread, is:merged)", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", groupFilters, authorSuggester, Controls.TokenLogicMode.AutoOr));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者简写", groupFilters, authorSuggester, Controls.TokenLogicMode.AutoOr));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息简写", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称", groupFilters, logicMode: Controls.TokenLogicMode.AutoOr));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支简写", groupFilters, logicMode: Controls.TokenLogicMode.AutoOr));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "标签全称", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签简写", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("remote:", "远程分支全称", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支简写", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("file:", "文件路径全称", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径简写", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("path:", "路径别名", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径简写", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sha:", "哈希全称", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希简写", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("after:", "起始时间别名", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("before:", "结束时间别名", groupFilters));
+
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("committer:", "提交者全称", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("c:", "提交者简写", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("email:", "邮箱全称", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("e:", "邮箱简写", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("S:", "内容搜索 (Pickaxe)", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("G:", "正则搜索 (Grep)", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("change:", "变更类型 (added, deleted)", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索", groupAdvanced));
+
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令 (如 ui:author)", groupView, logicMode: Controls.TokenLogicMode.SingleReplace));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] {
+                                                                                                    "Commit Date",
+                                                                                                    "Topologically" },
+                                                                                                    Controls.TokenLogicMode.SingleReplace));
+
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("git:", "git 解析选项", groupGit,
+                                                                                                new[]
+                                                                                                {
+                                                                                                    "--reflog",
+                                                                                                    "--first-parent",
+                                                                                                    "--simplify-by-decoration",
+                                                                                                },
+                                                                                                logicMode: Controls.TokenLogicMode.AutoOr));
 
             SearchTokens.CollectionChanged += (_, e) =>
             {
