@@ -627,6 +627,75 @@ namespace SourceGit.Controls
                 _popup.IsOpen = false;
         }
 
+        public bool InsertToken(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return false;
+
+            AddToken(token.Trim());
+            return true;
+        }
+
+        public bool DeleteToken(string token, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (string.IsNullOrWhiteSpace(token) || SelectedTokens == null || SelectedTokens.Count == 0)
+                return false;
+
+            for (int i = 0; i < SelectedTokens.Count; i++)
+            {
+                if (SelectedTokens[i].Equals(token, comparison))
+                {
+                    SelectedTokens.RemoveAt(i);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public int DeleteTokensByPrefix(string prefix, bool includeNegated = true, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (string.IsNullOrWhiteSpace(prefix) || SelectedTokens == null || SelectedTokens.Count == 0)
+                return 0;
+
+            var count = 0;
+            for (int i = SelectedTokens.Count - 1; i >= 0; i--)
+            {
+                var token = SelectedTokens[i];
+                var check = token;
+                if (includeNegated && check.StartsWith("!", StringComparison.Ordinal))
+                    check = check[1..];
+
+                if (check.StartsWith(prefix, comparison))
+                {
+                    SelectedTokens.RemoveAt(i);
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        public IReadOnlyList<string> QueryTokens(string prefix = null, bool includeNegated = true, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (SelectedTokens == null || SelectedTokens.Count == 0)
+                return Array.Empty<string>();
+
+            if (string.IsNullOrWhiteSpace(prefix))
+                return SelectedTokens.ToList();
+
+            return SelectedTokens
+                .Where(t =>
+                {
+                    var check = t;
+                    if (includeNegated && check.StartsWith("!", StringComparison.Ordinal))
+                        check = check[1..];
+
+                    return check.StartsWith(prefix, comparison);
+                })
+                .ToList();
+        }
+
         public void RemoveToken(string token)
         {
             SelectedTokens.Remove(token);
