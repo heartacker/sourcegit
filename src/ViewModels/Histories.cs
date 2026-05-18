@@ -675,53 +675,54 @@ namespace SourceGit.ViewModels
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> messageSuggester = (pattern, ct) =>
             {
-                var subjects = _rawCommits
-                    .Select(c => c.Subject)
-                    .Where(s => !string.IsNullOrEmpty(s))
-                    .Distinct(StringComparer.OrdinalIgnoreCase);
+                // var subjects = _rawCommits
+                //     .Select(c => c.Subject)
+                //     .Where(s => !string.IsNullOrEmpty(s))
+                //     .Distinct(StringComparer.OrdinalIgnoreCase);
 
-                var suggestions = subjects
-                    .Where(s => string.IsNullOrEmpty(pattern) || s.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                    .Take(100)
-                    .Select(s => new Controls.TokenSuggestion { Name = s });
-                return Task.FromResult(suggestions);
+                // var suggestions = subjects
+                //     .Where(s => string.IsNullOrEmpty(pattern) || s.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                //     .Take(100)
+                //     .Select(s => new Controls.TokenSuggestion { Name = s });
+                return Task.FromResult(Enumerable.Empty<Controls.TokenSuggestion>());
             };
 
             var groupFilters = new Controls.TokenSuggestionGroup("filters", "常规过滤");
             var groupAdvanced = new Controls.TokenSuggestionGroup("advanced", "高级检索");
             var groupView = new Controls.TokenSuggestionGroup("view", "视图控制");
             var groupGit = new Controls.TokenSuggestionGroup("git", "Git 选项");
+            var implementedIcon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5";
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤 (如 is:unread, is:merged)", groupAdvanced));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", groupFilters, authorSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "a:" }));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称", groupFilters, messageSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "m:" }));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称", groupFilters, branchSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "b:" }));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "标签全称", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签简写", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("remote:", "远程分支全称", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支简写", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("author:", "作者全称", groupFilters, authorSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "a:" }, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("message:", "提交消息全称", groupFilters, messageSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "m:" }, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("branch:", "分支全称", groupFilters, branchSuggester, Controls.TokenLogicMode.AutoOr, alias: new[] { "b:" }, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("tag:", "标签全称", groupFilters, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签简写", groupFilters, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("remote:", "远程分支全称", groupFilters, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支简写", groupFilters, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("file:", "文件路径全称", groupFilters));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径简写", groupFilters));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("path:", "路径别名", groupFilters));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径简写", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sha:", "哈希全称", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希简写", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("after:", "起始时间别名", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间", groupFilters));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("before:", "结束时间别名", groupFilters));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sha:", "哈希全称", groupFilters, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希简写", groupFilters, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间", groupFilters, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("after:", "起始时间别名", groupFilters, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间", groupFilters, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("before:", "结束时间别名", groupFilters, icon: implementedIcon));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("committer:", "提交者全称", groupAdvanced));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("c:", "提交者简写", groupAdvanced));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("email:", "邮箱全称", groupAdvanced));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("e:", "邮箱简写", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("committer:", "提交者全称", groupAdvanced, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("c:", "提交者简写", groupAdvanced, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("email:", "邮箱全称", groupAdvanced, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("e:", "邮箱简写", groupAdvanced, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("S:", "内容搜索 (Pickaxe)", groupAdvanced));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("G:", "正则搜索 (Grep)", groupAdvanced));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("change:", "变更类型 (added, deleted)", groupAdvanced));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态", groupAdvanced));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索", groupAdvanced));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令 (如 ui:author)", groupView, logicMode: Controls.TokenLogicMode.SingleReplace));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令 (如 ui:author)", groupView, logicMode: Controls.TokenLogicMode.SingleReplace, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] {
                             "Commit Date",
                             "Topologically" },
