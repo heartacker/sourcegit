@@ -969,7 +969,7 @@ namespace SourceGit.Views
             soloCommits.Icon = this.CreateMenuIcon("Icons.LightOn");
             soloCommits.Click += (_, e) =>
             {
-                repo.SetSoloCommitFilterMode(selected, Models.FilterMode.Included);
+                ApplySoloTokens(repo, selected.Select(c => c.SHA));
                 e.Handled = true;
             };
             menu.Items.Add(new MenuItem() { Header = "-" });
@@ -1482,7 +1482,7 @@ namespace SourceGit.Views
             soloCommits.Icon = this.CreateMenuIcon("Icons.LightOn");
             soloCommits.Click += (_, e) =>
             {
-                repo.SetSoloCommitFilterMode(commit, Models.FilterMode.Included);
+                ApplySoloTokens(repo, [commit.SHA]);
                 e.Handled = true;
             };
             menu.Items.Add(new MenuItem() { Header = "-" });
@@ -1870,7 +1870,7 @@ namespace SourceGit.Views
             var repoView = this.FindAncestorOfType<Repository>();
             if (repoView is { DataContext: ViewModels.Repository { CurrentBranch: not null } repo })
             {
-                repo.SetSoloCommitFilterMode(new List<string> { "HEAD", repo.CurrentBranch.Head }, Models.FilterMode.Included);
+                ApplySoloTokens(repo, ["HEAD", repo.CurrentBranch.Head]);
                 e.Handled = true;
             }
         }
@@ -1880,8 +1880,27 @@ namespace SourceGit.Views
             var repoView = this.FindAncestorOfType<Repository>();
             if (repoView is { DataContext: ViewModels.Repository repo })
             {
+                TokenFilterBox?.DeleteTokensByPrefix("solo:");
                 repo.ClearSoloMode();
                 e.Handled = true;
+            }
+        }
+
+        private void ApplySoloTokens(ViewModels.Repository repo, IEnumerable<string> targets)
+        {
+            if (TokenFilterBox == null)
+            {
+                repo.SetSoloCommitFilterMode(targets, Models.FilterMode.Included);
+                return;
+            }
+
+            // Keep one source of truth by clearing legacy SoloFilter state before token-based filtering.
+            repo.ClearSoloMode();
+
+            foreach (var target in targets)
+            {
+                if (!string.IsNullOrWhiteSpace(target))
+                    TokenFilterBox.InsertToken($"solo:{target}");
             }
         }
 
