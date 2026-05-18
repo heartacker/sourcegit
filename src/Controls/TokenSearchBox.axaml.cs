@@ -179,6 +179,10 @@ namespace SourceGit.Controls {
 
         private async void OnTextBoxPropertyChanged(object sender, AvaloniaPropertyChangedEventArgs e) {
             if (e.Property == TextBox.TextProperty) {
+                if (_tokensList != null && !string.IsNullOrEmpty(Text)) {
+                    _tokensList.SelectedIndex = -1;
+                }
+
                 var val = Text ?? string.Empty;
                 
                 // GitHub style: Only trigger space commit if it's a FULL token (prefix + value) or an operator
@@ -304,12 +308,32 @@ namespace SourceGit.Controls {
                 e.Handled = true;
             } else if (e.Key == Key.Back && string.IsNullOrEmpty(Text) && SelectedTokens.Count > 0) {
                 if (_tokensList != null) {
-                    _tokensList.SelectedIndex = SelectedTokens.Count - 1;
-                    _tokensList.Focus();
+                    if (_tokensList.SelectedIndex >= 0 && _tokensList.SelectedIndex < SelectedTokens.Count) {
+                        SelectedTokens.RemoveAt(_tokensList.SelectedIndex);
+                        _tokensList.SelectedIndex = -1;
+                    } else {
+                        _tokensList.SelectedIndex = SelectedTokens.Count - 1;
+                    }
                 } else {
                     SelectedTokens.RemoveAt(SelectedTokens.Count - 1);
                 }
                 if (_popup != null) _popup.IsOpen = false;
+                e.Handled = true;
+            } else if (e.Key == Key.Left && string.IsNullOrEmpty(Text) && SelectedTokens.Count > 0) {
+                if (_tokensList != null) {
+                    if (_tokensList.SelectedIndex < 0) {
+                        _tokensList.SelectedIndex = SelectedTokens.Count - 1;
+                    } else if (_tokensList.SelectedIndex > 0) {
+                        _tokensList.SelectedIndex--;
+                    }
+                    e.Handled = true;
+                }
+            } else if (e.Key == Key.Right && string.IsNullOrEmpty(Text) && _tokensList?.SelectedIndex >= 0) {
+                if (_tokensList.SelectedIndex < SelectedTokens.Count - 1) {
+                    _tokensList.SelectedIndex++;
+                } else {
+                    _tokensList.SelectedIndex = -1;
+                }
                 e.Handled = true;
             }
         }

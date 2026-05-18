@@ -130,15 +130,27 @@
                       BorderBrush="{DynamicResource Brush.Border2}"
                       BorderThickness="1"
                       CornerRadius="4"
-                      Padding="4"
+                      Padding="2"
+                      Margin="0,4,0,0"
                       MinWidth="200"
+                      MaxHeight="260"
                       Effect="drop-shadow(0 0 8 #40000000)">
-                <ListBox Name="PART_SuggestionsList" Background="Transparent" BorderThickness="0">
+                <ListBox Name="PART_SuggestionsList" 
+                         Background="Transparent" 
+                         BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                  <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                      <Setter Property="Padding" Value="8,4"/>
+                      <Setter Property="MinHeight" Value="24"/>
+                      <Setter Property="CornerRadius" Value="4"/>
+                    </Style>
+                  </ListBox.Styles>
                   <ListBox.ItemTemplate>
                     <DataTemplate DataType="c:TokenSuggestion">
                       <Grid ColumnDefinitions="Auto,*">
-                        <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="Bold" Padding="4,2"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Description}" Foreground="{DynamicResource Brush.FG2}" Margin="16,0,0,0" Padding="4,2" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Description}" Foreground="{DynamicResource Brush.FG2}" Margin="16,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                       </Grid>
                     </DataTemplate>
                   </ListBox.ItemTemplate>
