@@ -579,7 +579,36 @@ namespace SourceGit.Controls
             if (string.IsNullOrWhiteSpace(text))
                 return;
 
-            AddToken(text.Trim());
+            var parsedExpr = QueryParser.ParseInlineExpr(text);
+            if (parsedExpr != null)
+            {
+                FlattenExprToTokens(parsedExpr, SelectedTokens);
+            }
+            else
+            {
+                AddToken(text.Trim());
+            }
+        }
+
+        private void FlattenExprToTokens(ExprNode node, ObservableCollection<string> tokens)
+        {
+            if (node == null) return;
+
+            if (node.Op == ExprOp.Term)
+            {
+                var token = string.IsNullOrEmpty(node.Prefix) ? node.Value : $"{node.Prefix}:{node.Value}";
+                if (!tokens.Contains(token))
+                {
+                    tokens.Add(token);
+                }
+            }
+            else if (node.Children != null)
+            {
+                foreach (var child in node.Children)
+                {
+                    FlattenExprToTokens(child, tokens);
+                }
+            }
         }
 
         private async void OnTextBoxPropertyChanged(object sender, AvaloniaPropertyChangedEventArgs e)

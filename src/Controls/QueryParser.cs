@@ -46,7 +46,7 @@ namespace SourceGit.Controls
             if (segments.Count == 0)
                 return null;
 
-            var terms = segments.Select(s => new ExprNode { Op = ExprOp.Term, Value = s }).ToList();
+            var terms = segments.Select(s => ExpandImplicitPrefix(s, segments[0])).ToList(); // Ensure all terms inherit the first segment's prefix
             if (operators.Count == 0)
                 return terms[0];
 
@@ -77,6 +77,26 @@ namespace SourceGit.Controls
             return orBuckets.Count == 1
                 ? orBuckets[0]
                 : new ExprNode { Op = ExprOp.Or, Children = orBuckets };
+        }
+
+        private static ExprNode ExpandImplicitPrefix(string term, string reference)
+        {
+            if (string.IsNullOrWhiteSpace(term))
+                return null;
+
+            var colonIndex = reference.IndexOf(':');
+            if (colonIndex > 0 && colonIndex < reference.Length - 1)
+            {
+                var prefix = reference.Substring(0, colonIndex);
+                return new ExprNode
+                {
+                    Op = ExprOp.Term,
+                    Prefix = prefix,
+                    Value = term
+                };
+            }
+
+            return new ExprNode { Op = ExprOp.Term, Value = term };
         }
 
         private static ExprNode MergeNodesByMode(List<ExprNode> nodes, TokenLogicMode mode)
