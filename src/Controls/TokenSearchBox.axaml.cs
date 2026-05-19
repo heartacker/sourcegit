@@ -358,6 +358,11 @@ namespace SourceGit.Controls
                 {
                     _tokensList.SelectedIndex--;
                 }
+                else
+                {
+                    _tokensList.SelectedIndex = -1;
+                    _textBox?.Focus();
+                }
                 e.Handled = true;
             }
             else if (e.Key == Key.Right)
@@ -378,6 +383,10 @@ namespace SourceGit.Controls
                 _tokensList.SelectedIndex = -1;
                 _textBox?.Focus();
                 e.Handled = true;
+            }
+            else
+            {
+                _textBox?.Focus();
             }
         }
 
@@ -701,6 +710,7 @@ namespace SourceGit.Controls
                         else
                         {
                             _tokensList.SelectedIndex = SelectedTokens.Count - 1;
+                            _tokensList.Focus();
                         }
                     }
                     else
@@ -722,6 +732,7 @@ namespace SourceGit.Controls
                     {
                         _tokensList.SelectedIndex--;
                     }
+                    _tokensList.Focus();
                     e.Handled = true;
                 }
             }
@@ -730,6 +741,7 @@ namespace SourceGit.Controls
                 if (_tokensList.SelectedIndex < SelectedTokens.Count - 1)
                 {
                     _tokensList.SelectedIndex++;
+                    _tokensList.Focus();
                 }
                 else
                 {

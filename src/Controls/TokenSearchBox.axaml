@@ -101,6 +101,12 @@
                     <!-- Selection & Hover for Delete Button -->
                     <Style Selector="ListBoxItem:selected Border#ChipBorder">
                       <Setter Property="BorderBrush" Value="{DynamicResource Brush.FG1}"/>
+                      <Setter Property="Height" Value="24"/>
+                    </Style>
+
+                    <!-- Hover 时气泡变高 -->
+                    <Style Selector="ListBoxItem:pointerover Border#ChipBorder">
+                      <Setter Property="Height" Value="24"/>
                     </Style>
                   </ListBox.Styles>
                   
