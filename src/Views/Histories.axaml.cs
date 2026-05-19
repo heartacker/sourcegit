@@ -964,18 +964,6 @@ namespace SourceGit.Views
             copy.Items.Add(copyMessage);
             menu.Items.Add(copy);
 
-            var soloCommits = new MenuItem();
-            soloCommits.Header = App.Text("CommitCM.SoloCommits");
-            soloCommits.Icon = this.CreateMenuIcon("Icons.LightOn");
-            soloCommits.Click += (_, e) =>
-            {
-                ApplySoloTokens(repo, selected.Select(c => c.SHA));
-                e.Handled = true;
-            };
-
-            menu.Items.Add(new MenuItem() { Header = "-" });
-            menu.Items.Add(soloCommits);
-
             return menu;
         }
 
