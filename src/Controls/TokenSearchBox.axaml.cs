@@ -621,14 +621,14 @@ namespace SourceGit.Controls
                 }
 
                 var val = Text ?? string.Empty;
-                _enterCommitArmed = false;
-                _pendingCommitText = null;
-
+                // 只在用户主动清空输入时重置
                 if (string.IsNullOrEmpty(val) && SelectedTokens.Count > 0)
                 {
                     if (_popup != null)
                         _popup.IsOpen = false;
                     _tokensList.SelectedIndex = SelectedTokens.Count - 1;
+                    _enterCommitArmed = false;
+                    _pendingCommitText = null;
                 }
                 else
                 {
@@ -835,15 +835,16 @@ namespace SourceGit.Controls
             {
                 if (!string.IsNullOrEmpty(Text))
                 {
-                    if (_enterCommitArmed)
+                    if (_enterCommitArmed && (_pendingCommitText == Text))
                     {
-                        CommitTextAsToken(_pendingCommitText ?? Text);
+                        CommitTextAsToken(Text);
                         _enterCommitArmed = false;
                         _pendingCommitText = null;
+                        SetCurrentValue(TextProperty, string.Empty);
                     }
                     else
                     {
-                        _pendingCommitText = Text; // Store the current text for confirmation
+                        _pendingCommitText = Text;
                         _enterCommitArmed = true;
                     }
                 }
