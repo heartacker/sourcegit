@@ -4,20 +4,15 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SourceGit.Controls {
-    /// <summary>
-    ///     Defines the logic mode for how tokens from a provider should be combined.
-    /// </summary>
-    public enum TokenLogicMode {
-        None,
-        SingleReplace,
-        AutoOr
-    }
+namespace SourceGit.Controls
+{
+
 
     /// <summary>
     ///     Represents a suggestion item for the token search box.
     /// </summary>
-    public class TokenSuggestion {
+    public class TokenSuggestion
+    {
         public string Name { get; set; }
         public string Description { get; set; }
         public string Icon { get; set; }
@@ -26,11 +21,13 @@ namespace SourceGit.Controls {
     /// <summary>
     ///     Represents a group for token suggestions, facilitating localization and structured display.
     /// </summary>
-    public class TokenSuggestionGroup {
+    public class TokenSuggestionGroup
+    {
         public string Id { get; set; }
         public string Name { get; set; }
 
-        public TokenSuggestionGroup(string id, string name) {
+        public TokenSuggestionGroup(string id, string name)
+        {
             Id = id;
             Name = name;
         }
@@ -43,14 +40,16 @@ namespace SourceGit.Controls {
     /// <summary>
     ///     Represents a group header in the suggestions list.
     /// </summary>
-    public class TokenSuggestionHeader {
+    public class TokenSuggestionHeader
+    {
         public string Name { get; set; }
     }
 
     /// <summary>
     ///     Provides suggestions for a specific token prefix.
     /// </summary>
-    public interface ITokenSuggestionProvider {
+    public interface ITokenSuggestionProvider
+    {
         /// <summary>
         ///     The prefix that triggers this provider (e.g., "author:", "b:").
         /// </summary>
@@ -93,7 +92,8 @@ namespace SourceGit.Controls {
     /// <summary>
     ///     A simple implementation of ITokenSuggestionProvider that provides static suggestions.
     /// </summary>
-    public class StaticTokenSuggestionProvider : ITokenSuggestionProvider {
+    public class StaticTokenSuggestionProvider : ITokenSuggestionProvider
+    {
         public string Prefix { get; }
         public string[] FullPrefix { get; }
         public string Description { get; }
@@ -104,7 +104,8 @@ namespace SourceGit.Controls {
         private readonly Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> _suggester;
         private readonly IEnumerable<TokenSuggestion> _staticOptions;
 
-        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group = null, Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null) {
+        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group = null, Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null)
+        {
             Prefix = prefix;
             FullPrefix = alias;
             Description = description;
@@ -114,7 +115,8 @@ namespace SourceGit.Controls {
             LogicMode = logicMode;
         }
 
-        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group, IEnumerable<string> staticOptions, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null) {
+        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group, IEnumerable<string> staticOptions, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null)
+        {
             Prefix = prefix;
             FullPrefix = alias;
             Description = description;
@@ -124,12 +126,15 @@ namespace SourceGit.Controls {
             LogicMode = logicMode;
         }
 
-        public Task<IEnumerable<TokenSuggestion>> GetSuggestionsAsync(string pattern, CancellationToken cancellationToken) {
-            if (_suggester != null) {
+        public Task<IEnumerable<TokenSuggestion>> GetSuggestionsAsync(string pattern, CancellationToken cancellationToken)
+        {
+            if (_suggester != null)
+            {
                 return _suggester(pattern, cancellationToken);
             }
 
-            if (_staticOptions != null) {
+            if (_staticOptions != null)
+            {
                 var filtered = _staticOptions.Where(x => string.IsNullOrEmpty(pattern) || x.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase));
                 return Task.FromResult(filtered);
             }

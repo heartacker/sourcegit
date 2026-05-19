@@ -9,17 +9,17 @@ namespace SourceGit.Models
         RemoteBranch,
         RemoteBranchFolder,
         Tag,
-        }
+    }
 
-        public enum FilterMode
-        {
+    public enum FilterMode
+    {
         None = 0,
         Included,
         Excluded,
-        }
+    }
 
-        public class HistoryFilter : ObservableObject
-        {
+    public class HistoryFilter : ObservableObject
+    {
         public string Pattern
         {
             get => _pattern;

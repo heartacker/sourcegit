@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using Avalonia;
 using Avalonia.Data.Converters;
-using Avalonia.Media;
 
 namespace SourceGit.Converters
 {
@@ -18,24 +17,31 @@ namespace SourceGit.Converters
         public object Convert(IList<object> values, Type targetType, object parameter, CultureInfo culture)
         {
             // 鲁棒性检查：确保传入了 Token 和 完整的集合
-            if (values == null || values.Count < 2) return "Normal";
-            if (values[0] == null || values[0] == AvaloniaProperty.UnsetValue) return "Normal";
-            if (values[1] == null || values[1] == AvaloniaProperty.UnsetValue) return "Normal";
+            if (values == null || values.Count < 2)
+                return "Normal";
+            if (values[0] == null || values[0] == AvaloniaProperty.UnsetValue)
+                return "Normal";
+            if (values[1] == null || values[1] == AvaloniaProperty.UnsetValue)
+                return "Normal";
 
             if (values[0] is not string token || values[1] is not IEnumerable<string> allTokens)
                 return "Normal";
 
             var tokens = allTokens.ToList();
-            if (tokens.Count == 0) return "Normal";
+            if (tokens.Count == 0)
+                return "Normal";
 
             var index = tokens.IndexOf(token);
-            if (index < 0) return "Normal";
+            if (index < 0)
+                return "Normal";
 
             // 辅助方法：提取前缀（剥离 ! 符号）
             string GetPrefix(string t)
             {
-                if (string.IsNullOrEmpty(t)) return null;
-                if (t == "|" || t == "&") return null;
+                if (string.IsNullOrEmpty(t))
+                    return null;
+                if (t == "|" || t == "&")
+                    return null;
                 var s = t.StartsWith("!") ? t.Substring(1) : t;
                 var colonIdx = s.IndexOf(':');
                 return colonIdx >= 0 ? s.Substring(0, colonIdx + 1) : s;
@@ -51,7 +57,8 @@ namespace SourceGit.Converters
                 {
                     var p = GetPrefix(tokens[index - 1]);
                     var n = GetPrefix(tokens[index + 1]);
-                    if (p != null && p == n) return "Operator";
+                    if (p != null && p == n)
+                        return "Operator";
                 }
                 return "Normal";
             }
@@ -60,12 +67,14 @@ namespace SourceGit.Converters
             // 只有当左右相邻的是“同类”或者“属于该组的逻辑符”时，才视为在组内
             bool IsSameGroup(int otherIdx)
             {
-                if (otherIdx < 0 || otherIdx >= tokens.Count) return false;
+                if (otherIdx < 0 || otherIdx >= tokens.Count)
+                    return false;
                 var other = tokens[otherIdx];
                 var otherPrefix = GetPrefix(other);
-                
-                if (otherPrefix != null) return otherPrefix == currentPrefix;
-                
+
+                if (otherPrefix != null)
+                    return otherPrefix == currentPrefix;
+
                 // 如果邻居是逻辑符，看逻辑符的另一边是不是也是同类
                 if (other == "|" || other == "&")
                 {
@@ -81,9 +90,12 @@ namespace SourceGit.Converters
             var prevSame = IsSameGroup(index - 1);
             var nextSame = IsSameGroup(index + 1);
 
-            if (prevSame && nextSame) return "Middle";
-            if (prevSame) return "End";
-            if (nextSame) return "Start";
+            if (prevSame && nextSame)
+                return "Middle";
+            if (prevSame)
+                return "End";
+            if (nextSame)
+                return "Start";
 
             return "Normal";
         }

@@ -1107,8 +1107,10 @@ namespace SourceGit.ViewModels
 
                 if (match)
                 {
-                    if (neg) excludes = true;
-                    else includes = true;
+                    if (neg)
+                        excludes = true;
+                    else
+                        includes = true;
                 }
             }
 
@@ -2088,8 +2090,10 @@ namespace SourceGit.ViewModels
 
                 if (match)
                 {
-                    if (neg) excludes = true;
-                    else includes = true;
+                    if (neg)
+                        excludes = true;
+                    else
+                        includes = true;
                 }
             }
 
@@ -2117,8 +2121,10 @@ namespace SourceGit.ViewModels
                 var value = check.Substring(check.IndexOf(':') + 1).Trim();
                 if (tagName.Contains(value, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (neg) excludes = true;
-                    else includes = true;
+                    if (neg)
+                        excludes = true;
+                    else
+                        includes = true;
                 }
             }
 

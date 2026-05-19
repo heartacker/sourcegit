@@ -6,13 +6,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
-using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Metadata;
 using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -766,7 +764,8 @@ namespace SourceGit.Controls
                     for (int i = SelectedTokens.Count - 1; i >= 0; i--)
                     {
                         var t = SelectedTokens[i];
-                        if (t == "|" || t == "&") continue;
+                        if (t == "|" || t == "&")
+                            continue;
 
                         var tn = t.StartsWith("!") ? t.Substring(1) : t;
                         MatchProvider(Providers, tn, out var p);

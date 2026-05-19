@@ -1206,7 +1206,8 @@ namespace SourceGit.ViewModels
                 if (target.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
                 {
                     var head = commits.Find(x => x.IsCurrentHead);
-                    if (head != null) sha = head.SHA;
+                    if (head != null)
+                        sha = head.SHA;
                 }
 
                 if (_commitMap.TryGetValue(sha, out var commit) && commit.Index < commits.Count)
