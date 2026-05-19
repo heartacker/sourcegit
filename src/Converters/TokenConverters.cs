@@ -17,7 +17,13 @@ namespace SourceGit.Converters
             Color.Parse("#B45309"),
             Color.Parse("#BE123C"),
             Color.Parse("#4338CA"),
-            Color.Parse("#166534")
+            Color.Parse("#166534"),
+            Color.Parse("#0E7490"),
+            Color.Parse("#7C3AED"),
+            Color.Parse("#A16207"),
+            Color.Parse("#15803D"),
+            Color.Parse("#C2410C"),
+            Color.Parse("#334155")
         ];
 
         private static readonly Color[] DarkBorders =
@@ -27,47 +33,77 @@ namespace SourceGit.Converters
             Color.Parse("#FCD34D"),
             Color.Parse("#FDA4AF"),
             Color.Parse("#C4B5FD"),
-            Color.Parse("#86EFAC")
+            Color.Parse("#86EFAC"),
+            Color.Parse("#67E8F9"),
+            Color.Parse("#DDD6FE"),
+            Color.Parse("#FDE68A"),
+            Color.Parse("#BBF7D0"),
+            Color.Parse("#FDBA74"),
+            Color.Parse("#CBD5E1")
         ];
 
         private static readonly Color[] LightTempBackground =
         [
-            Color.Parse("#1A3B82F6"),
-            Color.Parse("#1A14B8A6"),
-            Color.Parse("#1AF59E0B"),
-            Color.Parse("#1AF43F5E"),
-            Color.Parse("#1A6366F1"),
-            Color.Parse("#1A22C55E")
+            Color.Parse("#143B82F6"),
+            Color.Parse("#1414B8A6"),
+            Color.Parse("#14F59E0B"),
+            Color.Parse("#14F43F5E"),
+            Color.Parse("#146366F1"),
+            Color.Parse("#1422C55E"),
+            Color.Parse("#1406B6D4"),
+            Color.Parse("#147C3AED"),
+            Color.Parse("#14CA8A04"),
+            Color.Parse("#1416A34A"),
+            Color.Parse("#14EA580C"),
+            Color.Parse("#14334155")
         ];
 
         private static readonly Color[] DarkTempBackground =
         [
-            Color.Parse("#333B82F6"),
-            Color.Parse("#3314B8A6"),
-            Color.Parse("#33F59E0B"),
-            Color.Parse("#33F43F5E"),
-            Color.Parse("#336366F1"),
-            Color.Parse("#3322C55E")
+            Color.Parse("#283B82F6"),
+            Color.Parse("#2814B8A6"),
+            Color.Parse("#28F59E0B"),
+            Color.Parse("#28F43F5E"),
+            Color.Parse("#286366F1"),
+            Color.Parse("#2822C55E"),
+            Color.Parse("#2806B6D4"),
+            Color.Parse("#287C3AED"),
+            Color.Parse("#28CA8A04"),
+            Color.Parse("#2816A34A"),
+            Color.Parse("#28EA580C"),
+            Color.Parse("#28334155")
         ];
 
         private static readonly Color[] LightPersistentBackground =
         [
-            Color.Parse("#553B82F6"),
-            Color.Parse("#5514B8A6"),
-            Color.Parse("#55F59E0B"),
-            Color.Parse("#55F43F5E"),
-            Color.Parse("#556366F1"),
-            Color.Parse("#5522C55E")
+            Color.Parse("#C03B82F6"),
+            Color.Parse("#C014B8A6"),
+            Color.Parse("#C0F59E0B"),
+            Color.Parse("#C0F43F5E"),
+            Color.Parse("#C06366F1"),
+            Color.Parse("#C022C55E"),
+            Color.Parse("#C006B6D4"),
+            Color.Parse("#C07C3AED"),
+            Color.Parse("#C0CA8A04"),
+            Color.Parse("#C016A34A"),
+            Color.Parse("#C0EA580C"),
+            Color.Parse("#C0334155")
         ];
 
         private static readonly Color[] DarkPersistentBackground =
         [
-            Color.Parse("#704A90E2"),
-            Color.Parse("#7040C9B6"),
-            Color.Parse("#70D9A441"),
-            Color.Parse("#70E05673"),
-            Color.Parse("#70857AE5"),
-            Color.Parse("#7050B878")
+            Color.Parse("#A04A90E2"),
+            Color.Parse("#A040C9B6"),
+            Color.Parse("#A0D9A441"),
+            Color.Parse("#A0E05673"),
+            Color.Parse("#A0857AE5"),
+            Color.Parse("#A050B878"),
+            Color.Parse("#A03BB8D6"),
+            Color.Parse("#A09672F4"),
+            Color.Parse("#A0D7B45A"),
+            Color.Parse("#A05DB071"),
+            Color.Parse("#A0DE8A67"),
+            Color.Parse("#A0647B93")
         ];
 
         private static bool IsOperatorToken(string token)
