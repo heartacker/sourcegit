@@ -143,6 +143,7 @@ namespace SourceGit.Controls
         private Popup _popup;
         private ListBox _suggestionList;
         private Border _rootBorder;
+        private Button _clearButton;
         private CancellationTokenSource _cts;
 
         protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
@@ -198,6 +199,20 @@ namespace SourceGit.Controls
                     _textBox?.Focus();
                     ev.Handled = true;
                 };
+            }
+
+            _clearButton = e.NameScope.Find<Button>("PART_ClearButton");
+            if (_clearButton != null)
+            {
+                _clearButton.Click += (s, ev) =>
+                {
+                    SelectedTokens?.Clear();
+                    _textBox?.Focus();
+                };
+
+                if (SelectedTokens != null)
+                    SelectedTokens.CollectionChanged += (_, _) => UpdateClearButtonVisibility();
+                UpdateClearButtonVisibility();
             }
         }
 
@@ -812,6 +827,13 @@ namespace SourceGit.Controls
             _textBox?.Focus();
             if (_textBox != null)
                 _textBox.CaretIndex = _textBox.Text?.Length ?? 0;
+        }
+
+        private void UpdateClearButtonVisibility()
+        {
+            if (_clearButton == null)
+                return;
+            _clearButton.IsVisible = SelectedTokens is { Count: > 0 };
         }
         #endregion
     }

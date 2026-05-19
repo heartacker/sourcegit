@@ -195,12 +195,33 @@
               </WrapPanel>
             </ScrollViewer>
 
-            <Path Grid.Column="1"
-                  Data="{StaticResource Icons.Search}"
-                  Width="14" Height="14"
-                  Fill="{DynamicResource Brush.FG2}"
-                  Margin="8,0"
-                  VerticalAlignment="Center"/>
+            <Grid Grid.Column="1" VerticalAlignment="Center">
+              <Path Name="PART_SearchIcon"
+                    Data="{StaticResource Icons.Search}"
+                    Width="14" Height="14"
+                    Fill="{DynamicResource Brush.FG2}"
+                    Margin="8,0"
+                    VerticalAlignment="Center"/>
+
+              <Button Name="PART_ClearButton"
+                      Width="16" Height="16"
+                      CornerRadius="8"
+                      Padding="0"
+                      Margin="7,0"
+                      Background="{DynamicResource Brush.FG2}"
+                      BorderThickness="0"
+                      IsVisible="False"
+                      VerticalAlignment="Center"
+                      Cursor="Hand"
+                      Opacity="0.8">
+                <Path Data="M 4,4 L 12,12 M 4,12 L 12,4"
+                      Stroke="White"
+                      StrokeThickness="1.5"
+                      Width="8" Height="8"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center"/>
+              </Button>
+            </Grid>
 
             <Popup Name="PART_SuggestionsPopup"
                    PlacementTarget="{Binding ElementName=PART_TextPresenter}"
