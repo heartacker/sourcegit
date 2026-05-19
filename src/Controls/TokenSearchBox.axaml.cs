@@ -756,7 +756,16 @@ namespace SourceGit.Controls
         {
             if (_popup?.IsOpen == true && _suggestionList != null)
             {
-                if (e.Key == Key.Down)
+                if (e.Key == Key.Enter)
+                {
+                    if (_suggestionList.SelectedItem is TokenSuggestion suggestion)
+                    {
+                        CommitSuggestion(suggestion);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                else if (e.Key == Key.Down)
                 {
                     int next = _suggestionList.SelectedIndex + 1;
                     while (next < _suggestionList.ItemCount && _suggestionList.Items.Cast<object>().ElementAt(next) is TokenSuggestionHeader)
@@ -775,17 +784,6 @@ namespace SourceGit.Controls
                         _suggestionList.SelectedIndex = prev;
                     e.Handled = true;
                     return;
-                }
-                else if (e.Key == Key.Enter)
-                {
-                    if (_suggestionList.SelectedItem is TokenSuggestion suggestion)
-                    {
-                        _pendingCommitText = BuildSuggestionReplacementText(suggestion);
-                        _popup.IsOpen = false;
-                        _enterCommitArmed = true;
-                        e.Handled = true;
-                        return;
-                    }
                 }
                 else if (e.Key == Key.Tab)
                 {
