@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -42,7 +42,7 @@ namespace SourceGit.Converters
                     return null;
                 if (t == "|" || t == "&")
                     return null;
-                var s = t.StartsWith("!") ? t.Substring(1) : t;
+                var s = t.StartsWith("-") ? t.Substring(1) : t;
                 var colonIdx = s.IndexOf(':');
                 return colonIdx >= 0 ? s.Substring(0, colonIdx + 1) : s;
             }

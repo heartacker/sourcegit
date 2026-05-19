@@ -106,7 +106,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedAuthorFilters = SearchTokens
-                    .Where(t => t.StartsWith("!author:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!a:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-author:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-a:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -118,7 +118,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedBranchFilters = SearchTokens
-                    .Where(t => t.StartsWith("!branch:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!b:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-branch:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-b:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -130,7 +130,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedMessageFilters = SearchTokens
-                    .Where(t => t.StartsWith("!message:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!m:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-message:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-m:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -160,7 +160,7 @@ namespace SourceGit.ViewModels
                     if (string.IsNullOrWhiteSpace(token) || token == "|" || token == "&")
                         return null;
 
-                    var check = token.StartsWith("!", StringComparison.Ordinal) ? token[1..] : token;
+                    var check = token.StartsWith("-", StringComparison.Ordinal) ? token[1..] : token;
                     if (prefixes.Any(p => check.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
                         return null;
 
@@ -170,13 +170,13 @@ namespace SourceGit.ViewModels
                 }
 
                 var fallbackMessageFilters = SearchTokens
-                    .Where(t => !t.StartsWith("!", StringComparison.Ordinal))
+                    .Where(t => !t.StartsWith("-", StringComparison.Ordinal))
                     .Select(t => ExtractUnknownMessageTerm(t, knownPrefixes))
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
 
                 var fallbackExcludedMessageFilters = SearchTokens
-                    .Where(t => t.StartsWith("!", StringComparison.Ordinal))
+                    .Where(t => t.StartsWith("-", StringComparison.Ordinal))
                     .Select(t => ExtractUnknownMessageTerm(t, knownPrefixes))
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -203,7 +203,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedTagFilters = SearchTokens
-                    .Where(t => t.StartsWith("!tag:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!t:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-tag:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-t:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -215,7 +215,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedRemoteFilters = SearchTokens
-                    .Where(t => t.StartsWith("!remote:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!r:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-remote:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-r:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -227,7 +227,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedShaFilters = SearchTokens
-                    .Where(t => t.StartsWith("!sha:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!s:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-sha:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-s:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -239,7 +239,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedCommitterFilters = SearchTokens
-                    .Where(t => t.StartsWith("!committer:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!c:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-committer:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-c:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -251,7 +251,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedEmailFilters = SearchTokens
-                    .Where(t => t.StartsWith("!email:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!e:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-email:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-e:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -266,7 +266,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedSinceFilters = SearchTokens
-                    .Where(t => t.StartsWith("!since:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!after:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-since:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-after:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
@@ -284,7 +284,7 @@ namespace SourceGit.ViewModels
                     .ToList();
 
                 var excludedUntilFilters = SearchTokens
-                    .Where(t => t.StartsWith("!until:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("!before:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("-until:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-before:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)

@@ -1046,7 +1046,7 @@ namespace SourceGit.ViewModels
         public void SetTagFilterMode(Models.Tag tag, Models.FilterMode mode)
         {
             var token = $"tag:{tag.Name}";
-            var negToken = $"!tag:{tag.Name}";
+            var negToken = $"-tag:{tag.Name}";
 
             if (mode == Models.FilterMode.Included)
             {
@@ -1090,7 +1090,7 @@ namespace SourceGit.ViewModels
             bool excludes = false;
             foreach (var token in _histories.SearchTokens)
             {
-                var neg = token.StartsWith("!", StringComparison.Ordinal);
+                var neg = token.StartsWith("-", StringComparison.Ordinal);
                 var check = neg ? token[1..] : token;
 
                 bool match = false;
@@ -1138,7 +1138,7 @@ namespace SourceGit.ViewModels
                 : (isLocal ? node.Path.Substring("refs/heads/".Length) : node.Path.Substring("refs/remotes/".Length));
 
             var token = $"{tokenPrefix}{tokenValue}";
-            var negToken = $"!{tokenPrefix}{tokenValue}";
+            var negToken = $"-{tokenPrefix}{tokenValue}";
 
             if (clearExists)
                 ClearHistoryFilters();
@@ -2046,12 +2046,12 @@ namespace SourceGit.ViewModels
                 return Models.FilterMode.Included;
 
             var hasExcluded = _histories.SearchTokens.Any(t =>
-                t.StartsWith("!branch:", StringComparison.OrdinalIgnoreCase) ||
-                t.StartsWith("!b:", StringComparison.OrdinalIgnoreCase) ||
-                t.StartsWith("!remote:", StringComparison.OrdinalIgnoreCase) ||
-                t.StartsWith("!r:", StringComparison.OrdinalIgnoreCase) ||
-                t.StartsWith("!tag:", StringComparison.OrdinalIgnoreCase) ||
-                t.StartsWith("!t:", StringComparison.OrdinalIgnoreCase));
+                t.StartsWith("-branch:", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("-b:", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("-remote:", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("-r:", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("-tag:", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("-t:", StringComparison.OrdinalIgnoreCase));
 
             return hasExcluded ? Models.FilterMode.Excluded : Models.FilterMode.None;
         }
@@ -2073,7 +2073,7 @@ namespace SourceGit.ViewModels
             bool excludes = false;
             foreach (var token in _histories.SearchTokens)
             {
-                var neg = token.StartsWith("!", StringComparison.Ordinal);
+                var neg = token.StartsWith("-", StringComparison.Ordinal);
                 var check = neg ? token[1..] : token;
 
                 bool match = false;
@@ -2113,7 +2113,7 @@ namespace SourceGit.ViewModels
             bool excludes = false;
             foreach (var token in _histories.SearchTokens)
             {
-                var neg = token.StartsWith("!", StringComparison.Ordinal);
+                var neg = token.StartsWith("-", StringComparison.Ordinal);
                 var check = neg ? token[1..] : token;
                 if (!check.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) && !check.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
                     continue;
@@ -2166,7 +2166,7 @@ namespace SourceGit.ViewModels
             for (int i = _histories.SearchTokens.Count - 1; i >= 0; i--)
             {
                 var token = _histories.SearchTokens[i];
-                var check = token.StartsWith("!", StringComparison.Ordinal) ? token[1..] : token;
+                var check = token.StartsWith("-", StringComparison.Ordinal) ? token[1..] : token;
                 if (check.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                     _histories.SearchTokens.RemoveAt(i);
             }
@@ -2199,7 +2199,7 @@ namespace SourceGit.ViewModels
             if (filter == null || filter.Mode == Models.FilterMode.None || string.IsNullOrEmpty(filter.Pattern))
                 return null;
 
-            var prefix = filter.Mode == Models.FilterMode.Excluded ? "!" : string.Empty;
+            var prefix = filter.Mode == Models.FilterMode.Excluded ? "-" : string.Empty;
             return filter.Type switch
             {
                 Models.FilterType.Tag => $"{prefix}tag:{filter.Pattern}",

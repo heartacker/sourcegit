@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -280,7 +280,7 @@ namespace SourceGit.Controls
             {
                 var token = SelectedTokens[i];
                 var check = token;
-                if (includeNegated && check.StartsWith("!", StringComparison.Ordinal))
+                if (includeNegated && check.StartsWith("-", StringComparison.Ordinal))
                     check = check[1..];
 
                 if (check.StartsWith(prefix, comparison))
@@ -308,7 +308,7 @@ namespace SourceGit.Controls
                 .Where(t =>
                 {
                     var check = t;
-                    if (includeNegated && check.StartsWith("!", StringComparison.Ordinal))
+                    if (includeNegated && check.StartsWith("-", StringComparison.Ordinal))
                         check = check[1..];
 
                     return check.StartsWith(prefix, comparison);
@@ -462,19 +462,19 @@ namespace SourceGit.Controls
         private void CommitSuggestion(TokenSuggestion suggestion)
         {
             var currentText = Text ?? string.Empty;
-            var isNegated = currentText.StartsWith("!");
+            var isNegated = currentText.StartsWith("-");
             var checkStr = isNegated ? currentText.Substring(1) : currentText;
 
             var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
 
             if (matchedProvider != null)
             {
-                var prefixPart = isNegated ? "!" + matchedPrefix : matchedPrefix;
+                var prefixPart = isNegated ? "-" + matchedPrefix : matchedPrefix;
                 AddToken(prefixPart + suggestion.Name);
             }
             else
             {
-                var prefixPart = isNegated ? "!" + suggestion.Name : suggestion.Name;
+                var prefixPart = isNegated ? "-" + suggestion.Name : suggestion.Name;
                 SetCurrentValue(TextProperty, prefixPart);
                 if (_textBox != null)
                 {
@@ -510,7 +510,7 @@ namespace SourceGit.Controls
                         return;
                     }
 
-                    var isNegated = trimmed.StartsWith("!");
+                    var isNegated = trimmed.StartsWith("-");
                     var checkStr = isNegated ? trimmed.Substring(1) : trimmed;
 
                     var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
@@ -549,7 +549,7 @@ namespace SourceGit.Controls
                 return;
             }
 
-            var isNegated = text.StartsWith("!");
+            var isNegated = text.StartsWith("-");
             var checkStr = isNegated ? text.Substring(1) : text;
 
             var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
@@ -753,7 +753,7 @@ namespace SourceGit.Controls
 
         public void AddToken(string token)
         {
-            var isNegated = token.StartsWith("!");
+            var isNegated = token.StartsWith("-");
             var checkStr = isNegated ? token.Substring(1) : token;
 
             string matchedPrefix = null;
@@ -768,7 +768,7 @@ namespace SourceGit.Controls
                     for (int i = 0; i < SelectedTokens.Count; i++)
                     {
                         var existing = SelectedTokens[i];
-                        var existingCheck = existing.StartsWith("!") ? existing.Substring(1) : existing;
+                        var existingCheck = existing.StartsWith("-") ? existing.Substring(1) : existing;
                         if (MatchProvider(Providers, existingCheck, out var _) == matchedProvider)
                         {
                             SelectedTokens[i] = token;
@@ -794,7 +794,7 @@ namespace SourceGit.Controls
                         if (t == "|" || t == "&")
                             continue;
 
-                        var tn = t.StartsWith("!") ? t.Substring(1) : t;
+                        var tn = t.StartsWith("-") ? t.Substring(1) : t;
                         MatchProvider(Providers, tn, out var p);
                         if (p == targetPrefix)
                         {

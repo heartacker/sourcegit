@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
@@ -19,7 +19,7 @@ namespace SourceGit.Converters
                         return fg2;
                     return Brushes.Gray;
                 }
-                if (token.StartsWith("!"))
+                if (token.StartsWith("-"))
                 {
                     return Brushes.Red;
                 }
@@ -52,7 +52,7 @@ namespace SourceGit.Converters
                         return border;
                     return Brushes.LightGray;
                 }
-                if (token.StartsWith("!"))
+                if (token.StartsWith("-"))
                 {
                     return Color.Parse("#20FF0000");
                 }
