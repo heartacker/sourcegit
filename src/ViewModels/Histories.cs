@@ -309,7 +309,7 @@ namespace SourceGit.ViewModels
                     var result = new HashSet<string>();
                     foreach (var seed in seeds)
                     {
-                        var lineage = Models.CommitGraph.GetLineage(
+                        var lineage = Models.CommitGraph.GetCommitLineageFast(
                             commits,
                             map,
                             seed,
@@ -493,7 +493,7 @@ namespace SourceGit.ViewModels
                             }
                         }
 
-                        HoveredLineageCommits = Models.CommitGraph.GetLineage(_commits, _commitMap, _commits[hoveredIndex], LineageSearchMethod, depth, topLimit, bottomLimit);
+                        HoveredLineageCommits = Models.CommitGraph.GetCommitLineageFast(_commits, _commitMap, _commits[hoveredIndex], LineageSearchMethod, depth, topLimit, bottomLimit);
                     }
                     else
                     {
@@ -1226,7 +1226,7 @@ namespace SourceGit.ViewModels
 
                 if (rawCommitMap.TryGetValue(sha, out var commit))
                 {
-                    var lineage = Models.CommitGraph.GetLineage(_rawCommits, rawCommitMap, commit, LineageSearchMethod, (uint)_rawCommits.Count);
+                    var lineage = Models.CommitGraph.GetCommitLineageFast(_rawCommits, rawCommitMap, commit, LineageSearchMethod, (uint)_rawCommits.Count);
                     for (int i = 0; i < lineage.Length; i++)
                     {
                         if (!lineage[i])
