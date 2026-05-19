@@ -249,15 +249,6 @@ namespace SourceGit.Controls
             }
 
             _rootBorder = e.NameScope.Find<Border>("PART_RootBorder");
-            if (_rootBorder != null)
-            {
-                _rootBorder.PointerPressed += (s, ev) =>
-                {
-                    // 点击搜索框任何空白区域都自动聚焦 TextBox
-                    _textBox?.Focus();
-                    ev.Handled = true;
-                };
-            }
 
             _clearButton = e.NameScope.Find<Button>("PART_ClearButton");
             if (_clearButton != null)
@@ -283,7 +274,6 @@ namespace SourceGit.Controls
         {
             base.OnPointerPressed(e);
             _textBox?.Focus();
-            e.Handled = true;
         }
 
         #region Public API

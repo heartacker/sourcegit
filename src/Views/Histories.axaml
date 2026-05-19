@@ -35,7 +35,7 @@
       <Border Grid.Row="0" Padding="8,4" Background="{DynamicResource Brush.DataGridHeaderBG}">
         <ctrl:TokenSearchBox x:Name="TokenFilterBox"
                 Watermark="Filter commits (e.g. is:Merged) ..."
-                            MinHeight="28"
+                            MinHeight="30"
                             HorizontalAlignment="Stretch"
                             Text="{Binding SearchText, Mode=TwoWay}"
                             SelectedTokens="{Binding SearchTokens}"
