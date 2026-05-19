@@ -1199,24 +1199,42 @@ namespace SourceGit.ViewModels
             if (commits == null || commits.Count == 0 || targets.Count == 0)
                 return commits;
 
+            var rawCommitMap = new Dictionary<string, Models.Commit>(_rawCommits.Count);
+            for (int i = 0; i < _rawCommits.Count; i++)
+            {
+                _rawCommits[i].Index = i;
+                rawCommitMap[_rawCommits[i].SHA] = _rawCommits[i];
+            }
+
+            var commitMap = new Dictionary<string, Models.Commit>(commits.Count);
+            for (int i = 0; i < commits.Count; i++)
+            {
+                commits[i].Index = i;
+                commitMap[commits[i].SHA] = commits[i];
+            }
+
             var active = new bool[commits.Count];
             foreach (var target in targets)
             {
                 string sha = target;
                 if (target.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
                 {
-                    var head = commits.Find(x => x.IsCurrentHead);
+                    var head = _rawCommits.Find(x => x.IsCurrentHead) ?? commits.Find(x => x.IsCurrentHead);
                     if (head != null)
                         sha = head.SHA;
                 }
 
-                if (_commitMap.TryGetValue(sha, out var commit) && commit.Index < commits.Count)
+                if (rawCommitMap.TryGetValue(sha, out var commit))
                 {
-                    var lineage = Models.CommitGraph.GetLineage(commits, _commitMap, commit, LineageSearchMethod, (uint)commits.Count);
+                    var lineage = Models.CommitGraph.GetLineage(_rawCommits, rawCommitMap, commit, LineageSearchMethod, (uint)_rawCommits.Count);
                     for (int i = 0; i < lineage.Length; i++)
                     {
-                        if (lineage[i])
-                            active[i] = true;
+                        if (!lineage[i])
+                            continue;
+
+                        var lineageCommit = _rawCommits[i];
+                        if (commitMap.TryGetValue(lineageCommit.SHA, out var visibleCommit) && visibleCommit.Index < commits.Count)
+                            active[visibleCommit.Index] = true;
                     }
                 }
             }
