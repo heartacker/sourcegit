@@ -162,9 +162,7 @@ namespace SourceGit.Controls
                     var val = testToken.Substring(matchedPrefix.Length).Trim();
                     if (string.IsNullOrWhiteSpace(val)) continue;
 
-                    var inlineExpr = ParseInlineExpr(val);
-                    if (inlineExpr == null)
-                        continue;
+                    var inlineExpr = new ExprNode { Op = ExprOp.Term, Value = val };
 
                     if (!groups.ContainsKey(matchedProvider))
                         groups[matchedProvider] = (new List<ExprNode>(), new List<ExprNode>());

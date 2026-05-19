@@ -516,7 +516,7 @@ namespace SourceGit.ViewModels
                 groupAdvanced, isProv, Controls.TokenLogicMode.AutoAnd, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者", groupFilters, suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "author:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息", groupFilters, suggester: messageSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "message:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支", groupFilters, suggester: branchSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "branch:" }, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支", groupFilters, suggester: branchSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "branch:" }, icon: implementedIcon, isPersistent: true));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("solo:", "Solo 提交链过滤", groupView, new[] { "HEAD" }, Controls.TokenLogicMode.AutoOr, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, alias: new[] { "tag:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, alias: new[] { "remote:" }, icon: implementedIcon));
@@ -537,7 +537,7 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令", groupView, logicMode: Controls.TokenLogicMode.SingleReplace, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] { "Commit Date", "Topologically" }, Controls.TokenLogicMode.SingleReplace));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("git:", "git 解析选项", groupGit, new[] { "--reflog", "--first-parent", "--simplify-by-decoration" }, Controls.TokenLogicMode.AutoOr));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("git:", "git 解析选项", groupGit, new[] { "--reflog", "--first-parent", "--simplify-by-decoration" }, Controls.TokenLogicMode.AutoOr, isPersistent: true));
 
             SearchTokens.CollectionChanged += (_, e) =>
             {

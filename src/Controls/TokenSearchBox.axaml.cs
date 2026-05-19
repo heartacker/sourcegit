@@ -18,11 +18,47 @@ namespace SourceGit.Controls
 {
     /// <summary>
     ///     提供类似 GitHub 风格的智能过滤搜索框，支持 Token 芯片化显示。
-    ///     核心特性：
-    ///     1. 自动归类 (AutoGrouping)：相同前缀的 Token 会自动排在一起。
-    ///     2. 流体气泡 (Merged Bubble)：同类项在静默状态下视觉合并为胶囊。
-    ///     3. 两段式删除：Backspace 首次按下选中 Token，再次按下删除/编辑。
-    ///     4. 异步建议：支持通过 Provider 异步获取增量搜索建议。
+    ///
+    ///     ===== 交互协议（维护约定） =====
+    ///     该控件的行为由“建议上屏”和“Token 提交”两条路径组成，二者必须严格分离：
+    ///
+    ///     1) 建议弹窗优先级
+    ///        - 当建议弹窗打开时，Enter/Tab 的含义是“提交建议到输入框（上屏）”，而不是直接生成 Token。
+    ///        - 这样用户可以连续编辑，例如：先选出 a:acker，再继续输入 ||bo。
+    ///
+    ///     2) 普通 Enter 提交规则（弹窗关闭时）
+    ///        - 若当前输入可以被规范化（例如 a:acker||bob -> a:acker||a:bob），本次 Enter 只做规范化改写，不提交。
+    ///        - 若当前输入已经是规范形式（例如 a:acker 或 a:acker||a:bob），本次 Enter 直接提交为 Token。
+    ///        - 这保证了“能一步提交就一步提交；需要补全前缀时先修正再提交”的用户体验。
+    ///
+    ///     3) Ctrl+Enter 强制提交规则
+    ///        - Ctrl+Enter 永远按原样提交，不做 ||/&& 拆解。
+    ///        - 例如 a:acker||bob 会整体作为一个 Token 提交。
+    ///
+    ///     4) || / && 后的建议继承规则
+    ///        - 在 a:acker||... 或 a:acker&&... 中，后续段默认继承前一段的 provider。
+    ///        - 继承不仅在空输入生效，也必须在非空输入生效。
+    ///        - 例如输入 a:acker||bo 时，建议应继续来自作者 provider，并以 bo 作为过滤词。
+    ///
+    ///     5) 规范化仅属于控件层
+    ///        - 控件层会为了交互体验做前缀补全与拆解（ExpandInlineSegmentsForControl）。
+    ///        - 外部查询解析仍保留字面量语义，不应被隐式拆解污染。
+    ///
+    ///     6) 清除按钮三段优先级
+    ///        - 第一步：清空输入文本。
+    ///        - 第二步：删除临时 Token。
+    ///        - 第三步：删除持久 Token。
+    ///
+    ///     7) 持久 Token 约束
+    ///        - provider 可通过 IsPersistent 声明其 Token 为持久。
+    ///        - 持久 Token 受 PersistentTokens / _persistentTokenSet 统一维护。
+    ///        - 在 AutoGrouping 下，持久 Token 位于临时 Token 之前。
+    ///
+    ///     8) 当前控件的基础能力
+    ///        - 自动归类 (AutoGrouping)：相同前缀 Token 自动排在一起。
+    ///        - 流体气泡 (Merged Bubble)：同类项静默态视觉合并。
+    ///        - 两段式删除：Backspace 首次选中 Token，再次删除/编辑。
+    ///        - 异步建议：支持通过 Provider 增量查询建议。
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
     [TemplatePart("PART_TokensList", typeof(ListBox))]
@@ -37,6 +73,9 @@ namespace SourceGit.Controls
 
         public static readonly StyledProperty<ObservableCollection<string>> SelectedTokensProperty =
             AvaloniaProperty.Register<TokenSearchBox, ObservableCollection<string>>(nameof(SelectedTokens));
+
+        public static readonly StyledProperty<ObservableCollection<string>> PersistentTokensProperty =
+            AvaloniaProperty.Register<TokenSearchBox, ObservableCollection<string>>(nameof(PersistentTokens));
 
         public static readonly StyledProperty<ObservableCollection<ITokenSuggestionProvider>> ProvidersProperty =
             AvaloniaProperty.Register<TokenSearchBox, ObservableCollection<ITokenSuggestionProvider>>(nameof(Providers));
@@ -77,6 +116,12 @@ namespace SourceGit.Controls
         {
             get => GetValue(SelectedTokensProperty);
             set => SetValue(SelectedTokensProperty, value);
+        }
+
+        public ObservableCollection<string> PersistentTokens
+        {
+            get => GetValue(PersistentTokensProperty);
+            set => SetValue(PersistentTokensProperty, value);
         }
 
         public ObservableCollection<ITokenSuggestionProvider> Providers
@@ -125,6 +170,7 @@ namespace SourceGit.Controls
         public TokenSearchBox()
         {
             SetCurrentValue(SelectedTokensProperty, new ObservableCollection<string>());
+            SetCurrentValue(PersistentTokensProperty, new ObservableCollection<string>());
             SetCurrentValue(ProvidersProperty, new ObservableCollection<ITokenSuggestionProvider>());
         }
 
@@ -145,8 +191,7 @@ namespace SourceGit.Controls
         private Border _rootBorder;
         private Button _clearButton;
         private CancellationTokenSource _cts;
-        private bool _enterCommitArmed = false;
-        private string _pendingCommitText = null;
+        private readonly HashSet<string> _persistentTokenSet = new(StringComparer.OrdinalIgnoreCase);
 
         protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
         {
@@ -208,12 +253,14 @@ namespace SourceGit.Controls
             {
                 _clearButton.Click += (s, ev) =>
                 {
-                    SelectedTokens?.Clear();
+                    ClearByPriority();
                     _textBox?.Focus();
                 };
 
                 if (SelectedTokens != null)
                     SelectedTokens.CollectionChanged += (_, _) => UpdateClearButtonVisibility();
+                if (PersistentTokens != null)
+                    PersistentTokens.CollectionChanged += (_, _) => UpdateClearButtonVisibility();
                 UpdateClearButtonVisibility();
             }
         }
@@ -234,7 +281,15 @@ namespace SourceGit.Controls
         /// </summary>
         public void RemoveToken(string token)
         {
+            if (string.IsNullOrWhiteSpace(token))
+                return;
+
             SelectedTokens.Remove(token);
+            if (_persistentTokenSet.Contains(token))
+            {
+                _persistentTokenSet.Remove(token);
+                PersistentTokens.Remove(token);
+            }
         }
 
         /// <summary>
@@ -261,7 +316,13 @@ namespace SourceGit.Controls
             {
                 if (SelectedTokens[i].Equals(token, comparison))
                 {
+                    var removed = SelectedTokens[i];
                     SelectedTokens.RemoveAt(i);
+                    if (_persistentTokenSet.Contains(removed))
+                    {
+                        _persistentTokenSet.Remove(removed);
+                        PersistentTokens.Remove(removed);
+                    }
                     return true;
                 }
             }
@@ -287,7 +348,13 @@ namespace SourceGit.Controls
 
                 if (check.StartsWith(prefix, comparison))
                 {
+                    var removed = SelectedTokens[i];
                     SelectedTokens.RemoveAt(i);
+                    if (_persistentTokenSet.Contains(removed))
+                    {
+                        _persistentTokenSet.Remove(removed);
+                        PersistentTokens.Remove(removed);
+                    }
                     count++;
                 }
             }
@@ -316,6 +383,56 @@ namespace SourceGit.Controls
                     return check.StartsWith(prefix, comparison);
                 })
                 .ToList();
+        }
+
+        public IReadOnlyList<string> QueryPersistentTokens(string prefix = null, bool includeNegated = true, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (PersistentTokens == null || PersistentTokens.Count == 0)
+                return Array.Empty<string>();
+
+            if (string.IsNullOrWhiteSpace(prefix))
+                return PersistentTokens.ToList();
+
+            return PersistentTokens
+                .Where(t =>
+                {
+                    var check = t;
+                    if (includeNegated && check.StartsWith("-", StringComparison.Ordinal))
+                        check = check[1..];
+
+                    return check.StartsWith(prefix, comparison);
+                })
+                .ToList();
+        }
+
+        public void RestorePersistentTokens(IEnumerable<string> tokens, bool clearExisting = true)
+        {
+            if (clearExisting)
+            {
+                foreach (var old in PersistentTokens.ToList())
+                {
+                    _persistentTokenSet.Remove(old);
+                    SelectedTokens.Remove(old);
+                }
+                PersistentTokens.Clear();
+            }
+
+            if (tokens == null)
+                return;
+
+            foreach (var token in tokens)
+            {
+                if (string.IsNullOrWhiteSpace(token))
+                    continue;
+
+                var trimmed = token.Trim();
+                if (_persistentTokenSet.Add(trimmed))
+                {
+                    PersistentTokens.Add(trimmed);
+                    if (!SelectedTokens.Contains(trimmed))
+                        SelectedTokens.Insert(0, trimmed);
+                }
+            }
         }
         #endregion
 
@@ -519,6 +636,8 @@ namespace SourceGit.Controls
             return false;
         }
 
+        // 建议列表中的 Enter/Tab 只负责“上屏”，不直接生成 Token。
+        // 这样用户可以继续编辑（例如先选出 a:acker，再继续输入 ||bo）。
         private void CommitSuggestion(TokenSuggestion suggestion)
         {
             var currentText = Text ?? string.Empty;
@@ -528,27 +647,28 @@ namespace SourceGit.Controls
 
             var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
 
+            string replacementText;
             if (matchedProvider != null)
             {
                 var prefixPart = isNegated ? "-" + matchedPrefix : matchedPrefix;
-                AddToken(prefixPart + suggestion.Name);
+                replacementText = prefixPart + suggestion.Name;
             }
             else
             {
                 var prefixPart = isNegated ? "-" + suggestion.Name : suggestion.Name;
-                SetCurrentValue(TextProperty, BuildTextWithCurrentSegmentReplaced(currentText, prefixPart));
-                if (_textBox != null)
-                {
-                    _textBox.Focus();
-                    _textBox.CaretIndex = _textBox.Text.Length;
-                }
-                return;
+                replacementText = BuildTextWithCurrentSegmentReplaced(currentText, prefixPart);
             }
 
-            if (_popup != null)
-                _popup.IsOpen = false;
+            SetCurrentValue(TextProperty, replacementText);
+            if (_textBox != null)
+            {
+                _textBox.Focus();
+                _textBox.CaretIndex = _textBox.Text.Length;
+            }
+
             _suggestionList.SelectedItem = null;
-            _textBox?.Focus();
+            // 不主动关闭弹窗，让 OnTextBoxPropertyChanged 触发 UpdateSuggestionsAsync
+            // 按“上屏后的新文本”重新拉取建议（比如从 provider 列表切到作者列表）。
         }
 
         private string BuildSuggestionReplacementText(TokenSuggestion suggestion)
@@ -574,15 +694,17 @@ namespace SourceGit.Controls
             return BuildTextWithCurrentSegmentReplaced(currentText, replacement);
         }
 
+        // 普通提交：允许对 || / && 做控制层拆解，并将每段作为独立 Token。
         private void CommitTextAsToken(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
                 return;
 
-            var parsedExpr = QueryParser.ParseInlineExpr(text);
-            if (parsedExpr != null)
+            var expanded = ExpandInlineSegmentsForControl(text.Trim());
+            if (expanded.Count > 0)
             {
-                FlattenExprToTokens(parsedExpr, SelectedTokens);
+                foreach (var token in expanded)
+                    AddToken(token);
             }
             else
             {
@@ -590,24 +712,134 @@ namespace SourceGit.Controls
             }
         }
 
-        private void FlattenExprToTokens(ExprNode node, ObservableCollection<string> tokens)
+        // 强制提交：不做拆解（Ctrl+Enter），整段文本直接作为一个 Token。
+        private void CommitTextAsTokenNoExpand(string text)
         {
-            if (node == null) return;
+            if (string.IsNullOrWhiteSpace(text))
+                return;
 
-            if (node.Op == ExprOp.Term)
+            AddToken(text.Trim());
+        }
+
+        // 控件内规范化：
+        // a:acker||bob -> [a:acker, a:bob]
+        // a:acker&&bob -> [a:acker, a:bob]
+        // 仅用于 UI 交互与入框规范，不改变外部 parser 的“字面量”语义。
+        private static List<string> ExpandInlineSegmentsForControl(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return [];
+
+            var segments = new List<string>();
+            var start = 0;
+            for (int i = 0; i < text.Length - 1; i++)
             {
-                var token = string.IsNullOrEmpty(node.Prefix) ? node.Value : $"{node.Prefix}:{node.Value}";
-                if (!tokens.Contains(token))
+                if ((text[i] == '|' && text[i + 1] == '|') || (text[i] == '&' && text[i + 1] == '&'))
                 {
-                    tokens.Add(token);
+                    var part = text[start..i].Trim();
+                    if (!string.IsNullOrEmpty(part))
+                        segments.Add(part);
+                    start = i + 2;
+                    i++;
                 }
             }
-            else if (node.Children != null)
+
+            var tail = text[start..].Trim();
+            if (!string.IsNullOrEmpty(tail))
+                segments.Add(tail);
+
+            if (segments.Count <= 1)
+                return [text];
+
+            var basePrefix = GetPrefixFromToken(segments[0]);
+            for (int i = 0; i < segments.Count; i++)
             {
-                foreach (var child in node.Children)
+                var token = segments[i];
+                var neg = token.StartsWith("-", StringComparison.Ordinal);
+                var raw = neg ? token[1..] : token;
+                if (raw.Contains(':'))
                 {
-                    FlattenExprToTokens(child, tokens);
+                    segments[i] = token;
+                    continue;
                 }
+
+                if (!string.IsNullOrEmpty(basePrefix))
+                    segments[i] = neg ? $"-{basePrefix}{raw}" : $"{basePrefix}{raw}";
+            }
+
+            return segments;
+        }
+
+        // 返回规范化后的显示文本。
+        // 若输入与规范化结果不同，表示用户仍在“修正阶段”，本次 Enter 只改写文本不提交。
+        private static string NormalizeInlineExpressionForControl(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return string.Empty;
+
+            var expanded = ExpandInlineSegmentsForControl(text.Trim());
+            if (expanded.Count <= 1)
+                return text.Trim();
+
+            var hasAnd = text.Contains("&&", StringComparison.Ordinal);
+            var op = hasAnd ? "&&" : "||";
+            return string.Join(op, expanded);
+        }
+
+        private static string GetPrefixFromToken(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return null;
+
+            var check = token.StartsWith("-", StringComparison.Ordinal) ? token[1..] : token;
+            var idx = check.IndexOf(':');
+            if (idx <= 0)
+                return null;
+
+            return check[..(idx + 1)];
+        }
+
+        private bool IsPersistentToken(string token)
+        {
+            return _persistentTokenSet.Contains(token);
+        }
+
+        private bool IsStoreProviderToken(string token, out ITokenSuggestionProvider provider, out string matchedPrefix)
+        {
+            provider = null;
+            matchedPrefix = null;
+
+            if (string.IsNullOrWhiteSpace(token))
+                return false;
+
+            var check = token.StartsWith("-", StringComparison.Ordinal) ? token[1..] : token;
+            provider = MatchProvider(Providers, check, out matchedPrefix);
+            return provider?.IsPersistent == true;
+        }
+
+        private void ClearByPriority()
+        {
+            if (!string.IsNullOrEmpty(Text))
+            {
+                SetCurrentValue(TextProperty, string.Empty);
+                return;
+            }
+
+            var temporary = SelectedTokens.Where(t => !_persistentTokenSet.Contains(t)).ToList();
+            if (temporary.Count > 0)
+            {
+                foreach (var t in temporary)
+                    SelectedTokens.Remove(t);
+                return;
+            }
+
+            if (PersistentTokens.Count > 0)
+            {
+                foreach (var p in PersistentTokens.ToList())
+                    SelectedTokens.Remove(p);
+
+                PersistentTokens.Clear();
+                _persistentTokenSet.Clear();
             }
         }
 
@@ -620,6 +852,8 @@ namespace SourceGit.Controls
                     _tokensList.SelectedIndex = -1;
                 }
 
+                UpdateClearButtonVisibility();
+
                 var val = Text ?? string.Empty;
                 // 只在用户主动清空输入时重置
                 if (string.IsNullOrEmpty(val) && SelectedTokens.Count > 0)
@@ -627,8 +861,6 @@ namespace SourceGit.Controls
                     if (_popup != null)
                         _popup.IsOpen = false;
                     _tokensList.SelectedIndex = SelectedTokens.Count - 1;
-                    _enterCommitArmed = false;
-                    _pendingCommitText = null;
                 }
                 else
                 {
@@ -637,6 +869,9 @@ namespace SourceGit.Controls
             }
         }
 
+        // 按当前输入段更新建议。
+        // 关键规则：在 ||/&& 后，即使当前段非空，也继承前段 provider 做过滤。
+        // 例如 a:acker||bo 会继续走作者 provider 并用 bo 过滤。
         private async Task UpdateSuggestionsAsync(string text)
         {
             if (_popup == null || _suggestionList == null)
@@ -688,7 +923,7 @@ namespace SourceGit.Controls
             }
             else
             {
-                if (string.IsNullOrEmpty(checkStr) && TryFindLastOperator(text, out var opStart, out _))
+                if (TryFindLastOperator(text, out var opStart, out _))
                 {
                     var previousText = text[..opStart].TrimEnd();
                     var previousSegment = GetCurrentSegment(previousText);
@@ -699,7 +934,8 @@ namespace SourceGit.Controls
                     {
                         try
                         {
-                            var suggestions = await inheritedProvider.GetSuggestionsAsync(string.Empty, token);
+                            // 用当前段 checkStr 作为过滤词，而不是空串。
+                            var suggestions = await inheritedProvider.GetSuggestionsAsync(checkStr, token);
                             if (token.IsCancellationRequested)
                                 return;
 
@@ -781,6 +1017,10 @@ namespace SourceGit.Controls
             }
         }
 
+        // 键盘交互总入口：
+        // 1) 建议弹窗打开时 Enter/Tab 优先上屏建议
+        // 2) 非弹窗场景 Enter：先规范化，若已规范则提交
+        // 3) Ctrl+Enter：跳过规范化，直接整段提交
         private void OnTextBoxKeyDown(object sender, KeyEventArgs e)
         {
             if (_popup?.IsOpen == true && _suggestionList != null)
@@ -833,19 +1073,32 @@ namespace SourceGit.Controls
 
             if (e.Key == Key.Enter)
             {
+                bool isCtrlPressed = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+
                 if (!string.IsNullOrEmpty(Text))
                 {
-                    if (_enterCommitArmed && (_pendingCommitText == Text))
+                    if (isCtrlPressed)
                     {
-                        CommitTextAsToken(Text);
-                        _enterCommitArmed = false;
-                        _pendingCommitText = null;
+                        // 用户显式要求“按原样提交”。
+                        CommitTextAsTokenNoExpand(Text);
                         SetCurrentValue(TextProperty, string.Empty);
                     }
                     else
                     {
-                        _pendingCommitText = Text;
-                        _enterCommitArmed = true;
+                        var normalized = NormalizeInlineExpressionForControl(Text);
+                        if (!string.Equals(normalized, Text, StringComparison.Ordinal))
+                        {
+                            // 发现可规范化内容：本次只改写输入，不生成 Token。
+                            SetCurrentValue(TextProperty, normalized);
+                            if (_textBox != null)
+                                _textBox.CaretIndex = _textBox.Text?.Length ?? 0;
+                        }
+                        else
+                        {
+                            // 已经是规范表达：单次 Enter 直接提交为 Token。
+                            CommitTextAsToken(Text);
+                            SetCurrentValue(TextProperty, string.Empty);
+                        }
                     }
                 }
                 SearchCommand?.Execute(null);
@@ -920,6 +1173,10 @@ namespace SourceGit.Controls
                 ? MatchProvider(Providers, checkStr, out matchedPrefix)
                 : null;
 
+            var isStoreToken = IsStoreProviderToken(token, out var storeProvider, out var _);
+            if (isStoreToken && _persistentTokenSet.Add(token))
+                PersistentTokens.Add(token);
+
             if (matchedProvider != null)
             {
                 if (matchedProvider.LogicMode == TokenLogicMode.SingleReplace)
@@ -946,8 +1203,11 @@ namespace SourceGit.Controls
                 {
                     int insertAt = -1;
                     string targetPrefix = matchedPrefix;
+                    var persistentBoundary = SelectedTokens.Count(t => IsPersistentToken(t));
+                    var rangeStart = isStoreToken ? 0 : persistentBoundary;
+                    var rangeEnd = isStoreToken ? persistentBoundary : SelectedTokens.Count;
 
-                    for (int i = SelectedTokens.Count - 1; i >= 0; i--)
+                    for (int i = rangeEnd - 1; i >= rangeStart; i--)
                     {
                         var t = SelectedTokens[i];
                         if (IsOperatorToken(t))
@@ -969,11 +1229,19 @@ namespace SourceGit.Controls
                     if (insertAt >= 0)
                         SelectedTokens.Insert(insertAt, token);
                     else
-                        SelectedTokens.Add(token);
+                        SelectedTokens.Insert(rangeEnd, token);
                 }
                 else
                 {
-                    SelectedTokens.Add(token);
+                    if (isStoreToken)
+                    {
+                        var boundary = SelectedTokens.Count(t => IsPersistentToken(t));
+                        SelectedTokens.Insert(boundary, token);
+                    }
+                    else
+                    {
+                        SelectedTokens.Add(token);
+                    }
                 }
             }
 
@@ -991,6 +1259,12 @@ namespace SourceGit.Controls
             if (idx >= 0)
                 SelectedTokens.RemoveAt(idx);
 
+            if (_persistentTokenSet.Contains(token))
+            {
+                _persistentTokenSet.Remove(token);
+                PersistentTokens.Remove(token);
+            }
+
             if (_tokensList != null)
                 _tokensList.SelectedIndex = -1;
 
@@ -1004,7 +1278,9 @@ namespace SourceGit.Controls
         {
             if (_clearButton == null)
                 return;
-            _clearButton.IsVisible = SelectedTokens is { Count: > 0 };
+            _clearButton.IsVisible = !string.IsNullOrEmpty(Text)
+                || (SelectedTokens is { Count: > 0 })
+                || (PersistentTokens is { Count: > 0 });
         }
         #endregion
 
