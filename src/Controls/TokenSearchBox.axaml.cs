@@ -19,14 +19,21 @@ using Avalonia.VisualTree;
 namespace SourceGit.Controls
 {
     /// <summary>
-    ///     A search box that supports tokenized filters (chips), providing a GitHub-style filtering experience.
+    ///     提供类似 GitHub 风格的智能过滤搜索框，支持 Token 芯片化显示。
+    ///     核心特性：
+    ///     1. 自动归类 (AutoGrouping)：相同前缀的 Token 会自动排在一起。
+    ///     2. 流体气泡 (Merged Bubble)：同类项在静默状态下视觉合并为胶囊。
+    ///     3. 两段式删除：Backspace 首次按下选中 Token，再次按下删除/编辑。
+    ///     4. 异步建议：支持通过 Provider 异步获取增量搜索建议。
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
     [TemplatePart("PART_TokensList", typeof(ListBox))]
     [TemplatePart("PART_SuggestionsPopup", typeof(Popup))]
     [TemplatePart("PART_SuggestionsList", typeof(ListBox))]
+    [TemplatePart("PART_RootBorder", typeof(Border))]
     public class TokenSearchBox : TemplatedControl
     {
+        #region Dependency Properties
         public static readonly StyledProperty<string> TextProperty =
             AvaloniaProperty.Register<TokenSearchBox, string>(nameof(Text), defaultBindingMode: BindingMode.TwoWay);
 
@@ -42,6 +49,15 @@ namespace SourceGit.Controls
         public static readonly StyledProperty<int> MaxRowsProperty =
             AvaloniaProperty.Register<TokenSearchBox, int>(nameof(MaxRows), 3);
 
+        /// <summary>
+        ///     是否开启自动归类：开启后，相同前缀的 Token 将被自动排列在一起。
+        /// </summary>
+        public static readonly StyledProperty<bool> AutoGroupingProperty =
+            AvaloniaProperty.Register<TokenSearchBox, bool>(nameof(AutoGrouping), true);
+
+        /// <summary>
+        ///     内部用于动态计算 ScrollViewer 的最大高度。
+        /// </summary>
         public static readonly StyledProperty<double> MaxListHeightProperty =
             AvaloniaProperty.Register<TokenSearchBox, double>(nameof(MaxListHeight), 96.0);
 
@@ -50,7 +66,9 @@ namespace SourceGit.Controls
 
         public static readonly StyledProperty<ICommand> TokenDoubleClickCommandProperty =
             AvaloniaProperty.Register<TokenSearchBox, ICommand>(nameof(TokenDoubleClickCommand));
+        #endregion
 
+        #region Properties
         public string Text
         {
             get => GetValue(TextProperty);
@@ -81,6 +99,12 @@ namespace SourceGit.Controls
             set => SetValue(MaxRowsProperty, value);
         }
 
+        public bool AutoGrouping
+        {
+            get => GetValue(AutoGroupingProperty);
+            set => SetValue(AutoGroupingProperty, value);
+        }
+
         public double MaxListHeight
         {
             get => GetValue(MaxListHeightProperty);
@@ -98,6 +122,7 @@ namespace SourceGit.Controls
             get => GetValue(TokenDoubleClickCommandProperty);
             set => SetValue(TokenDoubleClickCommandProperty, value);
         }
+        #endregion
 
         public TokenSearchBox()
         {
@@ -110,6 +135,7 @@ namespace SourceGit.Controls
             base.OnPropertyChanged(change);
             if (change.Property == MaxRowsProperty)
             {
+                // 根据 MaxRows 动态计算最大像素高度，每行约 32px
                 SetCurrentValue(MaxListHeightProperty, MaxRows * 32.0);
             }
         }
@@ -118,6 +144,7 @@ namespace SourceGit.Controls
         private ListBox _tokensList;
         private Popup _popup;
         private ListBox _suggestionList;
+        private Border _rootBorder;
         private CancellationTokenSource _cts;
 
         protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
@@ -128,20 +155,20 @@ namespace SourceGit.Controls
             {
                 _textBox.KeyDown += OnTextBoxKeyDown;
                 _textBox.PropertyChanged += OnTextBoxPropertyChanged;
-                _textBox.GotFocus += (s, e) =>
+                _textBox.GotFocus += (s, ev) =>
                 {
                     if (_tokensList != null)
                         _tokensList.SelectedIndex = -1;
                     _ = UpdateSuggestionsAsync(Text ?? string.Empty);
                 };
-                _textBox.LostFocus += (s, e) =>
+                _textBox.LostFocus += (s, ev) =>
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
                         if (_popup == null)
                             return;
 
-                        // Keep popup open when focus moves from textbox into suggestion list.
+                        // 只有当焦点真的离开了整个搜索控件（且没进入建议列表）时才关闭
                         if ((_textBox?.IsKeyboardFocusWithin ?? false) || (_suggestionList?.IsKeyboardFocusWithin ?? false))
                             return;
 
@@ -163,8 +190,121 @@ namespace SourceGit.Controls
             {
                 _suggestionList.PointerReleased += OnSuggestionPointerReleased;
             }
+
+            _rootBorder = e.NameScope.Find<Border>("PART_RootBorder");
+            if (_rootBorder != null)
+            {
+                _rootBorder.PointerPressed += (s, ev) =>
+                {
+                    // 点击搜索框任何空白区域都自动聚焦 TextBox
+                    _textBox?.Focus();
+                    ev.Handled = true;
+                };
+            }
         }
 
+        /// <summary>
+        ///     基础点击支持：确保点击边框区域也能获取焦点。
+        /// </summary>
+        protected override void OnPointerPressed(PointerPressedEventArgs e)
+        {
+            base.OnPointerPressed(e);
+            _textBox?.Focus();
+            e.Handled = true;
+        }
+
+        #region Public API
+        /// <summary>
+        ///     直接移除指定的 Token 字符串。
+        /// </summary>
+        public void RemoveToken(string token)
+        {
+            SelectedTokens.Remove(token);
+        }
+
+        /// <summary>
+        ///     通过代码向搜索框插入一个 Token。
+        /// </summary>
+        public bool InsertToken(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return false;
+
+            AddToken(token.Trim());
+            return true;
+        }
+
+        /// <summary>
+        ///     删除具有指定内容的 Token。
+        /// </summary>
+        public bool DeleteToken(string token, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (string.IsNullOrWhiteSpace(token) || SelectedTokens == null || SelectedTokens.Count == 0)
+                return false;
+
+            for (int i = 0; i < SelectedTokens.Count; i++)
+            {
+                if (SelectedTokens[i].Equals(token, comparison))
+                {
+                    SelectedTokens.RemoveAt(i);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        ///     按前缀批量删除 Token（例如重置所有作者过滤）。
+        /// </summary>
+        public int DeleteTokensByPrefix(string prefix, bool includeNegated = true, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (string.IsNullOrWhiteSpace(prefix) || SelectedTokens == null || SelectedTokens.Count == 0)
+                return 0;
+
+            var count = 0;
+            for (int i = SelectedTokens.Count - 1; i >= 0; i--)
+            {
+                var token = SelectedTokens[i];
+                var check = token;
+                if (includeNegated && check.StartsWith("!", StringComparison.Ordinal))
+                    check = check[1..];
+
+                if (check.StartsWith(prefix, comparison))
+                {
+                    SelectedTokens.RemoveAt(i);
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        ///     查询当前所有匹配特定前缀的 Token。
+        /// </summary>
+        public IReadOnlyList<string> QueryTokens(string prefix = null, bool includeNegated = true, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (SelectedTokens == null || SelectedTokens.Count == 0)
+                return Array.Empty<string>();
+
+            if (string.IsNullOrWhiteSpace(prefix))
+                return SelectedTokens.ToList();
+
+            return SelectedTokens
+                .Where(t =>
+                {
+                    var check = t;
+                    if (includeNegated && check.StartsWith("!", StringComparison.Ordinal))
+                        check = check[1..];
+
+                    return check.StartsWith(prefix, comparison);
+                })
+                .ToList();
+        }
+        #endregion
+
+        #region Internal Logic
         private void OnTokensListKeyDown(object sender, KeyEventArgs e)
         {
             if (_tokensList == null)
@@ -192,6 +332,7 @@ namespace SourceGit.Controls
             }
             else if (e.Key == Key.Back)
             {
+                // 两段式删除：第二次按退格进入编辑模式
                 if (_tokensList.SelectedIndex >= 0 && _tokensList.SelectedIndex < SelectedTokens.Count)
                 {
                     BeginEditToken(SelectedTokens[_tokensList.SelectedIndex]);
@@ -306,13 +447,11 @@ namespace SourceGit.Controls
 
             if (matchedProvider != null)
             {
-                // Value selected for a prefix -> Complete token
                 var prefixPart = isNegated ? "!" + matchedPrefix : matchedPrefix;
                 AddToken(prefixPart + suggestion.Name);
             }
             else
             {
-                // Prefix selected -> Append to textbox and keep typing
                 var prefixPart = isNegated ? "!" + suggestion.Name : suggestion.Name;
                 SetCurrentValue(TextProperty, prefixPart);
                 if (_textBox != null)
@@ -320,7 +459,7 @@ namespace SourceGit.Controls
                     _textBox.Focus();
                     _textBox.CaretIndex = _textBox.Text.Length;
                 }
-                return; // Do not close popup, let PropertyChanged trigger new suggestions
+                return;
             }
 
             if (_popup != null)
@@ -340,7 +479,6 @@ namespace SourceGit.Controls
 
                 var val = Text ?? string.Empty;
 
-                // GitHub style: Only trigger space commit if it's a FULL token (prefix + value) or an operator
                 if (val.EndsWith(" ") && val.Trim().Length > 0)
                 {
                     var trimmed = val.Trim();
@@ -361,10 +499,8 @@ namespace SourceGit.Controls
                     }
                 }
 
-                // If not committed, update suggestions
                 if (string.IsNullOrEmpty(val) && SelectedTokens.Count > 0)
                 {
-                    // Text cleared while tokens exist → close popup and focus last token
                     if (_popup != null)
                         _popup.IsOpen = false;
                     _tokensList.SelectedIndex = SelectedTokens.Count - 1;
@@ -437,7 +573,7 @@ namespace SourceGit.Controls
             var groups = Providers
                 .Where(p => string.IsNullOrEmpty(pattern) || MatchesPattern(p, pattern))
                 .GroupBy(p => p.Group)
-                .OrderByDescending(g => g.Key != null) // Groups with instances first
+                .OrderByDescending(g => g.Key != null)
                 .ThenBy(g => g.Key?.Id);
 
             foreach (var g in groups)
@@ -463,7 +599,6 @@ namespace SourceGit.Controls
                     _suggestionList.ItemsSource = flatList;
                     _popup.IsOpen = true;
 
-                    // Auto-select first suggestion (skip headers) when user has typed something
                     if (!string.IsNullOrEmpty(pattern))
                     {
                         var firstSuggestion = -1;
@@ -487,7 +622,6 @@ namespace SourceGit.Controls
 
         private void OnTextBoxKeyDown(object sender, KeyEventArgs e)
         {
-            // Keyboard navigation for suggestions
             if (_popup?.IsOpen == true && _suggestionList != null)
             {
                 if (e.Key == Key.Down)
@@ -527,7 +661,6 @@ namespace SourceGit.Controls
                 }
             }
 
-            // Normal text box logic
             if (e.Key == Key.Enter)
             {
                 if (!string.IsNullOrEmpty(Text))
@@ -541,7 +674,6 @@ namespace SourceGit.Controls
             }
             else if (e.Key == Key.Back && SelectedTokens.Count > 0)
             {
-                // Close popup first to avoid focus conflicts
                 if (_popup != null)
                     _popup.IsOpen = false;
 
@@ -599,8 +731,9 @@ namespace SourceGit.Controls
             var isNegated = token.StartsWith("!");
             var checkStr = isNegated ? token.Substring(1) : token;
 
+            string matchedPrefix = null;
             var matchedProvider = token != "|" && token != "&"
-                ? MatchProvider(Providers, checkStr, out var _)
+                ? MatchProvider(Providers, checkStr, out matchedPrefix)
                 : null;
 
             if (matchedProvider != null)
@@ -621,115 +754,47 @@ namespace SourceGit.Controls
                         }
                     }
                 }
-                else if (matchedProvider.LogicMode == TokenLogicMode.AutoOr)
-                {
-                    bool hasSamePrefix = false;
-                    foreach (var existing in SelectedTokens)
-                    {
-                        var existingCheck = existing.StartsWith("!") ? existing.Substring(1) : existing;
-                        if (MatchProvider(Providers, existingCheck, out var _) == matchedProvider)
-                        {
-                            hasSamePrefix = true;
-                            break;
-                        }
-                    }
-                    if (hasSamePrefix)
-                    {
-                        var last = SelectedTokens.LastOrDefault();
-                        if (last == "&")
-                        {
-                            // Enforce "Cannot AND" rule for AutoOr: Correct illegal '&' to '|'
-                            SelectedTokens[SelectedTokens.Count - 1] = "|";
-                        }
-                        else if (last != null && last != "|")
-                        {
-                            SelectedTokens.Add("|");
-                        }
-                    }
-                }
             }
 
             if (!SelectedTokens.Contains(token))
             {
-                SelectedTokens.Add(token);
+                if (AutoGrouping && matchedProvider != null)
+                {
+                    int insertAt = -1;
+                    string targetPrefix = matchedPrefix;
+
+                    for (int i = SelectedTokens.Count - 1; i >= 0; i--)
+                    {
+                        var t = SelectedTokens[i];
+                        if (t == "|" || t == "&") continue;
+
+                        var tn = t.StartsWith("!") ? t.Substring(1) : t;
+                        MatchProvider(Providers, tn, out var p);
+                        if (p == targetPrefix)
+                        {
+                            insertAt = i + 1;
+                            if (insertAt < SelectedTokens.Count && (SelectedTokens[insertAt] == "|" || SelectedTokens[insertAt] == "&"))
+                            {
+                                insertAt++;
+                            }
+                            break;
+                        }
+                    }
+
+                    if (insertAt >= 0)
+                        SelectedTokens.Insert(insertAt, token);
+                    else
+                        SelectedTokens.Add(token);
+                }
+                else
+                {
+                    SelectedTokens.Add(token);
+                }
             }
+
             SetCurrentValue(TextProperty, string.Empty);
             if (_popup != null)
                 _popup.IsOpen = false;
-        }
-
-        public bool InsertToken(string token)
-        {
-            if (string.IsNullOrWhiteSpace(token))
-                return false;
-
-            AddToken(token.Trim());
-            return true;
-        }
-
-        public bool DeleteToken(string token, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-        {
-            if (string.IsNullOrWhiteSpace(token) || SelectedTokens == null || SelectedTokens.Count == 0)
-                return false;
-
-            for (int i = 0; i < SelectedTokens.Count; i++)
-            {
-                if (SelectedTokens[i].Equals(token, comparison))
-                {
-                    SelectedTokens.RemoveAt(i);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public int DeleteTokensByPrefix(string prefix, bool includeNegated = true, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-        {
-            if (string.IsNullOrWhiteSpace(prefix) || SelectedTokens == null || SelectedTokens.Count == 0)
-                return 0;
-
-            var count = 0;
-            for (int i = SelectedTokens.Count - 1; i >= 0; i--)
-            {
-                var token = SelectedTokens[i];
-                var check = token;
-                if (includeNegated && check.StartsWith("!", StringComparison.Ordinal))
-                    check = check[1..];
-
-                if (check.StartsWith(prefix, comparison))
-                {
-                    SelectedTokens.RemoveAt(i);
-                    count++;
-                }
-            }
-
-            return count;
-        }
-
-        public IReadOnlyList<string> QueryTokens(string prefix = null, bool includeNegated = true, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-        {
-            if (SelectedTokens == null || SelectedTokens.Count == 0)
-                return Array.Empty<string>();
-
-            if (string.IsNullOrWhiteSpace(prefix))
-                return SelectedTokens.ToList();
-
-            return SelectedTokens
-                .Where(t =>
-                {
-                    var check = t;
-                    if (includeNegated && check.StartsWith("!", StringComparison.Ordinal))
-                        check = check[1..];
-
-                    return check.StartsWith(prefix, comparison);
-                })
-                .ToList();
-        }
-
-        public void RemoveToken(string token)
-        {
-            SelectedTokens.Remove(token);
         }
 
         private void BeginEditToken(string token)
@@ -749,5 +814,6 @@ namespace SourceGit.Controls
             if (_textBox != null)
                 _textBox.CaretIndex = _textBox.Text?.Length ?? 0;
         }
+        #endregion
     }
 }

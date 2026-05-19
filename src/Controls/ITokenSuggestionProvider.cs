@@ -34,6 +34,10 @@ namespace SourceGit.Controls {
             Id = id;
             Name = name;
         }
+
+        public override bool Equals(object obj) => obj is TokenSuggestionGroup other && Id == obj.ToString();
+        public override int GetHashCode() => Id?.GetHashCode() ?? 0;
+        public override string ToString() => Id;
     }
 
     /// <summary>
