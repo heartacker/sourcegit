@@ -452,12 +452,14 @@ namespace SourceGit.ViewModels
 
             processed = FilterCommits(processed, _soloTargets);
             processed = FoldCommits(processed);
-
-            GenerateGraph(_rawCommits, false);
-
             if (SetProperty(ref _commits, processed, nameof(Commits)))
             {
                 PostCommitsChanged();
+                GenerateGraph(_commits, true);
+            }
+            else
+            {
+                GenerateGraph(_commits);
             }
         }
 
