@@ -9,29 +9,24 @@ namespace SourceGit.Models
         RemoteBranch,
         RemoteBranchFolder,
         Tag,
-        SoloCommits,
-    }
+        }
 
-    public enum FilterMode
-    {
+        public enum FilterMode
+        {
         None = 0,
         Included,
         Excluded,
-    }
+        }
 
-    public class HistoryFilter : ObservableObject
-    {
+        public class HistoryFilter : ObservableObject
+        {
         public string Pattern
         {
             get => _pattern;
             set => SetProperty(ref _pattern, value);
         }
 
-        public FilterType Type
-        {
-            get;
-            set;
-        } = FilterType.LocalBranch;
+        public FilterType Type { get; set; } = FilterType.LocalBranch;
 
         public FilterMode Mode
         {
@@ -41,12 +36,7 @@ namespace SourceGit.Models
 
         public bool IsBranch
         {
-            get => Type != FilterType.Tag && Type != FilterType.SoloCommits;
-        }
-
-        public bool IsSolo
-        {
-            get => Type == FilterType.SoloCommits;
+            get => Type != FilterType.Tag;
         }
 
         public HistoryFilter()

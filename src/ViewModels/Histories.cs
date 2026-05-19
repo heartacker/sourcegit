@@ -71,20 +71,14 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public AvaloniaList<Models.IHistoryViewFilter> ViewFilters { get; } = [];
-
         public List<string> SoloTargets
         {
-            get
+            get => _soloTargets;
+            set
             {
-                var solo = ViewFilters.OfType<Models.SoloFilter>().FirstOrDefault();
-                return solo?.Targets ?? [];
+                if (SetProperty(ref _soloTargets, value))
+                    UpdateDisplayCommits();
             }
-        }
-
-        public bool HasActiveViewFilters
-        {
-            get => ViewFilters.Any(x => x.IsActive);
         }
 
         public List<Models.Commit> Commits
@@ -452,21 +446,12 @@ namespace SourceGit.ViewModels
 
                 if (soloFilters.Count > 0)
                 {
-                    var tokenSolo = new Models.SoloFilter
-                    {
-                        Targets = soloFilters,
-                        Method = LineageSearchMethod
-                    };
-                    processed = tokenSolo.Process(processed, _commitMap);
+                    processed = FilterCommits(processed, soloFilters);
                 }
             }
 
-            foreach (var filter in ViewFilters)
-            {
-                if (filter is Models.SoloFilter solo)
-                    solo.Method = LineageSearchMethod;
-                processed = filter.Process(processed, _commitMap);
-            }
+            processed = FilterCommits(processed, _soloTargets);
+            processed = FoldCommits(processed);
 
             GenerateGraph(_rawCommits, false);
 
@@ -474,8 +459,6 @@ namespace SourceGit.ViewModels
             {
                 PostCommitsChanged();
             }
-
-            OnPropertyChanged(nameof(HasActiveViewFilters));
         }
 
         public Models.CommitGraph Graph
@@ -693,29 +676,12 @@ namespace SourceGit.ViewModels
             _repo = repo;
             _commitDetailSharedData = new CommitDetailSharedData();
 
-            var solo = new Models.SoloFilter();
-            var folding = new Models.FoldingFilter();
-            ViewFilters.Add(solo);
-            ViewFilters.Add(folding);
-
-            ViewFilters.CollectionChanged += (_, _) => UpdateDisplayCommits();
             _repo.UIStates.HistoryFilters.CollectionChanged += (_, _) => UpdateDisplayCommits();
             Preferences.Instance.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(Preferences.EnableLinearCommitFolding))
-                {
-                    ViewFilters.OfType<Models.FoldingFilter>().FirstOrDefault()?.NotifyStateChanged();
                     UpdateDisplayCommits();
-                }
             };
-
-            foreach (var filter in ViewFilters)
-            {
-                if (filter is Models.SoloFilter soloFilter)
-                    soloFilter.PropertyChanged += (_, e) => OnPropertyChanged(nameof(HasActiveViewFilters));
-                if (filter is Models.FoldingFilter foldingFilter)
-                    foldingFilter.PropertyChanged += (_, e) => OnPropertyChanged(nameof(HasActiveViewFilters));
-            }
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> authorSuggester = (pattern, ct) =>
             {
@@ -1247,7 +1213,135 @@ namespace SourceGit.ViewModels
             Graph = Models.CommitGraph.Generate(commits, commitsChanged, firstParentOnly, highlighting, selectedLineage);
         }
 
+        private List<Models.Commit> FilterCommits(List<Models.Commit> commits, List<string> targets)
+        {
+            if (commits == null || commits.Count == 0 || targets.Count == 0)
+                return commits;
+
+            var active = new bool[commits.Count];
+            foreach (var target in targets)
+            {
+                string sha = target;
+                if (target.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
+                {
+                    var head = commits.Find(x => x.IsCurrentHead);
+                    if (head != null) sha = head.SHA;
+                }
+
+                if (_commitMap.TryGetValue(sha, out var commit) && commit.Index < commits.Count)
+                {
+                    var lineage = Models.CommitGraph.GetLineage(commits, _commitMap, commit, LineageSearchMethod, (uint)commits.Count);
+                    for (int i = 0; i < lineage.Length; i++)
+                    {
+                        if (lineage[i])
+                            active[i] = true;
+                    }
+                }
+            }
+
+            var result = new List<Models.Commit>();
+            for (int i = 0; i < commits.Count; i++)
+            {
+                if (active[i])
+                {
+                    var c = commits[i].Clone();
+                    c.IsCommitFilterHead = targets.Any(t => t.Equals(c.SHA, StringComparison.OrdinalIgnoreCase) ||
+                                                           (t.Equals("HEAD", StringComparison.OrdinalIgnoreCase) && c.IsCurrentHead));
+                    result.Add(c);
+                }
+            }
+
+            return result;
+        }
+
+        private List<Models.Commit> FoldCommits(List<Models.Commit> commits)
+        {
+            if (commits == null || commits.Count == 0)
+                return commits;
+
+            if (!Preferences.Instance.EnableLinearCommitFolding)
+            {
+                foreach (var c in commits)
+                    c.IsFolded = false;
+                return commits;
+            }
+
+            var threshold = Preferences.Instance.MaxLinearCommitsToFold;
+            if (threshold < 3)
+            {
+                foreach (var c in commits)
+                    c.IsFolded = false;
+                return commits;
+            }
+
+            var childrenCount = new Dictionary<string, int>();
+            foreach (var c in commits)
+            {
+                foreach (var p in c.Parents)
+                {
+                    if (!childrenCount.TryAdd(p, 1))
+                        childrenCount[p]++;
+                }
+            }
+
+            var result = new List<Models.Commit>();
+            for (int i = 0; i < commits.Count; i++)
+            {
+                var start = commits[i];
+                if (start.HasDecorators || start.Parents.Count != 1 || childrenCount.GetValueOrDefault(start.SHA, 0) > 1)
+                {
+                    start.IsFolded = false;
+                    result.Add(start);
+                    continue;
+                }
+
+                var segment = new List<Models.Commit> { start };
+                int j = i + 1;
+                while (j < commits.Count)
+                {
+                    var next = commits[j];
+                    if (next.HasDecorators || next.Parents.Count != 1 || childrenCount.GetValueOrDefault(next.SHA, 0) > 1 || !segment[^1].Parents[0].Equals(next.SHA))
+                        break;
+
+                    segment.Add(next);
+                    j++;
+                }
+
+                if (segment.Count > threshold)
+                {
+                    var first = segment[0].Clone();
+                    var last = segment[^1];
+                    var middleIdx = segment.Count / 2;
+                    var middle = segment[middleIdx].Clone();
+
+                    first.IsFolded = false;
+                    middle.IsFolded = true;
+                    middle.FoldedCount = segment.Count - 3;
+
+                    first.Parents = [middle.SHA];
+                    middle.Parents = [last.SHA];
+
+                    result.Add(first);
+                    result.Add(middle);
+                    result.Add(last);
+                }
+                else
+                {
+                    foreach (var c in segment)
+                    {
+                        c.IsFolded = false;
+                        result.Add(c);
+                    }
+                }
+
+                i = j - 1;
+            }
+
+            return result;
+        }
+
         private Repository _repo = null;
+        private List<string> _soloTargets = [];
         private CommitDetailSharedData _commitDetailSharedData = null;
         private bool _isLoading = true;
         private string _searchText = string.Empty;

@@ -731,23 +731,6 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
-        private void OnRemoveViewFilter(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ViewModels.Repository repo && sender is Button { DataContext: Models.IHistoryViewFilter filter })
-            {
-                if (filter is Models.SoloFilter)
-                {
-                    repo.ClearSoloMode();
-                }
-                else if (filter is Models.FoldingFilter)
-                {
-                    ViewModels.Preferences.Instance.EnableLinearCommitFolding = false;
-                }
-            }
-
-            e.Handled = true;
-        }
-
         private async void OnBisectCommand(object sender, RoutedEventArgs e)
         {
             if (sender is Button button &&
