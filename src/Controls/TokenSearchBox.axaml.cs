@@ -976,5 +976,23 @@ namespace SourceGit.Controls
             _clearButton.IsVisible = SelectedTokens is { Count: > 0 };
         }
         #endregion
+
+        #region Syntax Highlighting
+        private void HighlightLogicalOperators()
+        {
+            // Example logic for highlighting logical operators
+            foreach (var token in SelectedTokens)
+            {
+                if (token.Contains("||") || token.Contains("&&"))
+                {
+                    // Apply highlighting logic here
+                    // This could involve changing the token's style or adding visual cues
+                }
+            }
+        }
+        #endregion
+
+        // Call the highlighting method at appropriate places, e.g., after tokenization or input changes
+        // HighlightLogicalOperators();
     }
 }
