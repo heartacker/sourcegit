@@ -52,6 +52,9 @@ namespace SourceGit.Models
 
         public bool IsCommitterVisible => !Author.Equals(Committer) || AuthorTime != CommitterTime;
         public bool IsCurrentHead => Decorators.Find(x => x.Type is DecoratorType.CurrentBranchHead or DecoratorType.CurrentCommitHead) != null;
+        public bool IsMergeCommit => Parents.Count > 1;
+        public bool IsTag => Decorators.Find(x => x.Type == DecoratorType.Tag) != null;
+        public bool IsCherryPicked => Subject.Contains("cherry-picked from commit", StringComparison.OrdinalIgnoreCase);
         public bool HasDecorators => Decorators.Count > 0;
         public string FirstParentToCompare => Parents.Count > 0 ? $"{SHA}^" : EmptyTreeHash.Guess(SHA);
 

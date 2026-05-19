@@ -184,6 +184,18 @@ namespace SourceGit.ViewModels
                 messageFilters.AddRange(fallbackMessageFilters);
                 excludedMessageFilters.AddRange(fallbackExcludedMessageFilters);
 
+                var stateFilters = SearchTokens
+                    .Where(t => t.StartsWith("is:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(3).Trim().ToLowerInvariant())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
+                var excludedStateFilters = SearchTokens
+                    .Where(t => t.StartsWith("!is:", StringComparison.OrdinalIgnoreCase))
+                    .Select(t => t.Substring(4).Trim().ToLowerInvariant())
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToList();
+
                 var tagFilters = SearchTokens
                     .Where(t => t.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
@@ -371,6 +383,32 @@ namespace SourceGit.ViewModels
 
                         var include = remoteFilters.Count == 0 || remoteFilters.Any(f => remoteNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
                         var exclude = excludedRemoteFilters.Any(f => remoteNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
+                        return include && !exclude;
+                    }).ToList();
+                }
+
+                if (stateFilters.Count > 0 || excludedStateFilters.Count > 0)
+                {
+                    processed = processed.Where(c =>
+                    {
+                        bool Matches(string filter, Models.Commit commit)
+                        {
+                            return filter switch
+                            {
+                                "merged" => commit.IsMerged,
+                                "unmerged" => !commit.IsMerged,
+                                "tag" or "tags" => commit.IsTag,
+                                "branch" or "branches" => commit.HasDecorators && !commit.IsTag,
+                                "merge" => commit.IsMergeCommit,
+                                "cherrypick" => commit.IsCherryPicked,
+                                "head" => commit.IsCurrentHead,
+                                "folded" => commit.IsFolded,
+                                _ => true,
+                            };
+                        }
+
+                        var include = stateFilters.All(f => Matches(f, c));
+                        var exclude = excludedStateFilters.Any(f => Matches(f, c));
                         return include && !exclude;
                     }).ToList();
                 }
@@ -709,13 +747,20 @@ namespace SourceGit.ViewModels
                 return Task.FromResult(Enumerable.Empty<Controls.TokenSuggestion>());
             };
 
+            var implementedIcon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5";
+
+
             var groupFilters = new Controls.TokenSuggestionGroup("filters", "常规过滤");
             var groupAdvanced = new Controls.TokenSuggestionGroup("advanced", "高级检索");
             var groupView = new Controls.TokenSuggestionGroup("view", "视图控制");
             var groupGit = new Controls.TokenSuggestionGroup("git", "Git 选项");
-            var implementedIcon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5";
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤", groupAdvanced));
+            var isProv = new[] {
+                "merged", "unmerged", "tag",
+                "branch", "merge", "cherrypick",
+                "head", "folded" };
+                SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤",
+                groupAdvanced, isProv, Controls.TokenLogicMode.AutoAnd, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者", groupFilters, suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "author:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息", groupFilters, suggester: messageSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "message:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支", groupFilters, suggester: branchSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "branch:" }, icon: implementedIcon));
