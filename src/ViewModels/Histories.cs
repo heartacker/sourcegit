@@ -135,34 +135,6 @@ namespace SourceGit.ViewModels
                                 yield return v;
                 }
 
-                // Branch lineage helpers (b: prefix requires graph traversal, cannot use generic evaluator)
-                bool MatchesBranchHead(Models.Commit commit, string filter) =>
-                    commit.Decorators.Any(d =>
-                        (d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.RemoteBranchHead or Models.DecoratorType.CurrentBranchHead) &&
-                        d.Name.Contains(filter, StringComparison.OrdinalIgnoreCase));
-
-                HashSet<string> CollectBranchLineageShas(IEnumerable<string> filters)
-                {
-                    var commits = _rawCommits;
-                    var map = new Dictionary<string, Models.Commit>(commits.Count);
-                    for (int i = 0; i < commits.Count; i++)
-                    {
-                        commits[i].Index = i;
-                        map[commits[i].SHA] = commits[i];
-                    }
-                    var seeds = commits.Where(c => filters.Any(f => MatchesBranchHead(c, f))).ToList();
-                    var result = new HashSet<string>();
-                    foreach (var seed in seeds)
-                    {
-                        var lineage = Models.CommitGraph.GetCommitLineageFast(commits, map, seed,
-                            Models.CommitLineageSearchMethod.FullLineage, (uint)commits.Count);
-                        for (int i = 0; i < lineage.Length; i++)
-                            if (lineage[i])
-                                result.Add(commits[i].SHA);
-                    }
-                    return result;
-                }
-
                 // Generic per-prefix term evaluator
                 static bool MatchesState(string filter, Models.Commit commit) => filter switch
                 {
@@ -201,8 +173,8 @@ namespace SourceGit.ViewModels
 
                 foreach (var group in spec.Groups)
                 {
-                    // git:, ui:, sort: are view/behavior tokens handled in CollectionChanged, not filters
-                    if (group.ProviderPrefix is "git:" or "ui:" or "sort:")
+                    // git:, ui:, sort:, b:, t:, r: are persistent tokens handled in CollectionChanged, not in-memory filters
+                    if (group.ProviderPrefix is "git:" or "ui:" or "sort:" or "b:" or "t:" or "r:")
                         continue;
 
                     // solo: runs a lineage-based commit subset selection
@@ -211,19 +183,6 @@ namespace SourceGit.ViewModels
                         var soloVals = PositiveLeaves(group.Expr).ToList();
                         if (soloVals.Count > 0)
                             processed = FilterCommits(processed, soloVals);
-                        continue;
-                    }
-
-                    // b: requires precomputed lineage SHA sets
-                    if (group.ProviderPrefix == "b:")
-                    {
-                        var posLeaves = PositiveLeaves(group.Expr).ToList();
-                        var negLeaves = NegativeLeaves(group.Expr).ToList();
-                        var includeSet = posLeaves.Count > 0 ? CollectBranchLineageShas(posLeaves) : null;
-                        var excludeSet = negLeaves.Count > 0 ? CollectBranchLineageShas(negLeaves) : null;
-                        processed = processed.Where(c =>
-                            (includeSet == null || includeSet.Contains(c.SHA)) &&
-                            (excludeSet == null || !excludeSet.Contains(c.SHA))).ToList();
                         continue;
                     }
 
@@ -525,8 +484,8 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息", groupFilters, suggester: messageSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "message:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支", groupFilters, suggester: branchSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "branch:" }, icon: implementedIcon, isPersistent: true));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("solo:", "Solo 提交链过滤", groupView, new[] { "HEAD" }, Controls.TokenLogicMode.AutoOr, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, alias: new[] { "tag:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, alias: new[] { "remote:" }, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, alias: new[] { "tag:" }, icon: implementedIcon, isPersistent: true));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, alias: new[] { "remote:" }, icon: implementedIcon, isPersistent: true));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径", groupFilters, alias: new[] { "file:" }));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径", groupFilters, alias: new[] { "path:" }));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希", groupFilters, alias: new[] { "sha:" }, icon: implementedIcon));
@@ -581,6 +540,60 @@ namespace SourceGit.ViewModels
                         _repo.HistoryShowFlags = Models.HistoryShowFlags.None;
 
                     _gitOptionsDrivenByTokens = false;
+                }
+
+                // Handle b:, t:, r: tokens via HistoryFilters for git log re-execution
+                var newSearchFilters = new List<Models.HistoryFilter>();
+                foreach (var token in SearchTokens)
+                {
+                    if (token.StartsWith("b:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var val = token[2..].Trim();
+                        if (val.Length > 0)
+                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.LocalBranch, Models.FilterMode.Included));
+                    }
+                    else if (token.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var val = token[2..].Trim();
+                        if (val.Length > 0)
+                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.Tag, Models.FilterMode.Included));
+                    }
+                    else if (token.StartsWith("r:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var val = token[2..].Trim();
+                        if (val.Length > 0)
+                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.RemoteBranch, Models.FilterMode.Included));
+                    }
+                }
+
+                var changed = newSearchFilters.Count != _searchDrivenFilters.Count;
+                if (!changed)
+                {
+                    for (int i = 0; i < newSearchFilters.Count; i++)
+                    {
+                        var a = newSearchFilters[i];
+                        var b = _searchDrivenFilters[i];
+                        if (a.Pattern != b.Pattern || a.Type != b.Type)
+                        {
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (changed)
+                {
+                    foreach (var old in _searchDrivenFilters)
+                        _repo.UIStates.HistoryFilters.Remove(old);
+                    _searchDrivenFilters.Clear();
+
+                    foreach (var nf in newSearchFilters)
+                    {
+                        _repo.UIStates.HistoryFilters.Add(nf);
+                        _searchDrivenFilters.Add(nf);
+                    }
+
+                    _repo.RefreshCommits();
                 }
 
                 if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
@@ -1225,6 +1238,7 @@ namespace SourceGit.ViewModels
         private Dictionary<string, Models.Commit> _commitMap = new();
         private bool _gitOptionsDrivenByTokens = false;
         private bool _suppressNextTokenCollectionRefresh = false;
+        private readonly List<Models.HistoryFilter> _searchDrivenFilters = [];
         private bool _suppressGraphRefreshFromSelectionChange = false;
         private int _lineageRequestVersion = 0;
     }
