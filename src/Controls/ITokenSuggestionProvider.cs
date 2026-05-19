@@ -6,7 +6,29 @@ using System.Threading.Tasks;
 
 namespace SourceGit.Controls
 {
+    /// <summary>
+    ///     Defines the logic mode for how tokens from a provider should be combined.
+    /// </summary>
+    public enum TokenLogicMode
+    {
+        /// <summary>
+        ///     Default for most providers,
+        ///     automatically combines multiple tokens with OR logic.
+        ///     like "author:Alice author:Bob" will match commits by Alice or Bob.
+        /// </summary>
+        AutoOr,
 
+        /// <summary>
+        ///     Automatically combines multiple tokens with AND logic.
+        ///     like "file:src/ file:docs/" will match commits that touch both src/ and docs/.
+        /// </summary>
+        AutoAnd,
+
+        /// <summary>
+        /// like sort:Commit-Date and   Topologically, the second token will replace the first one instead of being combined.
+        /// </summary>
+        SingleReplace,
+    }
 
     /// <summary>
     ///     Represents a suggestion item for the token search box.
@@ -104,7 +126,9 @@ namespace SourceGit.Controls
         private readonly Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> _suggester;
         private readonly IEnumerable<TokenSuggestion> _staticOptions;
 
-        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group = null, Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null)
+        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group = null,
+            Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null,
+            TokenLogicMode logicMode = TokenLogicMode.AutoOr, string[] alias = null, string icon = null)
         {
             Prefix = prefix;
             FullPrefix = alias;
@@ -115,7 +139,9 @@ namespace SourceGit.Controls
             LogicMode = logicMode;
         }
 
-        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group, IEnumerable<string> staticOptions, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null)
+        public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group,
+            IEnumerable<string> staticOptions, TokenLogicMode logicMode = TokenLogicMode.AutoOr,
+            string[] alias = null, string icon = null)
         {
             Prefix = prefix;
             FullPrefix = alias;
@@ -135,7 +161,8 @@ namespace SourceGit.Controls
 
             if (_staticOptions != null)
             {
-                var filtered = _staticOptions.Where(x => string.IsNullOrEmpty(pattern) || x.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+                var filtered = _staticOptions.Where(x =>
+                    string.IsNullOrEmpty(pattern) || x.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase));
                 return Task.FromResult(filtered);
             }
 
