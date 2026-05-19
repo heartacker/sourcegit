@@ -59,7 +59,7 @@ namespace SourceGit.Controls {
         /// <summary>
         ///     Optional alternative prefixes that also trigger this provider (e.g., "a:" for "author:").
         /// </summary>
-        string[] Aliases { get; }
+        string[] FullPrefix { get; }
 
         /// <summary>
         ///     An optional description for this provider (e.g., "Filter by author").
@@ -95,7 +95,7 @@ namespace SourceGit.Controls {
     /// </summary>
     public class StaticTokenSuggestionProvider : ITokenSuggestionProvider {
         public string Prefix { get; }
-        public string[] Aliases { get; }
+        public string[] FullPrefix { get; }
         public string Description { get; }
         public string Icon { get; }
         public TokenSuggestionGroup Group { get; }
@@ -106,7 +106,7 @@ namespace SourceGit.Controls {
 
         public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group = null, Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null) {
             Prefix = prefix;
-            Aliases = alias;
+            FullPrefix = alias;
             Description = description;
             Icon = icon;
             Group = group;
@@ -116,7 +116,7 @@ namespace SourceGit.Controls {
 
         public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group, IEnumerable<string> staticOptions, TokenLogicMode logicMode = TokenLogicMode.None, string[] alias = null, string icon = null) {
             Prefix = prefix;
-            Aliases = alias;
+            FullPrefix = alias;
             Description = description;
             Icon = icon;
             Group = group;

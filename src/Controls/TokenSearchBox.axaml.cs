@@ -396,9 +396,9 @@ namespace SourceGit.Controls
         {
             if (text.StartsWith(provider.Prefix, StringComparison.OrdinalIgnoreCase))
                 return provider.Prefix;
-            if (provider.Aliases != null)
+            if (provider.FullPrefix != null)
             {
-                foreach (var alias in provider.Aliases)
+                foreach (var alias in provider.FullPrefix)
                 {
                     if (text.StartsWith(alias, StringComparison.OrdinalIgnoreCase))
                         return alias;
@@ -426,9 +426,9 @@ namespace SourceGit.Controls
         {
             if (provider.Prefix.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
                 return true;
-            if (provider.Aliases != null)
+            if (provider.FullPrefix != null)
             {
-                foreach (var alias in provider.Aliases)
+                foreach (var alias in provider.FullPrefix)
                 {
                     if (alias.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
                         return true;
@@ -585,8 +585,8 @@ namespace SourceGit.Controls
                 foreach (var p in g)
                 {
                     var desc = p.Description;
-                    if (p.Aliases != null && p.Aliases.Length > 0)
-                        desc = $"{desc} ({string.Join(", ", p.Aliases)})";
+                    if (p.FullPrefix != null && p.FullPrefix.Length > 0)
+                        desc = $"{desc} ({string.Join(", ", p.FullPrefix)})";
 
                     flatList.Add(new TokenSuggestion { Name = p.Prefix, Description = desc, Icon = p.Icon });
                 }
