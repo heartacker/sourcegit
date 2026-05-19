@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Avalonia;
 using Avalonia.Data.Converters;
 
-namespace SourceGit.Converters
+namespace SourceGit.Controls
 {
     /// <summary>
     ///     计算 Token 在气泡组中的视觉位置。

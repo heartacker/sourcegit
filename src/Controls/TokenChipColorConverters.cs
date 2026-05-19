@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
@@ -6,7 +6,7 @@ using Avalonia.Data.Converters;
 using Avalonia.Media;
 using Avalonia.Styling;
 
-namespace SourceGit.Converters
+namespace SourceGit.Controls
 {
     internal static class TokenChipPalette
     {

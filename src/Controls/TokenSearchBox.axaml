@@ -1,7 +1,7 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:c="using:SourceGit.Controls"
-                    xmlns:conv="using:SourceGit.Converters">
+                    xmlns:conv="using:SourceGit.Controls">
   <conv:TokenToColorConverter x:Key="TokenToColorConverter" />
   <conv:TokenToBackgroundConverter x:Key="TokenToBackgroundConverter" />
   <conv:TokenBubblePositionConverter x:Key="TokenBubblePositionConverter" />
