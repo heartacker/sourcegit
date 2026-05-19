@@ -5,7 +5,7 @@
   <conv:TokenToColorConverter x:Key="TokenToColorConverter" />
   <conv:TokenToBackgroundConverter x:Key="TokenToBackgroundConverter" />
   <conv:TokenBubblePositionConverter x:Key="TokenBubblePositionConverter" />
-  
+
   <Design.PreviewWith>
     <Border Padding="20">
       <c:TokenSearchBox Width="400" Watermark="Search or type filter..." />
@@ -27,19 +27,19 @@
                 CornerRadius="{TemplateBinding CornerRadius}"
                 Padding="{TemplateBinding Padding}">
           <Grid ColumnDefinitions="*,Auto">
-            <ScrollViewer Grid.Column="0" 
-                          MaxHeight="{TemplateBinding MaxListHeight}" 
+            <ScrollViewer Grid.Column="0"
+                          MaxHeight="{TemplateBinding MaxListHeight}"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
               <WrapPanel VerticalAlignment="Center">
                 <!-- Tokens (Chips) -->
-                <ListBox Name="PART_TokensList" 
-                         ItemsSource="{TemplateBinding SelectedTokens}" 
-                         Background="Transparent" 
-                         BorderThickness="0" 
-                         Padding="0" 
-                         Margin="0" 
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" 
+                <ListBox Name="PART_TokensList"
+                         ItemsSource="{TemplateBinding SelectedTokens}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0"
+                         Margin="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          ScrollViewer.VerticalScrollBarVisibility="Disabled">
                   <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -109,7 +109,7 @@
                       <Setter Property="Height" Value="24"/>
                     </Style>
                   </ListBox.Styles>
-                  
+
                   <ListBox.ItemTemplate>
                     <DataTemplate>
                       <Border Name="ChipBorder"
@@ -126,6 +126,14 @@
                                      VerticalAlignment="Center">
                             <TextBlock.Styles>
                               <Style Selector="TextBlock[Text=|]">
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Opacity" Value="0.5"/>
+                              </Style>
+                              <Style Selector="TextBlock[Text=||]">
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Opacity" Value="0.5"/>
+                              </Style>
+                              <Style Selector="TextBlock[Text=&amp;&amp;]">
                                 <Setter Property="FontWeight" Value="Bold"/>
                                 <Setter Property="Opacity" Value="0.5"/>
                               </Style>
@@ -161,6 +169,12 @@
                                 <Setter Property="IsVisible" Value="False"/>
                               </Style>
                               <Style Selector="Button[CommandParameter=&amp;]">
+                                <Setter Property="IsVisible" Value="False"/>
+                              </Style>
+                              <Style Selector="Button[CommandParameter=||]">
+                                <Setter Property="IsVisible" Value="False"/>
+                              </Style>
+                              <Style Selector="Button[CommandParameter=&amp;&amp;]">
                                 <Setter Property="IsVisible" Value="False"/>
                               </Style>
                             </Button.Styles>
@@ -239,8 +253,8 @@
                       MinWidth="200"
                       MaxHeight="260"
                       Effect="drop-shadow(0 0 8 #40000000)">
-                <ListBox Name="PART_SuggestionsList" 
-                         Background="Transparent" 
+                <ListBox Name="PART_SuggestionsList"
+                         Background="Transparent"
                          BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                   <ListBox.Styles>
@@ -252,10 +266,10 @@
                   </ListBox.Styles>
                   <ListBox.DataTemplates>
                     <DataTemplate DataType="c:TokenSuggestionHeader">
-                      <TextBlock Text="{Binding Name}" 
-                                 Foreground="{DynamicResource Brush.FG2}" 
-                                 FontWeight="Bold" 
-                                 FontSize="11" 
+                      <TextBlock Text="{Binding Name}"
+                                 Foreground="{DynamicResource Brush.FG2}"
+                                 FontWeight="Bold"
+                                 FontSize="11"
                                  Margin="0,8,0,2" />
                     </DataTemplate>
                     <DataTemplate DataType="c:TokenSuggestion">

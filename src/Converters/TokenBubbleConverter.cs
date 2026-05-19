@@ -35,12 +35,17 @@ namespace SourceGit.Converters
             if (index < 0)
                 return "Normal";
 
-            // 辅助方法：提取前缀（剥离 ! 符号）
+            static bool IsOperatorToken(string t)
+            {
+                return t == "||" || t == "&&" || t == "|" || t == "&";
+            }
+
+            // 辅助方法：提取前缀（剥离负号）
             string GetPrefix(string t)
             {
                 if (string.IsNullOrEmpty(t))
                     return null;
-                if (t == "|" || t == "&")
+                if (IsOperatorToken(t))
                     return null;
                 var s = t.StartsWith("-") ? t.Substring(1) : t;
                 var colonIdx = s.IndexOf(':');
@@ -49,7 +54,7 @@ namespace SourceGit.Converters
 
             var currentPrefix = GetPrefix(token);
 
-            // 情况 A：当前项是逻辑运算符 (| 或 &)
+            // 情况 A：当前项是逻辑运算符
             if (currentPrefix == null)
             {
                 // 如果它夹在两个前缀相同的 Token 之间，它就属于该气泡组的“内部线”
@@ -76,7 +81,7 @@ namespace SourceGit.Converters
                     return otherPrefix == currentPrefix;
 
                 // 如果邻居是逻辑符，看逻辑符的另一边是不是也是同类
-                if (other == "|" || other == "&")
+                if (IsOperatorToken(other))
                 {
                     int neighborOfOp = (otherIdx < index) ? otherIdx - 1 : otherIdx + 1;
                     if (neighborOfOp >= 0 && neighborOfOp < tokens.Count)

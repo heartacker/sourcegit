@@ -17,6 +17,9 @@ namespace SourceGit.Controls
             {
                 if (string.IsNullOrWhiteSpace(token)) continue;
 
+                if (token is "||" or "&&" or "|" or "&")
+                    continue;
+
                 bool isNegative = token.StartsWith("-", StringComparison.Ordinal);
                 string testToken = isNegative ? token[1..] : token;
 

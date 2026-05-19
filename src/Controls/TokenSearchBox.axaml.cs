@@ -145,6 +145,7 @@ namespace SourceGit.Controls
         private Border _rootBorder;
         private Button _clearButton;
         private CancellationTokenSource _cts;
+        private bool _enterCommitArmed = false;
 
         protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
         {
@@ -187,6 +188,11 @@ namespace SourceGit.Controls
             _suggestionList = e.NameScope.Find<ListBox>("PART_SuggestionsList");
             if (_suggestionList != null)
             {
+                _suggestionList.SelectionChanged += (s, ev) =>
+                {
+                    if (_suggestionList.SelectedItem is TokenSuggestion suggestion)
+                        PreviewSuggestion(suggestion);
+                };
                 _suggestionList.PointerReleased += OnSuggestionPointerReleased;
             }
 
@@ -444,6 +450,64 @@ namespace SourceGit.Controls
             return null;
         }
 
+        private static bool IsOperatorToken(string token)
+        {
+            return token == "||" || token == "&&" || token == "|" || token == "&";
+        }
+
+        private static bool TryFindLastOperator(string text, out int opStart, out int opLength)
+        {
+            opStart = -1;
+            opLength = 0;
+
+            if (string.IsNullOrEmpty(text))
+                return false;
+
+            var idxOr = text.LastIndexOf("||", StringComparison.Ordinal);
+            var idxAnd = text.LastIndexOf("&&", StringComparison.Ordinal);
+
+            if (idxOr < 0 && idxAnd < 0)
+                return false;
+
+            if (idxOr >= idxAnd)
+            {
+                opStart = idxOr;
+                opLength = 2;
+            }
+            else
+            {
+                opStart = idxAnd;
+                opLength = 2;
+            }
+
+            return true;
+        }
+
+        private static string GetCurrentSegment(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+
+            if (TryFindLastOperator(text, out var start, out var len))
+                return text[(start + len)..].TrimStart();
+
+            return text.TrimStart();
+        }
+
+        private static string BuildTextWithCurrentSegmentReplaced(string originalText, string newSegment)
+        {
+            if (string.IsNullOrEmpty(originalText))
+                return newSegment;
+
+            if (TryFindLastOperator(originalText, out var start, out var len))
+            {
+                var left = originalText[..(start + len)];
+                return left + newSegment;
+            }
+
+            return newSegment;
+        }
+
         private static bool MatchesPattern(ITokenSuggestionProvider provider, string pattern)
         {
             if (provider.Prefix.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
@@ -462,8 +526,9 @@ namespace SourceGit.Controls
         private void CommitSuggestion(TokenSuggestion suggestion)
         {
             var currentText = Text ?? string.Empty;
-            var isNegated = currentText.StartsWith("-");
-            var checkStr = isNegated ? currentText.Substring(1) : currentText;
+            var segment = GetCurrentSegment(currentText);
+            var isNegated = segment.StartsWith("-");
+            var checkStr = isNegated ? segment.Substring(1) : segment;
 
             var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
 
@@ -475,7 +540,7 @@ namespace SourceGit.Controls
             else
             {
                 var prefixPart = isNegated ? "-" + suggestion.Name : suggestion.Name;
-                SetCurrentValue(TextProperty, prefixPart);
+                SetCurrentValue(TextProperty, BuildTextWithCurrentSegmentReplaced(currentText, prefixPart));
                 if (_textBox != null)
                 {
                     _textBox.Focus();
@@ -490,6 +555,71 @@ namespace SourceGit.Controls
             _textBox?.Focus();
         }
 
+        private void PreviewSuggestion(TokenSuggestion suggestion)
+        {
+            if (suggestion == null)
+                return;
+
+            var currentText = Text ?? string.Empty;
+            var segment = GetCurrentSegment(currentText);
+            var isNegated = segment.StartsWith("-");
+            var checkStr = isNegated ? segment.Substring(1) : segment;
+
+            var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
+            string replacement;
+
+            if (matchedProvider != null)
+            {
+                var prefixPart = isNegated ? "-" + matchedPrefix : matchedPrefix;
+                replacement = prefixPart + suggestion.Name;
+            }
+            else
+            {
+                replacement = isNegated ? "-" + suggestion.Name : suggestion.Name;
+            }
+
+            SetCurrentValue(TextProperty, BuildTextWithCurrentSegmentReplaced(currentText, replacement));
+            if (_textBox != null)
+                _textBox.CaretIndex = _textBox.Text?.Length ?? 0;
+        }
+
+        private void CommitTextAsTokens(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+
+            var s = text.Trim();
+            var start = 0;
+
+            void CommitSegment(int segStart, int segLength)
+            {
+                if (segLength <= 0)
+                    return;
+
+                var seg = s.Substring(segStart, segLength).Trim();
+                if (!string.IsNullOrEmpty(seg))
+                    AddToken(seg);
+            }
+
+            for (int i = 0; i < s.Length - 1;)
+            {
+                var isOr = s[i] == '|' && s[i + 1] == '|';
+                var isAnd = s[i] == '&' && s[i + 1] == '&';
+                if (isOr || isAnd)
+                {
+                    CommitSegment(start, i - start);
+                    AddToken(isOr ? "||" : "&&");
+                    i += 2;
+                    start = i;
+                    continue;
+                }
+
+                i++;
+            }
+
+            CommitSegment(start, s.Length - start);
+        }
+
         private async void OnTextBoxPropertyChanged(object sender, AvaloniaPropertyChangedEventArgs e)
         {
             if (e.Property == TextBox.TextProperty)
@@ -500,26 +630,7 @@ namespace SourceGit.Controls
                 }
 
                 var val = Text ?? string.Empty;
-
-                if (val.EndsWith(" ") && val.Trim().Length > 0)
-                {
-                    var trimmed = val.Trim();
-                    if (trimmed == "|" || trimmed == "&")
-                    {
-                        AddToken(trimmed);
-                        return;
-                    }
-
-                    var isNegated = trimmed.StartsWith("-");
-                    var checkStr = isNegated ? trimmed.Substring(1) : trimmed;
-
-                    var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
-                    if (matchedProvider != null && checkStr.Length > matchedPrefix.Length)
-                    {
-                        AddToken(trimmed);
-                        return;
-                    }
-                }
+                _enterCommitArmed = false;
 
                 if (string.IsNullOrEmpty(val) && SelectedTokens.Count > 0)
                 {
@@ -529,7 +640,7 @@ namespace SourceGit.Controls
                 }
                 else
                 {
-                    await UpdateSuggestionsAsync(val.TrimEnd());
+                    await UpdateSuggestionsAsync(GetCurrentSegment(val.TrimEnd()));
                 }
             }
         }
@@ -652,7 +763,11 @@ namespace SourceGit.Controls
                     while (next < _suggestionList.ItemCount && _suggestionList.Items.Cast<object>().ElementAt(next) is TokenSuggestionHeader)
                         next++;
                     if (next < _suggestionList.ItemCount)
+                    {
                         _suggestionList.SelectedIndex = next;
+                        if (_suggestionList.SelectedItem is TokenSuggestion selected)
+                            PreviewSuggestion(selected);
+                    }
                     e.Handled = true;
                     return;
                 }
@@ -662,11 +777,26 @@ namespace SourceGit.Controls
                     while (prev >= 0 && _suggestionList.Items.Cast<object>().ElementAt(prev) is TokenSuggestionHeader)
                         prev--;
                     if (prev >= 0)
+                    {
                         _suggestionList.SelectedIndex = prev;
+                        if (_suggestionList.SelectedItem is TokenSuggestion selected)
+                            PreviewSuggestion(selected);
+                    }
                     e.Handled = true;
                     return;
                 }
-                else if (e.Key == Key.Enter || e.Key == Key.Tab)
+                else if (e.Key == Key.Enter)
+                {
+                    if (_suggestionList.SelectedItem is TokenSuggestion suggestion)
+                    {
+                        PreviewSuggestion(suggestion);
+                        _popup.IsOpen = false;
+                        _enterCommitArmed = true;
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                else if (e.Key == Key.Tab)
                 {
                     if (_suggestionList.SelectedItem is TokenSuggestion suggestion)
                     {
@@ -687,7 +817,15 @@ namespace SourceGit.Controls
             {
                 if (!string.IsNullOrEmpty(Text))
                 {
-                    AddToken(Text.Trim());
+                    if (_enterCommitArmed)
+                    {
+                        CommitTextAsTokens(Text);
+                        _enterCommitArmed = false;
+                    }
+                    else
+                    {
+                        _enterCommitArmed = true;
+                    }
                 }
                 SearchCommand?.Execute(null);
                 if (_popup != null)
@@ -757,7 +895,7 @@ namespace SourceGit.Controls
             var checkStr = isNegated ? token.Substring(1) : token;
 
             string matchedPrefix = null;
-            var matchedProvider = token != "|" && token != "&"
+            var matchedProvider = !IsOperatorToken(token)
                 ? MatchProvider(Providers, checkStr, out matchedPrefix)
                 : null;
 
@@ -791,7 +929,7 @@ namespace SourceGit.Controls
                     for (int i = SelectedTokens.Count - 1; i >= 0; i--)
                     {
                         var t = SelectedTokens[i];
-                        if (t == "|" || t == "&")
+                        if (IsOperatorToken(t))
                             continue;
 
                         var tn = t.StartsWith("-") ? t.Substring(1) : t;
@@ -799,7 +937,7 @@ namespace SourceGit.Controls
                         if (p == targetPrefix)
                         {
                             insertAt = i + 1;
-                            if (insertAt < SelectedTokens.Count && (SelectedTokens[insertAt] == "|" || SelectedTokens[insertAt] == "&"))
+                            if (insertAt < SelectedTokens.Count && IsOperatorToken(SelectedTokens[insertAt]))
                             {
                                 insertAt++;
                             }
