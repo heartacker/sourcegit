@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Avalonia.Collections;
@@ -454,7 +455,16 @@ namespace SourceGit.ViewModels
             processed = FoldCommits(processed);
             if (SetProperty(ref _commits, processed, nameof(Commits)))
             {
-                PostCommitsChanged();
+                try
+                {
+                    _suppressGraphRefreshFromSelectionChange = true;
+                    PostCommitsChanged();
+                }
+                finally
+                {
+                    _suppressGraphRefreshFromSelectionChange = false;
+                }
+
                 GenerateGraph(_commits, true);
             }
             else
@@ -475,33 +485,7 @@ namespace SourceGit.ViewModels
             set
             {
                 if (SetProperty(ref _hoveredCommitIndex, value))
-                {
-                    if (Preferences.Instance.EnableHoverViewTracking && value >= 0 && value < _commits.Count)
-                    {
-                        var hoveredIndex = (int)value;
-                        var depth = 1000u;
-                        var topLimit = -1;
-                        var bottomLimit = -1;
-
-                        if (_visibleTopIndex >= 0 && _visibleBottomIndex >= _visibleTopIndex)
-                        {
-                            topLimit = Math.Max(0, _visibleTopIndex - 50);
-                            bottomLimit = Math.Min(_commits.Count - 1, _visibleBottomIndex + 50);
-
-                            if (hoveredIndex < topLimit || hoveredIndex > bottomLimit)
-                            {
-                                topLimit = -1;
-                                bottomLimit = -1;
-                            }
-                        }
-
-                        HoveredLineageCommits = Models.CommitGraph.GetCommitLineageFast(_commits, _commitMap, _commits[hoveredIndex], LineageSearchMethod, depth, topLimit, bottomLimit);
-                    }
-                    else
-                    {
-                        HoveredLineageCommits = null;
-                    }
-                }
+                    RefreshHoveredLineage();
             }
         }
 
@@ -521,14 +505,14 @@ namespace SourceGit.ViewModels
                     _repo.UIStates.LineageSearchMethod = value;
                     OnPropertyChanged();
 
-                    UpdateDisplayCommits();
-                    if (_repo.UIStates.GraphHighlighting >= Models.CommitGraphHighlighting.SelectedCommitsOnly)
-                    {
-                        if (_selectedCommits.Count == 1)
-                            CalculateTargetLineage(_selectedCommits[0]);
-                        else
-                            GenerateGraph(_commits);
-                    }
+                    RefreshHoveredLineage();
+
+                    var highlightSelected = _repo.UIStates.GraphHighlighting == Models.CommitGraphHighlighting.SelectedCommitsOnly ||
+                                            _repo.UIStates.GraphHighlighting == Models.CommitGraphHighlighting.CurrentBranchAndSelectedCommits;
+                    if (highlightSelected && _selectedCommits.Count == 1)
+                        CalculateTargetLineage(_selectedCommits[0]);
+                    else
+                        GenerateGraph(_commits);
                 }
             }
         }
@@ -759,6 +743,12 @@ namespace SourceGit.ViewModels
 
             SearchTokens.CollectionChanged += (_, e) =>
             {
+                if (_suppressNextTokenCollectionRefresh)
+                {
+                    _suppressNextTokenCollectionRefresh = false;
+                    return;
+                }
+
                 var gitOptions = SearchTokens
                     .Where(t => t.StartsWith("git:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
@@ -795,17 +785,29 @@ namespace SourceGit.ViewModels
                         if (token.Equals("ui:author", StringComparison.OrdinalIgnoreCase))
                         {
                             IsAuthorColumnVisible = !IsAuthorColumnVisible;
-                            Dispatcher.UIThread.Post(() => SearchTokens.Remove(token));
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                _suppressNextTokenCollectionRefresh = true;
+                                SearchTokens.Remove(token);
+                            });
                         }
                         else if (token.Equals("ui:sha", StringComparison.OrdinalIgnoreCase))
                         {
                             IsSHAColumnVisible = !IsSHAColumnVisible;
-                            Dispatcher.UIThread.Post(() => SearchTokens.Remove(token));
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                _suppressNextTokenCollectionRefresh = true;
+                                SearchTokens.Remove(token);
+                            });
                         }
                         else if (token.Equals("ui:time", StringComparison.OrdinalIgnoreCase))
                         {
                             IsDateTimeColumnVisible = !IsDateTimeColumnVisible;
-                            Dispatcher.UIThread.Post(() => SearchTokens.Remove(token));
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                _suppressNextTokenCollectionRefresh = true;
+                                SearchTokens.Remove(token);
+                            });
                         }
                     }
                 }
@@ -1085,12 +1087,17 @@ namespace SourceGit.ViewModels
 
         private void CalculateTargetLineage(Models.Commit commit)
         {
+            var requestVersion = Interlocked.Increment(ref _lineageRequestVersion);
+
             Task.Run(() =>
             {
                 if (commit == null)
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
+                        if (requestVersion != _lineageRequestVersion)
+                            return;
+
                         SelectedLineageCommits = null;
                         SelectedLineagePaths = null;
                     });
@@ -1111,6 +1118,12 @@ namespace SourceGit.ViewModels
 
                 Dispatcher.UIThread.Post(() =>
                 {
+                    if (requestVersion != _lineageRequestVersion)
+                        return;
+
+                    if (_selectedCommits.Count != 1 || !_selectedCommits[0].SHA.Equals(commit.SHA, StringComparison.Ordinal))
+                        return;
+
                     SelectedLineageCommits = lineage;
                     SelectedLineagePaths = paths;
                     GenerateGraph(_commits);
@@ -1122,6 +1135,8 @@ namespace SourceGit.ViewModels
         {
             if (_ignoreSelectionChange)
                 return;
+
+            var deferGraphRefresh = false;
 
             if (_selectedCommits.Count == 0)
             {
@@ -1144,7 +1159,10 @@ namespace SourceGit.ViewModels
                 var highlightSelected = _repo.UIStates.GraphHighlighting == Models.CommitGraphHighlighting.SelectedCommitsOnly ||
                                          _repo.UIStates.GraphHighlighting == Models.CommitGraphHighlighting.CurrentBranchAndSelectedCommits;
                 if (highlightSelected)
+                {
                     CalculateTargetLineage(c);
+                    deferGraphRefresh = true;
+                }
             }
             else if (_selectedCommits.Count == 2)
             {
@@ -1165,6 +1183,9 @@ namespace SourceGit.ViewModels
                 SelectedLineageCommits = null;
                 SelectedLineagePaths = null;
             }
+
+            if (_suppressGraphRefreshFromSelectionChange || deferGraphRefresh)
+                return;
 
             if (_repo.UIStates.GraphHighlighting >= Models.CommitGraphHighlighting.SelectedCommitsOnly)
                 GenerateGraph(_commits);
@@ -1194,6 +1215,35 @@ namespace SourceGit.ViewModels
             }
 
             Graph = Models.CommitGraph.Generate(commits, commitsChanged, firstParentOnly, highlighting, selectedLineage);
+        }
+
+        private void RefreshHoveredLineage()
+        {
+            if (Preferences.Instance.EnableHoverViewTracking && _hoveredCommitIndex >= 0 && _hoveredCommitIndex < _commits.Count)
+            {
+                var hoveredIndex = (int)_hoveredCommitIndex;
+                var depth = 1000u;
+                var topLimit = -1;
+                var bottomLimit = -1;
+
+                if (_visibleTopIndex >= 0 && _visibleBottomIndex >= _visibleTopIndex)
+                {
+                    topLimit = Math.Max(0, _visibleTopIndex - 50);
+                    bottomLimit = Math.Min(_commits.Count - 1, _visibleBottomIndex + 50);
+
+                    if (hoveredIndex < topLimit || hoveredIndex > bottomLimit)
+                    {
+                        topLimit = -1;
+                        bottomLimit = -1;
+                    }
+                }
+
+                HoveredLineageCommits = Models.CommitGraph.GetCommitLineageFast(_commits, _commitMap, _commits[hoveredIndex], LineageSearchMethod, depth, topLimit, bottomLimit);
+            }
+            else
+            {
+                HoveredLineageCommits = null;
+            }
         }
 
         private List<Models.Commit> FilterCommits(List<Models.Commit> commits, List<string> targets)
@@ -1369,5 +1419,8 @@ namespace SourceGit.ViewModels
         private int _visibleBottomIndex = -1;
         private Dictionary<string, Models.Commit> _commitMap = new();
         private bool _gitOptionsDrivenByTokens = false;
+        private bool _suppressNextTokenCollectionRefresh = false;
+        private bool _suppressGraphRefreshFromSelectionChange = false;
+        private int _lineageRequestVersion = 0;
     }
 }
