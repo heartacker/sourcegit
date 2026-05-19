@@ -228,6 +228,17 @@ namespace SourceGit.Controls
             {
                 _tokensList.KeyDown += OnTokensListKeyDown;
                 _tokensList.DoubleTapped += OnTokensListDoubleTapped;
+                _tokensList.LostFocus += (s, ev) =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        // 仅当焦点离开整个控件时清除选中，避免失焦后残留“放大”视觉。
+                        if ((_textBox?.IsKeyboardFocusWithin ?? false) || (_tokensList?.IsKeyboardFocusWithin ?? false) || (_suggestionList?.IsKeyboardFocusWithin ?? false))
+                            return;
+
+                        _tokensList.SelectedIndex = -1;
+                    }, DispatcherPriority.Input);
+                };
             }
 
             _popup = e.NameScope.Find<Popup>("PART_SuggestionsPopup");

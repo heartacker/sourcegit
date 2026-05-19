@@ -99,7 +99,7 @@
                     </Style>
 
                     <!-- Selection & Hover for Delete Button -->
-                    <Style Selector="ListBoxItem:selected Border#ChipBorder">
+                    <Style Selector="c|TokenSearchBox:focus-within ListBoxItem:selected Border#ChipBorder">
                       <Setter Property="BorderBrush" Value="{DynamicResource Brush.FG1}"/>
                       <Setter Property="Height" Value="24"/>
                     </Style>
