@@ -546,23 +546,30 @@ namespace SourceGit.ViewModels
                 var newSearchFilters = new List<Models.HistoryFilter>();
                 foreach (var token in SearchTokens)
                 {
-                    if (token.StartsWith("b:", StringComparison.OrdinalIgnoreCase))
+                    var isNeg = token.StartsWith("-", StringComparison.Ordinal);
+                    var check = isNeg ? token[1..] : token;
+                    var mode = isNeg ? Models.FilterMode.Excluded : Models.FilterMode.Included;
+
+                    if (check.StartsWith("b:", StringComparison.OrdinalIgnoreCase) ||
+                        check.StartsWith("branch:", StringComparison.OrdinalIgnoreCase))
                     {
-                        var val = token[2..].Trim();
+                        var val = check[(check.IndexOf(':') + 1)..].Trim();
                         if (val.Length > 0)
-                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.LocalBranch, Models.FilterMode.Included));
+                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.LocalBranch, mode));
                     }
-                    else if (token.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
+                    else if (check.StartsWith("t:", StringComparison.OrdinalIgnoreCase) ||
+                             check.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
                     {
-                        var val = token[2..].Trim();
+                        var val = check[(check.IndexOf(':') + 1)..].Trim();
                         if (val.Length > 0)
-                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.Tag, Models.FilterMode.Included));
+                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.Tag, mode));
                     }
-                    else if (token.StartsWith("r:", StringComparison.OrdinalIgnoreCase))
+                    else if (check.StartsWith("r:", StringComparison.OrdinalIgnoreCase) ||
+                             check.StartsWith("remote:", StringComparison.OrdinalIgnoreCase))
                     {
-                        var val = token[2..].Trim();
+                        var val = check[(check.IndexOf(':') + 1)..].Trim();
                         if (val.Length > 0)
-                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.RemoteBranch, Models.FilterMode.Included));
+                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.RemoteBranch, mode));
                     }
                 }
 
@@ -573,7 +580,7 @@ namespace SourceGit.ViewModels
                     {
                         var a = newSearchFilters[i];
                         var b = _searchDrivenFilters[i];
-                        if (a.Pattern != b.Pattern || a.Type != b.Type)
+                        if (a.Pattern != b.Pattern || a.Type != b.Type || a.Mode != b.Mode)
                         {
                             changed = true;
                             break;
