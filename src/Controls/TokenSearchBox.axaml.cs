@@ -814,6 +814,7 @@ namespace SourceGit.Controls
                     }
                     else
                     {
+                        _pendingCommitText = Text; // Store the current text for confirmation
                         _enterCommitArmed = true;
                     }
                 }
