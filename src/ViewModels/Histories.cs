@@ -96,214 +96,45 @@ namespace SourceGit.ViewModels
         {
             var processed = _rawCommits;
 
-            // Apply Token Filters
+            // AST-driven token filter via QueryParser + ExprEvaluator
             if (SearchTokens.Count > 0)
             {
-                var authorFilters = SearchTokens
-                    .Where(t => t.StartsWith("author:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("a:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
+                var spec = Controls.QueryParser.Parse(SearchTokens, SearchProviders);
 
-                var excludedAuthorFilters = SearchTokens
-                    .Where(t => t.StartsWith("-author:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-a:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var branchFilters = SearchTokens
-                    .Where(t => t.StartsWith("branch:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("b:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var excludedBranchFilters = SearchTokens
-                    .Where(t => t.StartsWith("-branch:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-b:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var messageFilters = SearchTokens
-                    .Where(t => t.StartsWith("message:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("m:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var excludedMessageFilters = SearchTokens
-                    .Where(t => t.StartsWith("-message:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-m:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var knownPrefixes = new[]
+                // Collect all positive leaf values (Term nodes not under Not)
+                static IEnumerable<string> PositiveLeaves(Controls.ExprNode node)
                 {
-                    "is:",
-                    "author:", "a:",
-                    "message:", "m:",
-                    "branch:", "b:",
-                    "tag:", "t:",
-                    "remote:", "r:",
-                    "file:", "f:",
-                    "path:", "p:",
-                    "sha:", "s:",
-                    "since:", "after:", "until:", "before:",
-                    "committer:", "c:",
-                    "email:", "e:",
-                    "S:", "G:",
-                    "change:", "signed:", "parent:",
-                    "ui:", "sort:", "git:",
-                    "solo:",
-                };
-
-                static string ExtractUnknownMessageTerm(string token, string[] prefixes)
-                {
-                    if (string.IsNullOrWhiteSpace(token) || token == "|" || token == "&")
-                        return null;
-
-                    var check = token.StartsWith("-", StringComparison.Ordinal) ? token[1..] : token;
-                    if (prefixes.Any(p => check.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
-                        return null;
-
-                    var idx = check.IndexOf(':');
-                    var term = idx >= 0 ? check[(idx + 1)..].Trim() : check.Trim();
-                    return string.IsNullOrEmpty(term) ? null : term;
+                    if (node == null) yield break;
+                    if (node.Op == Controls.ExprOp.Term) { yield return node.Value; yield break; }
+                    if (node.Op == Controls.ExprOp.Not) yield break;
+                    if (node.Children != null)
+                        foreach (var child in node.Children)
+                            if (child.Op != Controls.ExprOp.Not)
+                                foreach (var v in PositiveLeaves(child))
+                                    yield return v;
                 }
 
-                var fallbackMessageFilters = SearchTokens
-                    .Where(t => !t.StartsWith("-", StringComparison.Ordinal))
-                    .Select(t => ExtractUnknownMessageTerm(t, knownPrefixes))
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var fallbackExcludedMessageFilters = SearchTokens
-                    .Where(t => t.StartsWith("-", StringComparison.Ordinal))
-                    .Select(t => ExtractUnknownMessageTerm(t, knownPrefixes))
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                messageFilters.AddRange(fallbackMessageFilters);
-                excludedMessageFilters.AddRange(fallbackExcludedMessageFilters);
-
-                var stateFilters = SearchTokens
-                    .Where(t => t.StartsWith("is:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(3).Trim().ToLowerInvariant())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var excludedStateFilters = SearchTokens
-                    .Where(t => t.StartsWith("!is:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(4).Trim().ToLowerInvariant())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var tagFilters = SearchTokens
-                    .Where(t => t.StartsWith("tag:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("t:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var excludedTagFilters = SearchTokens
-                    .Where(t => t.StartsWith("-tag:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-t:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var remoteFilters = SearchTokens
-                    .Where(t => t.StartsWith("remote:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("r:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var excludedRemoteFilters = SearchTokens
-                    .Where(t => t.StartsWith("-remote:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-r:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var shaFilters = SearchTokens
-                    .Where(t => t.StartsWith("sha:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("s:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var excludedShaFilters = SearchTokens
-                    .Where(t => t.StartsWith("-sha:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-s:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var committerFilters = SearchTokens
-                    .Where(t => t.StartsWith("committer:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("c:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var excludedCommitterFilters = SearchTokens
-                    .Where(t => t.StartsWith("-committer:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-c:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var emailFilters = SearchTokens
-                    .Where(t => t.StartsWith("email:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("e:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var excludedEmailFilters = SearchTokens
-                    .Where(t => t.StartsWith("-email:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-e:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                var sinceFilters = SearchTokens
-                    .Where(t => t.StartsWith("since:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("after:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
-                    .Where(dt => dt.HasValue)
-                    .Select(dt => dt.Value)
-                    .ToList();
-
-                var excludedSinceFilters = SearchTokens
-                    .Where(t => t.StartsWith("-since:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-after:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
-                    .Where(dt => dt.HasValue)
-                    .Select(dt => dt.Value)
-                    .ToList();
-
-                var untilFilters = SearchTokens
-                    .Where(t => t.StartsWith("until:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("before:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
-                    .Where(dt => dt.HasValue)
-                    .Select(dt => dt.Value)
-                    .ToList();
-
-                var excludedUntilFilters = SearchTokens
-                    .Where(t => t.StartsWith("-until:", StringComparison.OrdinalIgnoreCase) || t.StartsWith("-before:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .Select(v => DateTimeOffset.TryParse(v, out var dt) ? (DateTimeOffset?)dt : null)
-                    .Where(dt => dt.HasValue)
-                    .Select(dt => dt.Value)
-                    .ToList();
-
-                var soloFilters = SearchTokens
-                    .Where(t => t.StartsWith("solo:", StringComparison.OrdinalIgnoreCase))
-                    .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
-
-                bool MatchesBranchHead(Models.Commit commit, string filter)
+                // Collect all negated leaf values (Term nodes under Not)
+                static IEnumerable<string> NegativeLeaves(Controls.ExprNode node)
                 {
-                    return commit.Decorators.Any(d =>
+                    if (node == null) yield break;
+                    if (node.Op == Controls.ExprOp.Not && node.Children?.Count > 0)
+                    {
+                        var inner = node.Children[0];
+                        if (inner.Op == Controls.ExprOp.Term) yield return inner.Value;
+                        yield break;
+                    }
+                    if (node.Children != null)
+                        foreach (var child in node.Children)
+                            foreach (var v in NegativeLeaves(child))
+                                yield return v;
+                }
+
+                // Branch lineage helpers (b: prefix requires graph traversal, cannot use generic evaluator)
+                bool MatchesBranchHead(Models.Commit commit, string filter) =>
+                    commit.Decorators.Any(d =>
                         (d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.RemoteBranchHead or Models.DecoratorType.CurrentBranchHead) &&
                         d.Name.Contains(filter, StringComparison.OrdinalIgnoreCase));
-                }
 
                 HashSet<string> CollectBranchLineageShas(IEnumerable<string> filters)
                 {
@@ -314,178 +145,100 @@ namespace SourceGit.ViewModels
                         commits[i].Index = i;
                         map[commits[i].SHA] = commits[i];
                     }
-
-                    var seeds = commits
-                        .Where(c => filters.Any(f => MatchesBranchHead(c, f)))
-                        .ToList();
-
+                    var seeds = commits.Where(c => filters.Any(f => MatchesBranchHead(c, f))).ToList();
                     var result = new HashSet<string>();
                     foreach (var seed in seeds)
                     {
-                        var lineage = Models.CommitGraph.GetCommitLineageFast(
-                            commits,
-                            map,
-                            seed,
-                            Models.CommitLineageSearchMethod.FullLineage,
-                            (uint)commits.Count);
-
+                        var lineage = Models.CommitGraph.GetCommitLineageFast(commits, map, seed,
+                            Models.CommitLineageSearchMethod.FullLineage, (uint)commits.Count);
                         for (int i = 0; i < lineage.Length; i++)
-                        {
-                            if (lineage[i])
-                                result.Add(commits[i].SHA);
-                        }
+                            if (lineage[i]) result.Add(commits[i].SHA);
                     }
-
                     return result;
                 }
 
-                if (branchFilters.Count > 0 || excludedBranchFilters.Count > 0)
+                // Generic per-prefix term evaluator
+                static bool MatchesState(string filter, Models.Commit commit) => filter switch
                 {
-                    HashSet<string> includeSet = null;
-                    HashSet<string> excludeSet = null;
+                    "merged"              => commit.IsMerged,
+                    "unmerged"            => !commit.IsMerged,
+                    "tag" or "tags"       => commit.IsTag,
+                    "branch" or "branches"=> commit.HasDecorators && !commit.IsTag,
+                    "merge"               => commit.IsMergeCommit,
+                    "cherrypick"          => commit.IsCherryPicked,
+                    "head"                => commit.IsCurrentHead,
+                    "folded"              => commit.IsFolded,
+                    _                     => true,
+                };
 
-                    if (branchFilters.Count > 0)
-                        includeSet = CollectBranchLineageShas(branchFilters);
-                    if (excludedBranchFilters.Count > 0)
-                        excludeSet = CollectBranchLineageShas(excludedBranchFilters);
+                static bool EvalTerm(string prefix, Models.Commit c, string val) => prefix switch
+                {
+                    "a:"     => c.Author.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+                                c.Author.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
+                    "m:"     => (c.Subject ?? string.Empty).Contains(val, StringComparison.OrdinalIgnoreCase),
+                    "t:"     => c.Decorators.Any(d => d.Type == Models.DecoratorType.Tag &&
+                                    d.Name.Contains(val, StringComparison.OrdinalIgnoreCase)),
+                    "r:"     => c.Decorators.Any(d => d.Type == Models.DecoratorType.RemoteBranchHead &&
+                                    d.Name.Contains(val, StringComparison.OrdinalIgnoreCase)),
+                    "s:"     => c.SHA.Contains(val, StringComparison.OrdinalIgnoreCase),
+                    "c:"     => c.Committer.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+                                c.Committer.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
+                    "e:"     => c.Author.Email.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+                                c.Committer.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
+                    "since:" => DateTimeOffset.TryParse(val, out var dtSince) &&
+                                DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime) >= dtSince,
+                    "until:" => DateTimeOffset.TryParse(val, out var dtUntil) &&
+                                DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime) <= dtUntil,
+                    "is:"    => MatchesState(val.ToLowerInvariant(), c),
+                    _        => true,
+                };
 
+                foreach (var group in spec.Groups)
+                {
+                    // git:, ui:, sort: are view/behavior tokens handled in CollectionChanged, not filters
+                    if (group.ProviderPrefix is "git:" or "ui:" or "sort:") continue;
+
+                    // solo: runs a lineage-based commit subset selection
+                    if (group.ProviderPrefix == "solo:")
+                    {
+                        var soloVals = PositiveLeaves(group.Expr).ToList();
+                        if (soloVals.Count > 0)
+                            processed = FilterCommits(processed, soloVals);
+                        continue;
+                    }
+
+                    // b: requires precomputed lineage SHA sets
+                    if (group.ProviderPrefix == "b:")
+                    {
+                        var posLeaves = PositiveLeaves(group.Expr).ToList();
+                        var negLeaves = NegativeLeaves(group.Expr).ToList();
+                        var includeSet = posLeaves.Count > 0 ? CollectBranchLineageShas(posLeaves) : null;
+                        var excludeSet = negLeaves.Count > 0 ? CollectBranchLineageShas(negLeaves) : null;
+                        processed = processed.Where(c =>
+                            (includeSet == null || includeSet.Contains(c.SHA)) &&
+                            (excludeSet == null || !excludeSet.Contains(c.SHA))).ToList();
+                        continue;
+                    }
+
+                    // All other groups: evaluate each commit against the AST
+                    var prefix = group.ProviderPrefix;
+                    var expr = group.Expr;
+                    processed = processed
+                        .Where(c => Controls.ExprEvaluator.Evaluate(expr, val => EvalTerm(prefix, c, val)))
+                        .ToList();
+                }
+
+                // Fallback: plain-text tokens without a known prefix → subject search
+                if (spec.FallbackTerms.Count > 0 || spec.FallbackNotTerms.Count > 0)
+                {
                     processed = processed.Where(c =>
                     {
-                        var include = includeSet == null || includeSet.Contains(c.SHA);
-                        var exclude = excludeSet != null && excludeSet.Contains(c.SHA);
+                        var msg = c.Subject ?? string.Empty;
+                        var include = spec.FallbackTerms.Count == 0 ||
+                                      spec.FallbackTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
+                        var exclude = spec.FallbackNotTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
                         return include && !exclude;
                     }).ToList();
-                }
-
-                if (tagFilters.Count > 0 || excludedTagFilters.Count > 0)
-                {
-                    processed = processed.Where(c =>
-                    {
-                        var tagNames = c.Decorators
-                            .Where(d => d.Type == Models.DecoratorType.Tag)
-                            .Select(d => d.Name)
-                            .ToList();
-
-                        var include = tagFilters.Count == 0 || tagFilters.Any(f => tagNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
-                        var exclude = excludedTagFilters.Any(f => tagNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
-                        return include && !exclude;
-                    }).ToList();
-                }
-
-                if (remoteFilters.Count > 0 || excludedRemoteFilters.Count > 0)
-                {
-                    processed = processed.Where(c =>
-                    {
-                        var remoteNames = c.Decorators
-                            .Where(d => d.Type == Models.DecoratorType.RemoteBranchHead)
-                            .Select(d => d.Name)
-                            .ToList();
-
-                        var include = remoteFilters.Count == 0 || remoteFilters.Any(f => remoteNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
-                        var exclude = excludedRemoteFilters.Any(f => remoteNames.Any(name => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
-                        return include && !exclude;
-                    }).ToList();
-                }
-
-                if (stateFilters.Count > 0 || excludedStateFilters.Count > 0)
-                {
-                    processed = processed.Where(c =>
-                    {
-                        bool Matches(string filter, Models.Commit commit)
-                        {
-                            return filter switch
-                            {
-                                "merged" => commit.IsMerged,
-                                "unmerged" => !commit.IsMerged,
-                                "tag" or "tags" => commit.IsTag,
-                                "branch" or "branches" => commit.HasDecorators && !commit.IsTag,
-                                "merge" => commit.IsMergeCommit,
-                                "cherrypick" => commit.IsCherryPicked,
-                                "head" => commit.IsCurrentHead,
-                                "folded" => commit.IsFolded,
-                                _ => true,
-                            };
-                        }
-
-                        var include = stateFilters.All(f => Matches(f, c));
-                        var exclude = excludedStateFilters.Any(f => Matches(f, c));
-                        return include && !exclude;
-                    }).ToList();
-                }
-
-                if (authorFilters.Count > 0 || excludedAuthorFilters.Count > 0)
-                {
-                    processed = processed.Where(c =>
-                    {
-                        var include = authorFilters.Count == 0 || authorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        var exclude = excludedAuthorFilters.Any(f => c.Author.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        return include && !exclude;
-                    }).ToList();
-                }
-
-                if (committerFilters.Count > 0 || excludedCommitterFilters.Count > 0)
-                {
-                    processed = processed.Where(c =>
-                    {
-                        var include = committerFilters.Count == 0 || committerFilters.Any(f => c.Committer.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Committer.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        var exclude = excludedCommitterFilters.Any(f => c.Committer.Name.Contains(f, StringComparison.OrdinalIgnoreCase) || c.Committer.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        return include && !exclude;
-                    }).ToList();
-                }
-
-                if (emailFilters.Count > 0 || excludedEmailFilters.Count > 0)
-                {
-                    processed = processed.Where(c =>
-                    {
-                        var include = emailFilters.Count == 0 || emailFilters.Any(f =>
-                            c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase) ||
-                            c.Committer.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        var exclude = excludedEmailFilters.Any(f =>
-                            c.Author.Email.Contains(f, StringComparison.OrdinalIgnoreCase) ||
-                            c.Committer.Email.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        return include && !exclude;
-                    }).ToList();
-                }
-
-                if (shaFilters.Count > 0 || excludedShaFilters.Count > 0)
-                {
-                    processed = processed.Where(c =>
-                    {
-                        var include = shaFilters.Count == 0 || shaFilters.Any(f => c.SHA.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        var exclude = excludedShaFilters.Any(f => c.SHA.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        return include && !exclude;
-                    }).ToList();
-                }
-
-                if (sinceFilters.Count > 0 || excludedSinceFilters.Count > 0 || untilFilters.Count > 0 || excludedUntilFilters.Count > 0)
-                {
-                    processed = processed.Where(c =>
-                    {
-                        var commitTime = DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime);
-
-                        var includeSince = sinceFilters.Count == 0 || sinceFilters.Any(t => commitTime >= t);
-                        var excludeSince = excludedSinceFilters.Any(t => commitTime >= t);
-                        var includeUntil = untilFilters.Count == 0 || untilFilters.Any(t => commitTime <= t);
-                        var excludeUntil = excludedUntilFilters.Any(t => commitTime <= t);
-
-                        return includeSince && !excludeSince && includeUntil && !excludeUntil;
-                    }).ToList();
-                }
-
-                if (messageFilters.Count > 0 || excludedMessageFilters.Count > 0)
-                {
-                    processed = processed.Where(c =>
-                    {
-                        var message = c.Subject ?? string.Empty;
-                        var include = messageFilters.Count == 0 || messageFilters.Any(f => message.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        var exclude = excludedMessageFilters.Any(f => message.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        return include && !exclude;
-                    }).ToList();
-                }
-
-                if (soloFilters.Count > 0)
-                {
-                    processed = FilterCommits(processed, soloFilters);
                 }
             }
 
