@@ -104,9 +104,12 @@ namespace SourceGit.ViewModels
                 // Collect all positive leaf values (Term nodes not under Not)
                 static IEnumerable<string> PositiveLeaves(Controls.ExprNode node)
                 {
-                    if (node == null) yield break;
-                    if (node.Op == Controls.ExprOp.Term) { yield return node.Value; yield break; }
-                    if (node.Op == Controls.ExprOp.Not) yield break;
+                    if (node == null)
+                        yield break;
+                    if (node.Op == Controls.ExprOp.Term)
+                    { yield return node.Value; yield break; }
+                    if (node.Op == Controls.ExprOp.Not)
+                        yield break;
                     if (node.Children != null)
                         foreach (var child in node.Children)
                             if (child.Op != Controls.ExprOp.Not)
@@ -117,11 +120,13 @@ namespace SourceGit.ViewModels
                 // Collect all negated leaf values (Term nodes under Not)
                 static IEnumerable<string> NegativeLeaves(Controls.ExprNode node)
                 {
-                    if (node == null) yield break;
+                    if (node == null)
+                        yield break;
                     if (node.Op == Controls.ExprOp.Not && node.Children?.Count > 0)
                     {
                         var inner = node.Children[0];
-                        if (inner.Op == Controls.ExprOp.Term) yield return inner.Value;
+                        if (inner.Op == Controls.ExprOp.Term)
+                            yield return inner.Value;
                         yield break;
                     }
                     if (node.Children != null)
@@ -152,7 +157,8 @@ namespace SourceGit.ViewModels
                         var lineage = Models.CommitGraph.GetCommitLineageFast(commits, map, seed,
                             Models.CommitLineageSearchMethod.FullLineage, (uint)commits.Count);
                         for (int i = 0; i < lineage.Length; i++)
-                            if (lineage[i]) result.Add(commits[i].SHA);
+                            if (lineage[i])
+                                result.Add(commits[i].SHA);
                     }
                     return result;
                 }
@@ -160,43 +166,44 @@ namespace SourceGit.ViewModels
                 // Generic per-prefix term evaluator
                 static bool MatchesState(string filter, Models.Commit commit) => filter switch
                 {
-                    "merged"              => commit.IsMerged,
-                    "unmerged"            => !commit.IsMerged,
-                    "tag" or "tags"       => commit.IsTag,
-                    "branch" or "branches"=> commit.HasDecorators && !commit.IsTag,
-                    "merge"               => commit.IsMergeCommit,
-                    "cherrypick"          => commit.IsCherryPicked,
-                    "head"                => commit.IsCurrentHead,
-                    "folded"              => commit.IsFolded,
-                    _                     => true,
+                    "merged" => commit.IsMerged,
+                    "unmerged" => !commit.IsMerged,
+                    "tag" or "tags" => commit.IsTag,
+                    "branch" or "branches" => commit.HasDecorators && !commit.IsTag,
+                    "merge" => commit.IsMergeCommit,
+                    "cherrypick" => commit.IsCherryPicked,
+                    "head" => commit.IsCurrentHead,
+                    "folded" => commit.IsFolded,
+                    _ => true,
                 };
 
                 static bool EvalTerm(string prefix, Models.Commit c, string val) => prefix switch
                 {
-                    "a:"     => c.Author.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+                    "a:" => c.Author.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
                                 c.Author.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
-                    "m:"     => (c.Subject ?? string.Empty).Contains(val, StringComparison.OrdinalIgnoreCase),
-                    "t:"     => c.Decorators.Any(d => d.Type == Models.DecoratorType.Tag &&
+                    "m:" => (c.Subject ?? string.Empty).Contains(val, StringComparison.OrdinalIgnoreCase),
+                    "t:" => c.Decorators.Any(d => d.Type == Models.DecoratorType.Tag &&
                                     d.Name.Contains(val, StringComparison.OrdinalIgnoreCase)),
-                    "r:"     => c.Decorators.Any(d => d.Type == Models.DecoratorType.RemoteBranchHead &&
+                    "r:" => c.Decorators.Any(d => d.Type == Models.DecoratorType.RemoteBranchHead &&
                                     d.Name.Contains(val, StringComparison.OrdinalIgnoreCase)),
-                    "s:"     => c.SHA.Contains(val, StringComparison.OrdinalIgnoreCase),
-                    "c:"     => c.Committer.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+                    "s:" => c.SHA.Contains(val, StringComparison.OrdinalIgnoreCase),
+                    "c:" => c.Committer.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
                                 c.Committer.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
-                    "e:"     => c.Author.Email.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+                    "e:" => c.Author.Email.Contains(val, StringComparison.OrdinalIgnoreCase) ||
                                 c.Committer.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
                     "since:" => DateTimeOffset.TryParse(val, out var dtSince) &&
                                 DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime) >= dtSince,
                     "until:" => DateTimeOffset.TryParse(val, out var dtUntil) &&
                                 DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime) <= dtUntil,
-                    "is:"    => MatchesState(val.ToLowerInvariant(), c),
-                    _        => true,
+                    "is:" => MatchesState(val.ToLowerInvariant(), c),
+                    _ => true,
                 };
 
                 foreach (var group in spec.Groups)
                 {
                     // git:, ui:, sort: are view/behavior tokens handled in CollectionChanged, not filters
-                    if (group.ProviderPrefix is "git:" or "ui:" or "sort:") continue;
+                    if (group.ProviderPrefix is "git:" or "ui:" or "sort:")
+                        continue;
 
                     // solo: runs a lineage-based commit subset selection
                     if (group.ProviderPrefix == "solo:")
@@ -512,8 +519,8 @@ namespace SourceGit.ViewModels
                 "merged", "unmerged", "tag",
                 "branch", "merge", "cherrypick",
                 "head", "folded" };
-                SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤",
-                groupAdvanced, isProv, Controls.TokenLogicMode.AutoAnd, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤",
+            groupAdvanced, isProv, Controls.TokenLogicMode.AutoAnd, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者", groupFilters, suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "author:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息", groupFilters, suggester: messageSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "message:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支", groupFilters, suggester: branchSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "branch:" }, icon: implementedIcon, isPersistent: true));
@@ -537,7 +544,7 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令", groupView, logicMode: Controls.TokenLogicMode.SingleReplace, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] { "Commit Date", "Topologically" }, Controls.TokenLogicMode.SingleReplace));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("git:", "git 解析选项", groupGit, new[] { "--reflog", "--first-parent", "--simplify-by-decoration" }, Controls.TokenLogicMode.AutoOr, isPersistent: true));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("git:", "git 解析选项", groupGit, new[] { "reflog", "1st-p", "decora" }, Controls.TokenLogicMode.AutoOr, isPersistent: true));
 
             SearchTokens.CollectionChanged += (_, e) =>
             {
@@ -556,11 +563,11 @@ namespace SourceGit.ViewModels
                 if (gitOptions.Count > 0)
                 {
                     var flags = Models.HistoryShowFlags.None;
-                    if (gitOptions.Any(o => o.Equals("--reflog", StringComparison.OrdinalIgnoreCase)))
+                    if (gitOptions.Any(o => o.Equals("reflog", StringComparison.OrdinalIgnoreCase)))
                         flags |= Models.HistoryShowFlags.Reflog;
-                    if (gitOptions.Any(o => o.Equals("--first-parent", StringComparison.OrdinalIgnoreCase)))
+                    if (gitOptions.Any(o => o.Equals("1st-p", StringComparison.OrdinalIgnoreCase)))
                         flags |= Models.HistoryShowFlags.FirstParentOnly;
-                    if (gitOptions.Any(o => o.Equals("--simplify-by-decoration", StringComparison.OrdinalIgnoreCase)))
+                    if (gitOptions.Any(o => o.Equals("decora", StringComparison.OrdinalIgnoreCase)))
                         flags |= Models.HistoryShowFlags.SimplifyByDecoration;
 
                     if (_repo.HistoryShowFlags != flags)
