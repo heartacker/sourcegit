@@ -6,7 +6,7 @@ namespace SourceGit.Controls
 {
     public static class QueryParser
     {
-        private static ExprNode ParseInlineExpr(string value)
+        public static ExprNode ParseInlineExpr(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return null;

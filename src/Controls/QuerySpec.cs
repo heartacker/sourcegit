@@ -15,11 +15,12 @@ namespace SourceGit.Controls
     {
         public ExprOp Op { get; set; }
         public List<ExprNode> Children { get; set; }
+        public string Prefix { get; set; }
         public string Value { get; set; }
 
         public override string ToString()
         {
-            if (Op == ExprOp.Term) return Value;
+            if (Op == ExprOp.Term) return string.IsNullOrEmpty(Prefix) ? Value : $"{Prefix}:{Value}";
             if (Op == ExprOp.Not) return $"-( {Children?[0]} )";
             var joiner = Op == ExprOp.And ? " AND " : " OR ";
             return $"( {string.Join(joiner, Children ?? [])} )";
