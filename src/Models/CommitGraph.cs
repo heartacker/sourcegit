@@ -137,7 +137,6 @@ namespace SourceGit.Models
                 // Find first curves that links to this commit and marks others that links to this commit ended.
                 var offsetX = 4 - halfWidth;
                 var maxOffsetOld = unsolved.Count > 0 ? unsolved[^1].LastX : offsetX + unitWidth;
-                var isHighlighted = false;
                 foreach (var l in unsolved)
                 {
                     if (l.Next.Equals(commit.SHA, StringComparison.Ordinal))
@@ -146,7 +145,6 @@ namespace SourceGit.Models
                         {
                             offsetX += unitWidth;
                             major = l;
-                            isHighlighted = major.IsHighlighted;
 
                             if (commit.Parents.Count > 0)
                             {
@@ -165,9 +163,6 @@ namespace SourceGit.Models
                             l.End(major.LastX, offsetY, halfHeight);
                             l.Path.EndCommitIndex = commit.Index;
                             ended.Add(l);
-
-                            if (!isHighlighted && l.IsHighlighted)
-                                isHighlighted = true;
                         }
                     }
                     else
@@ -196,7 +191,7 @@ namespace SourceGit.Models
                     var pSha = commit.Parents[0];
                     var pIndex = commitMap.GetValueOrDefault(pSha, -1);
                     bool pIsSelected = pIndex >= 0 && selectedLineage != null && pIndex < selectedLineage.Length && selectedLineage[pIndex];
-                    bool pIsMerged = merged.Contains(pSha);
+                    bool pIsMerged = recalculateMergeState ? merged.Contains(pSha) : (pIndex >= 0 && commits[pIndex].IsMerged);
 
                     if (highlighting == CommitGraphHighlighting.CurrentBranchOnly)
                         nextIsHighlighted = commit.IsMerged && pIsMerged;
@@ -241,7 +236,7 @@ namespace SourceGit.Models
                         var pSha = commit.Parents[j];
                         var pIndex = commitMap.GetValueOrDefault(pSha, -1);
                         bool pIsSelected = pIndex >= 0 && selectedLineage != null && pIndex < selectedLineage.Length && selectedLineage[pIndex];
-                        bool pIsMerged = merged.Contains(pSha);
+                        bool pIsMerged = recalculateMergeState ? merged.Contains(pSha) : (pIndex >= 0 && commits[pIndex].IsMerged);
 
                         bool linkIsHighlighted = false;
                         if (highlighting == CommitGraphHighlighting.All)
