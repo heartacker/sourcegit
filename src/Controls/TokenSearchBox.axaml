@@ -310,6 +310,8 @@
                         <TextBlock Grid.Column="2" Text="{Binding Description}" Foreground="{DynamicResource Brush.FG2}" Margin="16,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                         <Button Grid.Column="3"
                                 Name="PART_SuggestionActionButton"
+                          Command="{Binding $parent[c:TokenSearchBox].SuggestionActionCommand}"
+                          CommandParameter="{Binding}"
                                 ToolTip.Tip="{Binding ActionTooltip}"
                                 Margin="8,0,0,0"
                                 Width="22"

@@ -217,6 +217,9 @@ namespace SourceGit.Controls
 
         public static readonly StyledProperty<ICommand> TokenDoubleClickCommandProperty =
             AvaloniaProperty.Register<TokenSearchBox, ICommand>(nameof(TokenDoubleClickCommand));
+
+        public static readonly StyledProperty<ICommand> SuggestionActionCommandProperty =
+            AvaloniaProperty.Register<TokenSearchBox, ICommand>(nameof(SuggestionActionCommand));
         #endregion
 
         #region Properties
@@ -291,6 +294,12 @@ namespace SourceGit.Controls
             get => GetValue(TokenDoubleClickCommandProperty);
             set => SetValue(TokenDoubleClickCommandProperty, value);
         }
+
+        public ICommand SuggestionActionCommand
+        {
+            get => GetValue(SuggestionActionCommandProperty);
+            set => SetValue(SuggestionActionCommandProperty, value);
+        }
         #endregion
 
         public TokenSearchBox()
@@ -299,6 +308,11 @@ namespace SourceGit.Controls
             SetCurrentValue(PersistentTokensProperty, new ObservableCollection<string>());
             SetCurrentValue(ProvidersProperty, new ObservableCollection<ITokenSuggestionProvider>());
             SetCurrentValue(SlashCommandsProperty, new ObservableCollection<TokenSlashCommand>());
+            SetCurrentValue(SuggestionActionCommandProperty, new App.Command(parameter =>
+            {
+                if (parameter is TokenSuggestion suggestion)
+                    CommitSuggestion(suggestion, true);
+            }));
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -666,7 +680,9 @@ namespace SourceGit.Controls
                         .Any(b => b.Name == "PART_SuggestionActionButton");
                 }
 
-                CommitSuggestion(suggestion, fromActionButton);
+                if (!fromActionButton)
+                    CommitSuggestion(suggestion);
+
                 e.Handled = true;
             }
         }
