@@ -2177,7 +2177,7 @@ namespace SourceGit.ViewModels
             if (_histories == null || _uiStates.HistoryFilters.Count == 0)
                 return;
 
-            foreach (var filter in _uiStates.HistoryFilters)
+            foreach (var filter in _uiStates.HistoryFilters.ToArray())
             {
                 var token = BuildTokenFromHistoryFilter(filter);
                 if (!string.IsNullOrEmpty(token))
