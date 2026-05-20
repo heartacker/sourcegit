@@ -275,6 +275,7 @@
                       Padding="2"
                       Margin="0,4,0,0"
                       MinWidth="200"
+                      MaxWidth="500"
                       MaxHeight="260"
                       Effect="drop-shadow(0 0 8 #40000000)">
                 <ListBox Name="PART_SuggestionsList"
@@ -320,8 +321,8 @@
                               Margin="0,0,8,0"
                               VerticalAlignment="Center"
                               IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="2" Text="{Binding Description}" Foreground="{DynamicResource Brush.FG2}" Margin="16,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Bold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Description}" Foreground="{DynamicResource Brush.FG2}" Margin="16,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
                         <Button Grid.Column="3"
                                 Name="PART_SuggestionActionButton"
                           Command="{Binding $parent[c:TokenSearchBox].SuggestionActionCommand}"
