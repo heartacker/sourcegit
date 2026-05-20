@@ -8,7 +8,7 @@
 
   <Design.PreviewWith>
     <Border Padding="20">
-      <c:TokenSearchBox Width="400" Watermark="Search or type filter..." />
+      <c:TokenSearchBox Width="400" PlaceholderText="Search or type filter..." />
     </Border>
   </Design.PreviewWith>
 
@@ -204,7 +204,7 @@
                 <!-- Input TextBox -->
                 <TextBox Name="PART_TextPresenter"
                          Text="{TemplateBinding Text, Mode=TwoWay}"
-                         PlaceholderText="{TemplateBinding Watermark}"
+                         PlaceholderText="{TemplateBinding PlaceholderText}"
                          BorderThickness="0"
                          Background="Transparent"
                          MinWidth="120"

@@ -186,8 +186,10 @@ namespace SourceGit.Controls
         public static readonly StyledProperty<ObservableCollection<TokenSlashCommand>> SlashCommandsProperty =
             AvaloniaProperty.Register<TokenSearchBox, ObservableCollection<TokenSlashCommand>>(nameof(SlashCommands));
 
-        public static readonly StyledProperty<string> WatermarkProperty =
-            AvaloniaProperty.Register<TokenSearchBox, string>(nameof(Watermark));
+        // 1. 定义 PlaceholderText 属性 (类型是 string)
+        public static readonly StyledProperty<string> PlaceholderTextProperty =
+            AvaloniaProperty.Register<TokenSearchBox, string>(nameof(PlaceholderText));
+
 
         public static readonly StyledProperty<int> MaxRowsProperty =
             AvaloniaProperty.Register<TokenSearchBox, int>(nameof(MaxRows), 3);
@@ -248,10 +250,10 @@ namespace SourceGit.Controls
             set => SetValue(SlashCommandsProperty, value);
         }
 
-        public string Watermark
+        public string PlaceholderText
         {
-            get => GetValue(WatermarkProperty);
-            set => SetValue(WatermarkProperty, value);
+            get => GetValue(PlaceholderTextProperty);
+            set => SetValue(PlaceholderTextProperty, value);
         }
 
         public int MaxRows
