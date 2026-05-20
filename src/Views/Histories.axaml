@@ -39,7 +39,8 @@
                             HorizontalAlignment="Stretch"
                             Text="{Binding SearchText, Mode=TwoWay}"
                             SelectedTokens="{Binding SearchTokens}"
-                            Providers="{Binding SearchProviders}"/>
+                Providers="{Binding SearchProviders}"
+                SlashCommands="{Binding SearchSlashCommands}"/>
       </Border>
 
       <v:HistoriesCommitList Grid.Row="1" x:Name="CommitListContainer"
@@ -297,14 +298,14 @@
           </DataGridTemplateColumn>
         </DataGrid.Columns>
       </v:HistoriesCommitList>
-      
+
       <Border Background="Transparent"
               Height="24"
               HorizontalAlignment="Stretch" VerticalAlignment="Top"
               PointerMoved="OnCommitListHeaderPointerMoved"
               PointerPressed="OnCommitListHeaderPointerPressed"
               PointerReleased="OnCommitListHeaderPointerReleased"
-              ContextRequested="OnCommitListHeaderContextRequested"/>              
+              ContextRequested="OnCommitListHeaderContextRequested"/>
 
       <v:CommitGraph x:Name="CommitGraph"
                      Grid.Row="1"

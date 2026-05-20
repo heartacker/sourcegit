@@ -54,6 +54,8 @@ namespace SourceGit.ViewModels
 
         public ObservableCollection<Controls.ITokenSuggestionProvider> SearchProviders { get; } = new();
 
+        public ObservableCollection<Controls.TokenSlashCommand> SearchSlashCommands { get; } = new();
+
         public bool IsLoading
         {
             get => _isLoading;
@@ -200,8 +202,14 @@ namespace SourceGit.ViewModels
 
                 foreach (var group in spec.Groups)
                 {
-                    // git:, ui:, sort:, b:, t:, r: are persistent tokens handled in CollectionChanged, not in-memory filters
-                    if (group.ProviderPrefix is "git:" or "ui:" or "sort:" or "b:" or "t:" or "r:")
+                        // git:, sort:, b:, t:, r: are persistent tokens handled in CollectionChanged, not in-memory filters
+                    if (group.ProviderPrefix
+                            is "git:"
+                            or "sort:"
+                            or "b:"
+                            or "t:"
+                            or "r:"
+                        )
                         continue;
 
                     // solo: runs a lineage-based commit subset selection
@@ -532,10 +540,77 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态", groupAdvanced));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索", groupAdvanced));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("ui:", "UI 控制指令", groupView, logicMode: Controls.TokenLogicMode.SingleReplace, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] { "Commit Date", "Topologically" }, Controls.TokenLogicMode.SingleReplace));
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("git:", "git 解析选项", groupGit, new[] { "reflog", "1st-p", "decora" }, Controls.TokenLogicMode.AutoOr, isPersistent: true));
+
+            bool ToggleColumnByName(string name)
+            {
+                if (name.Equals("author", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsAuthorColumnVisible = !IsAuthorColumnVisible;
+                    return true;
+                }
+
+                if (name.Equals("sha", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsSHAColumnVisible = !IsSHAColumnVisible;
+                    return true;
+                }
+
+                if (name.Equals("time", StringComparison.OrdinalIgnoreCase) || name.Equals("datetime", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsDateTimeColumnVisible = !IsDateTimeColumnVisible;
+                    return true;
+                }
+
+                return false;
+            }
+
+            bool ExecuteUiSlashCommand(Controls.TokenSlashCommandContext ctx)
+            {
+                var arg = (ctx.Argument ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(arg))
+                    return false;
+
+                var head = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+                if (string.IsNullOrEmpty(head))
+                    return false;
+
+                return ToggleColumnByName(head);
+            }
+
+            IEnumerable<Controls.TokenSuggestion> SuggestUiSlashArguments(string pattern)
+            {
+                var options = new[]
+                {
+                    new Controls.TokenSuggestion { Name = "author", Description = "切换作者列" },
+                    new Controls.TokenSuggestion { Name = "sha", Description = "切换 SHA 列" },
+                    new Controls.TokenSuggestion { Name = "time", Description = "切换时间列" },
+                };
+
+                if (string.IsNullOrWhiteSpace(pattern))
+                    return options;
+
+                return options.Where(x => x.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+            }
+
+            SearchSlashCommands.Add(new Controls.TokenSlashCommand
+            {
+                Name = "ui",
+                Description = "视图控制：/ui author|sha|time",
+                Icon = implementedIcon,
+                Handler = ExecuteUiSlashCommand,
+                ArgumentSuggester = SuggestUiSlashArguments,
+            });
+            SearchSlashCommands.Add(new Controls.TokenSlashCommand
+            {
+                Name = "st",
+                Description = "设置快捷命令：/st author|sha|time",
+                Icon = implementedIcon,
+                Handler = ExecuteUiSlashCommand,
+                ArgumentSuggester = SuggestUiSlashArguments,
+            });
 
             SearchTokens.CollectionChanged += (_, e) =>
             {
@@ -661,40 +736,6 @@ namespace SourceGit.ViewModels
                     }
 
                     _repo.RefreshCommits();
-                }
-
-                if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
-                {
-                    foreach (string token in e.NewItems)
-                    {
-                        if (token.Equals("ui:author", StringComparison.OrdinalIgnoreCase))
-                        {
-                            IsAuthorColumnVisible = !IsAuthorColumnVisible;
-                            Dispatcher.UIThread.Post(() =>
-                            {
-                                _suppressNextTokenCollectionRefresh = true;
-                                SearchTokens.Remove(token);
-                            });
-                        }
-                        else if (token.Equals("ui:sha", StringComparison.OrdinalIgnoreCase))
-                        {
-                            IsSHAColumnVisible = !IsSHAColumnVisible;
-                            Dispatcher.UIThread.Post(() =>
-                            {
-                                _suppressNextTokenCollectionRefresh = true;
-                                SearchTokens.Remove(token);
-                            });
-                        }
-                        else if (token.Equals("ui:time", StringComparison.OrdinalIgnoreCase))
-                        {
-                            IsDateTimeColumnVisible = !IsDateTimeColumnVisible;
-                            Dispatcher.UIThread.Post(() =>
-                            {
-                                _suppressNextTokenCollectionRefresh = true;
-                                SearchTokens.Remove(token);
-                            });
-                        }
-                    }
                 }
 
                 UpdateDisplayCommits();
