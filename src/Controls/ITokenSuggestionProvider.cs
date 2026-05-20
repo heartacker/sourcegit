@@ -42,6 +42,7 @@ namespace SourceGit.Controls
     public class TokenSuggestion
     {
         public string Name { get; set; }
+        public string Value { get; set; }
         public string Description { get; set; }
         public string Icon { get; set; }
         public bool IsSlashCommand { get; set; }
@@ -49,6 +50,7 @@ namespace SourceGit.Controls
         public string SlashCommandArgument { get; set; }
         public bool CanExecuteDirectly { get; set; }
         public TokenSuggestionActionType ActionType { get; set; } = TokenSuggestionActionType.Insert;
+        public string InsertValue => string.IsNullOrWhiteSpace(Value) ? Name : Value;
         public string ActionTooltip => ActionType == TokenSuggestionActionType.Execute ? "执行" : "上屏";
 
         // todo: use different icons for execute and insert actions

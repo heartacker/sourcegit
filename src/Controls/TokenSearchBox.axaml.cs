@@ -1284,6 +1284,7 @@ namespace SourceGit.Controls
             var segment = GetCurrentSegment(currentText);
             var isNegated = segment.StartsWith("-");
             var checkStr = isNegated ? segment.Substring(1) : segment;
+            var insertValue = suggestion?.InsertValue ?? suggestion?.Name ?? string.Empty;
 
             var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
 
@@ -1291,11 +1292,11 @@ namespace SourceGit.Controls
             if (matchedProvider != null)
             {
                 var prefixPart = isNegated ? "-" + matchedPrefix : matchedPrefix;
-                replacementText = prefixPart + suggestion.Name;
+                replacementText = prefixPart + insertValue;
             }
             else
             {
-                var prefixPart = isNegated ? "-" + suggestion.Name : suggestion.Name;
+                var prefixPart = isNegated ? "-" + insertValue : insertValue;
                 replacementText = BuildTextWithCurrentSegmentReplaced(currentText, prefixPart);
             }
 
@@ -1611,6 +1612,7 @@ namespace SourceGit.Controls
             var segment = GetCurrentSegment(currentText);
             var isNegated = segment.StartsWith("-");
             var checkStr = isNegated ? segment.Substring(1) : segment;
+            var insertValue = suggestion?.InsertValue ?? suggestion?.Name ?? string.Empty;
 
             var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
             string replacement;
@@ -1618,11 +1620,11 @@ namespace SourceGit.Controls
             if (matchedProvider != null)
             {
                 var prefixPart = isNegated ? "-" + matchedPrefix : matchedPrefix;
-                replacement = prefixPart + suggestion.Name;
+                replacement = prefixPart + insertValue;
             }
             else
             {
-                replacement = isNegated ? "-" + suggestion.Name : suggestion.Name;
+                replacement = isNegated ? "-" + insertValue : insertValue;
             }
 
             return BuildTextWithCurrentSegmentReplaced(currentText, replacement);

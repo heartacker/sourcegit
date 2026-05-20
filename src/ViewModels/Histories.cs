@@ -568,6 +568,42 @@ namespace SourceGit.ViewModels
                 return Task.FromResult(Enumerable.Empty<Controls.TokenSuggestion>());
             };
 
+            Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> soloCommitSuggester = (pattern, ct) =>
+            {
+                var query = pattern?.Trim() ?? string.Empty;
+                var commits = _rawCommits
+                    .Where(c => !string.IsNullOrWhiteSpace(c?.SHA))
+                    .Where(c =>
+                        string.IsNullOrEmpty(query) ||
+                        (!string.IsNullOrEmpty(c.Subject) && c.Subject.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                        c.SHA.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                    .Take(100)
+                    .Select(c => new Controls.TokenSuggestion
+                    {
+                        Name = string.IsNullOrWhiteSpace(c.Subject) ? c.SHA[..Math.Min(10, c.SHA.Length)] : c.Subject,
+                        Value = c.SHA,
+                        Description = $"{c.SHA[..Math.Min(10, c.SHA.Length)]} · {c.Author.Name}",
+                    });
+
+                var head = _rawCommits.FirstOrDefault(x => x.IsCurrentHead);
+                if (head != null && (string.IsNullOrEmpty(query) ||
+                                     "HEAD".Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                                     (!string.IsNullOrEmpty(head.Subject) && head.Subject.Contains(query, StringComparison.OrdinalIgnoreCase))))
+                {
+                    commits = new[]
+                    {
+                        new Controls.TokenSuggestion
+                        {
+                            Name = "HEAD",
+                            Value = "HEAD",
+                            Description = string.IsNullOrWhiteSpace(head.Subject) ? "当前分支头提交" : head.Subject,
+                        }
+                    }.Concat(commits);
+                }
+
+                return Task.FromResult(commits.DistinctBy(c => c.Value ?? c.Name));
+            };
+
             var implementedIcon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5";
 
 
@@ -585,7 +621,9 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者", groupFilters, suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "author:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息", groupFilters, suggester: messageSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "message:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支", groupFilters, suggester: branchSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "branch:" }, icon: implementedIcon, isPersistent: true));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("solo:", "Solo 提交链过滤", groupView, new[] { "HEAD" }, Controls.TokenLogicMode.AutoOr, icon: implementedIcon));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("solo:", "Solo 提交链过滤", groupView,
+                suggester: soloCommitSuggester, logicMode: Controls.TokenLogicMode.AutoOr,
+                alias: new[] { "sole:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, alias: new[] { "tag:" }, icon: implementedIcon, isPersistent: true));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, alias: new[] { "remote:" }, icon: implementedIcon, isPersistent: true));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径", groupFilters, alias: new[] { "file:" }));
