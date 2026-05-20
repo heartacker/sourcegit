@@ -629,49 +629,119 @@ namespace SourceGit.ViewModels
                 return false;
             }
 
-            bool ExecuteUiSlashCommand(Controls.TokenSlashCommandContext ctx)
+            bool SetColumnByName(string name, bool value)
             {
-                var arg = (ctx.Argument ?? string.Empty).Trim();
-                if (string.IsNullOrEmpty(arg))
-                    return false;
+                if (name.Equals("author", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsAuthorColumnVisible = value;
+                    return true;
+                }
 
-                var head = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
-                if (string.IsNullOrEmpty(head))
-                    return false;
+                if (name.Equals("sha", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsSHAColumnVisible = value;
+                    return true;
+                }
 
-                return ToggleColumnByName(head);
+                if (name.Equals("time", StringComparison.OrdinalIgnoreCase) || name.Equals("datetime", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsDateTimeColumnVisible = value;
+                    return true;
+                }
+
+                return false;
             }
 
-            IEnumerable<Controls.TokenSuggestion> SuggestUiSlashArguments(string pattern)
+            static bool IsKnownUiField(string name)
             {
-                var options = new[]
+                return name.Equals("author", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("sha", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("time", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("datetime", StringComparison.OrdinalIgnoreCase);
+            }
+
+            IEnumerable<Controls.TokenSuggestion> SuggestUiSlashArguments(Controls.TokenSlashSuggestionContext ctx)
+            {
+                static IEnumerable<Controls.TokenSuggestion> BuildFieldSuggestions(string pattern)
                 {
-                    new Controls.TokenSuggestion { Name = "author", Description = "切换作者列" },
-                    new Controls.TokenSuggestion { Name = "sha", Description = "切换 SHA 列" },
-                    new Controls.TokenSuggestion { Name = "time", Description = "切换时间列" },
+                    var fields = new[]
+                    {
+                        new Controls.TokenSuggestion { Name = "author", Description = "作者列" },
+                        new Controls.TokenSuggestion { Name = "sha", Description = "SHA 列" },
+                        new Controls.TokenSuggestion { Name = "time", Description = "时间列" },
+                    };
+
+                    if (string.IsNullOrWhiteSpace(pattern))
+                        return fields;
+
+                    return fields.Where(x => x.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+                }
+
+                static IEnumerable<Controls.TokenSuggestion> BuildValueSuggestions(string field, string pattern)
+                {
+                    var values = new[]
+                    {
+                        new Controls.TokenSuggestion { Name = $"{field} true", Description = "显式开启" },
+                        new Controls.TokenSuggestion { Name = $"{field} false", Description = "显式关闭" },
+                        new Controls.TokenSuggestion { Name = $"{field} toggle", Description = "切换" },
+                    };
+
+                    if (string.IsNullOrWhiteSpace(pattern))
+                        return values;
+
+                    return values.Where(x => x.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+                }
+
+                var tokens = ctx.ArgumentTokens ?? [];
+                var active = ctx.ActiveToken ?? string.Empty;
+
+                if (ctx.ActiveTokenIndex <= 0)
+                    return BuildFieldSuggestions(active);
+
+                var field = tokens.Count > 0 ? tokens[0] : string.Empty;
+                if (string.IsNullOrWhiteSpace(field) || !IsKnownUiField(field))
+                    return BuildFieldSuggestions(field);
+
+                return BuildValueSuggestions(field, active);
+            }
+
+            bool ExecuteUiSlashCommand(Controls.TokenSlashExecuteContext ctx)
+            {
+                var tokens = ctx.ArgumentTokens ?? [];
+                if (tokens.Count == 0)
+                    return false;
+
+                var field = tokens[0];
+                if (tokens.Count == 1)
+                    return ToggleColumnByName(field);
+
+                var mode = tokens[1].Trim().ToLowerInvariant();
+                return mode switch
+                {
+                    "true" or "on" or "1" => SetColumnByName(field, true),
+                    "false" or "off" or "0" => SetColumnByName(field, false),
+                    "toggle" => ToggleColumnByName(field),
+                    _ => false,
                 };
-
-                if (string.IsNullOrWhiteSpace(pattern))
-                    return options;
-
-                return options.Where(x => x.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase));
             }
 
             SearchSlashCommands.Add(new Controls.TokenSlashCommand
             {
                 Name = "ui",
-                Description = "视图控制：/ui author|sha|time",
+                Description = "视图控制：/ui <author|sha|time> [true|false|toggle]",
                 Icon = implementedIcon,
-                Handler = ExecuteUiSlashCommand,
-                ArgumentSuggester = SuggestUiSlashArguments,
+                RequiresArgument = true,
+                Suggest = SuggestUiSlashArguments,
+                Execute = ExecuteUiSlashCommand,
             });
             SearchSlashCommands.Add(new Controls.TokenSlashCommand
             {
                 Name = "st",
-                Description = "设置快捷命令：/st author|sha|time",
+                Description = "设置快捷命令：/st <author|sha|time> [true|false|toggle]",
                 Icon = implementedIcon,
-                Handler = ExecuteUiSlashCommand,
-                ArgumentSuggester = SuggestUiSlashArguments,
+                RequiresArgument = true,
+                Suggest = SuggestUiSlashArguments,
+                Execute = ExecuteUiSlashCommand,
             });
 
             SearchTokens.CollectionChanged += (_, e) =>

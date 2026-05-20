@@ -16,12 +16,25 @@ using Avalonia.VisualTree;
 
 namespace SourceGit.Controls
 {
-    public class TokenSlashCommandContext
+    public class TokenSlashSuggestionContext
     {
         public TokenSearchBox SearchBox { get; init; }
         public string CommandName { get; init; }
-        public string Argument { get; init; }
-        public string RawText { get; init; }
+        public string RawArgument { get; init; }
+        public IReadOnlyList<string> ArgumentTokens { get; init; }
+        public int ActiveTokenIndex { get; init; }
+        public string ActiveToken { get; init; }
+        public bool EndsWithWhitespace { get; init; }
+        public IReadOnlyList<string> SelectedTokens { get; init; }
+        public IReadOnlyList<string> PersistentTokens { get; init; }
+    }
+
+    public class TokenSlashExecuteContext
+    {
+        public TokenSearchBox SearchBox { get; init; }
+        public string CommandName { get; init; }
+        public string RawArgument { get; init; }
+        public IReadOnlyList<string> ArgumentTokens { get; init; }
         public IReadOnlyList<string> SelectedTokens { get; init; }
         public IReadOnlyList<string> PersistentTokens { get; init; }
     }
@@ -31,8 +44,9 @@ namespace SourceGit.Controls
         public string Name { get; set; }
         public string Description { get; set; }
         public string Icon { get; set; }
-        public Func<TokenSlashCommandContext, bool> Handler { get; set; }
-        public Func<string, IEnumerable<TokenSuggestion>> ArgumentSuggester { get; set; }
+        public bool RequiresArgument { get; set; }
+        public Func<TokenSlashSuggestionContext, IEnumerable<TokenSuggestion>> Suggest { get; set; }
+        public Func<TokenSlashExecuteContext, bool> Execute { get; set; }
     }
 
     /// <summary>
@@ -87,7 +101,7 @@ namespace SourceGit.Controls
     ///     10) 建议交互机制（CommitSuggestion）
     ///        - 普通 Token 建议：点击/回车仅上屏到 TextBox，不直接 AddToken。
     ///        - Slash 命令建议：点击/回车直接执行命令分支（内置或外部回调）。
-    ///        - 对带参数建议器的外部命令（ArgumentSuggester），若参数为空则进入“参数输入态”。
+    ///        - 对声明 RequiresArgument 的外部命令，若参数为空则进入“参数输入态”。
     ///          例如选中 /ui 后会变成 "/ui " 并继续弹出参数建议，而不是直接执行。
     ///
     ///     11) Token 删除按钮（PART_DeleteButton）
@@ -145,7 +159,8 @@ namespace SourceGit.Controls
     ///        - /-/temp：清理所有临时 Token；/-/persistent：清理所有持久 Token。
     ///        - 外部可通过 SlashCommands 或 AddSlashCommand 注册 /hl、/st 等命令。
     ///        - 无参数命令：选中或回车可直接执行，执行后清空输入。
-    ///        - 需要参数的命令：若命令提供 ArgumentSuggester 且参数为空，先进入 "/cmd " 参数输入态。
+    ///        - 需要参数的命令：若命令声明 RequiresArgument 且参数为空，先进入 "/cmd " 参数输入态。
+    ///        - 外部命令补全由 Suggest(context) 提供，支持二级/三级参数分段智能提示。
     ///        - Enter/Tab/点击建议项在命令模式下不会新增普通 Token。
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
@@ -792,13 +807,76 @@ namespace SourceGit.Controls
             return true;
         }
 
+        private static List<string> SplitSlashArguments(string rawArgument)
+        {
+            if (string.IsNullOrWhiteSpace(rawArgument))
+                return [];
+
+            return rawArgument
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+        }
+
+        private TokenSlashSuggestionContext BuildSlashSuggestionContext(string commandName, string rawArgument)
+        {
+            var raw = rawArgument ?? string.Empty;
+            var tokens = SplitSlashArguments(raw);
+            var endsWithWhitespace = raw.EndsWith(' ');
+
+            int activeTokenIndex;
+            string activeToken;
+            if (tokens.Count == 0)
+            {
+                activeTokenIndex = 0;
+                activeToken = string.Empty;
+            }
+            else if (endsWithWhitespace)
+            {
+                activeTokenIndex = tokens.Count;
+                activeToken = string.Empty;
+            }
+            else
+            {
+                activeTokenIndex = tokens.Count - 1;
+                activeToken = tokens[^1];
+            }
+
+            return new TokenSlashSuggestionContext
+            {
+                SearchBox = this,
+                CommandName = commandName,
+                RawArgument = raw,
+                ArgumentTokens = tokens,
+                ActiveTokenIndex = activeTokenIndex,
+                ActiveToken = activeToken,
+                EndsWithWhitespace = endsWithWhitespace,
+                SelectedTokens = SelectedTokens?.ToList() ?? [],
+                PersistentTokens = PersistentTokens?.ToList() ?? [],
+            };
+        }
+
+        private TokenSlashExecuteContext BuildSlashExecuteContext(string commandName, string rawArgument)
+        {
+            var raw = rawArgument ?? string.Empty;
+            return new TokenSlashExecuteContext
+            {
+                SearchBox = this,
+                CommandName = commandName,
+                RawArgument = raw,
+                ArgumentTokens = SplitSlashArguments(raw),
+                SelectedTokens = SelectedTokens?.ToList() ?? [],
+                PersistentTokens = PersistentTokens?.ToList() ?? [],
+            };
+        }
+
         public bool AddSlashCommand(TokenSlashCommand command, bool replaceExisting = false)
         {
             if (command == null || string.IsNullOrWhiteSpace(command.Name))
                 return false;
 
             var normalizedName = command.Name.Trim().TrimStart('/');
-            if (string.Equals(normalizedName, "-", StringComparison.Ordinal))
+            if (string.Equals(normalizedName, "-", StringComparison.Ordinal) ||
+                string.Equals(normalizedName, "-/", StringComparison.Ordinal))
                 return false;
 
             var existing = SlashCommands.FirstOrDefault(c => string.Equals(c.Name, normalizedName, StringComparison.OrdinalIgnoreCase));
@@ -860,8 +938,9 @@ namespace SourceGit.Controls
                     Name = normalizedName,
                     Description = cmd.Description,
                     Icon = cmd.Icon,
-                    Handler = cmd.Handler,
-                    ArgumentSuggester = cmd.ArgumentSuggester,
+                    RequiresArgument = cmd.RequiresArgument,
+                    Suggest = cmd.Suggest,
+                    Execute = cmd.Execute,
                 };
             }
         }
@@ -872,22 +951,12 @@ namespace SourceGit.Controls
                 c => string.Equals(c?.Name?.Trim().TrimStart('/'),
                 commandName, StringComparison.OrdinalIgnoreCase));
 
-            if (command?.Handler == null)
+            if (command?.Execute == null)
                 return false;
-
-            var context = new TokenSlashCommandContext
-            {
-                SearchBox = this,
-                CommandName = commandName,
-                Argument = argument ?? string.Empty,
-                RawText = Text ?? string.Empty,
-                SelectedTokens = SelectedTokens?.ToList() ?? [],
-                PersistentTokens = PersistentTokens?.ToList() ?? [],
-            };
 
             try
             {
-                return command.Handler(context);
+                return command.Execute(BuildSlashExecuteContext(commandName, argument));
             }
             catch
             {
@@ -1125,9 +1194,9 @@ namespace SourceGit.Controls
                 {
                     var external = GetExternalSlashCommand(cmd);
                     var arg = suggestion.SlashCommandArgument?.Trim() ?? string.Empty;
-                    if (external?.ArgumentSuggester != null && string.IsNullOrEmpty(arg))
+                    if (external?.RequiresArgument == true && string.IsNullOrEmpty(arg))
                     {
-                        // Command requires/accepts argument suggestions: enter argument mode first.
+                        // Command requires arguments: enter argument mode first.
                         SetCurrentValue(TextProperty, $"/{cmd} ");
                         if (_textBox != null)
                         {
@@ -1365,13 +1434,13 @@ namespace SourceGit.Controls
             }
 
             var normalizedPattern = commandPattern?.Trim() ?? string.Empty;
-            var normalizedArgument = argument?.Trim() ?? string.Empty;
 
             var allCommands = EnumerateSlashCommands().ToList();
             var exactCommand = allCommands.FirstOrDefault(c => string.Equals(c.Name, normalizedPattern, StringComparison.OrdinalIgnoreCase));
-            if (exactCommand?.ArgumentSuggester != null)
+            if (exactCommand?.Suggest != null)
             {
-                var argSuggestions = exactCommand.ArgumentSuggester(normalizedArgument)?.ToList() ?? [];
+                var context = BuildSlashSuggestionContext(exactCommand.Name, argument);
+                var argSuggestions = exactCommand.Suggest(context)?.ToList() ?? [];
                 if (argSuggestions.Count > 0)
                 {
                     var argList = new List<object>
@@ -1841,7 +1910,7 @@ namespace SourceGit.Controls
                 {
                     var external = GetExternalSlashCommand(slashCommandName);
                     var arg = slashArgument?.Trim() ?? string.Empty;
-                    if (external?.ArgumentSuggester != null && string.IsNullOrEmpty(arg))
+                    if (external?.RequiresArgument == true && string.IsNullOrEmpty(arg))
                     {
                         // Keep user in command-argument flow instead of executing empty command.
                         SetCurrentValue(TextProperty, $"/{slashCommandName} ");
