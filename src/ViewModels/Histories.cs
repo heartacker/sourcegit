@@ -215,7 +215,7 @@ namespace SourceGit.ViewModels
                     ApplyFallbackTerms(spec, ref processed);
                 }
 
-                ComputeSuggestionCache(spec);
+                _suggestionCache = _cacheManager.Compute(_rawCommits, _commits, spec);
             }
             else
             {
@@ -689,6 +689,8 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] { "Commit Date", "Topologically" }, Controls.TokenLogicMode.SingleReplace, priority: 999));
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("gitlog:", "git 解析选项", groupGit, new[] { "reflog", "1st-p", "decora" }, Controls.TokenLogicMode.AutoOr, isPersistent: true, priority: 0));
+
+            _cacheManager = new SuggestionCacheManager(SearchProviders, (prefix, c, val) => EvalTerm(prefix, c, val));
 
             bool ToggleColumnByName(string name)
             {
@@ -1783,81 +1785,6 @@ namespace SourceGit.ViewModels
             }
         }
 
-        private int GetProviderPriority(string prefix)
-        {
-            foreach (var p in SearchProviders)
-            {
-                if (p.Prefix == prefix)
-                    return p.Priority;
-            }
-            return 999;
-        }
-
-        private void ComputeSuggestionCache(Controls.QuerySpec spec)
-        {
-            _suggestionCache = new Dictionary<string, List<Models.Commit>>();
-
-            // With sub-groups (parentheses): use _commits directly
-            if (spec.SubGroups.Count > 0)
-            {
-                foreach (var provider in SearchProviders)
-                {
-                    var p = provider.Prefix;
-                    if (p is "sort:" or "gitlog:")
-                        continue;
-                    _suggestionCache[p] = _commits;
-                }
-                return;
-            }
-
-            // Compute per-prefix cache: _rawCommits filtered by higher-priority groups only
-            var persistentPrefixes = new[] { "b:", "t:", "r:", "gitlog:", "sort:", "solo:" };
-            foreach (var group in spec.Groups)
-            {
-                var prefix = group.ProviderPrefix;
-
-                // Skip persistent/special groups (they don't use EvalTerm)
-                if (persistentPrefixes.Contains(prefix))
-                    continue;
-
-                int targetPriority = GetProviderPriority(prefix);
-
-                var cacheSource = new List<Models.Commit>(_rawCommits);
-                foreach (var otherGroup in spec.Groups)
-                {
-                    var otherPrefix = otherGroup.ProviderPrefix;
-
-                    // Skip self
-                    if (otherPrefix == prefix)
-                        continue;
-
-                    // Skip persistent/special groups (already applied at git level)
-                    if (persistentPrefixes.Contains(otherPrefix))
-                        continue;
-
-                    // Only apply higher priority (lower number = higher priority)
-                    int otherPriority = GetProviderPriority(otherPrefix);
-                    if (otherPriority >= targetPriority)
-                        continue;
-
-                    var otherExpr = otherGroup.Expr;
-                    cacheSource = cacheSource
-                        .Where(c => Controls.ExprEvaluator.Evaluate(otherExpr,
-                            val => EvalTerm(otherPrefix, c, val)))
-                        .ToList();
-                }
-
-                _suggestionCache[prefix] = cacheSource;
-            }
-
-            // Persistent prefixes: cache = _rawCommits (priority 0, nothing is higher)
-            foreach (var persistent in persistentPrefixes)
-            {
-                if (!_suggestionCache.ContainsKey(persistent) && persistent is not ("sort:" or "gitlog:"))
-                    _suggestionCache[persistent] = _rawCommits;
-            }
-        }
-
         private Repository _repo = null;
         private List<string> _soloTargets = [];
         private CommitDetailSharedData _commitDetailSharedData = null;
@@ -1865,6 +1792,7 @@ namespace SourceGit.ViewModels
         private string _searchText = string.Empty;
         private List<Models.Commit> _commits = [];
         private List<Models.Commit> _rawCommits = [];
+        private SuggestionCacheManager _cacheManager;
         private Dictionary<string, List<Models.Commit>> _suggestionCache = new();
         private Models.CommitGraph _graph = null;
         private long _hoveredCommitIndex = -1;
