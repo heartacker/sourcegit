@@ -876,7 +876,7 @@ namespace SourceGit.ViewModels
                             .OrderBy(n => n)
                             .Take(20);
                         foreach (var name in branchNames)
-                            yield return new Controls.TokenSuggestion { Name = name, Description = "分支" };
+                            yield return new Controls.TokenSuggestion { Name = $"branch {name}", Description = "分支" };
                         break;
 
                     case "tag":
@@ -890,7 +890,7 @@ namespace SourceGit.ViewModels
                             .OrderBy(n => n)
                             .Take(20);
                         foreach (var name in tagNames)
-                            yield return new Controls.TokenSuggestion { Name = name, Description = "标签" };
+                            yield return new Controls.TokenSuggestion { Name = $"tag {name}", Description = "标签" };
                         break;
 
                     case "sha":
@@ -899,7 +899,7 @@ namespace SourceGit.ViewModels
                             .Take(10)
                             .Select(c => new Controls.TokenSuggestion
                             {
-                                Name = c.SHA[..Math.Min(10, c.SHA.Length)],
+                                Name = $"sha {c.SHA[..Math.Min(10, c.SHA.Length)]}",
                                 Description = $"[SHA] {c.Subject ?? ""} · {c.Author.Name}",
                             });
                         foreach (var s in shaMatches)
@@ -913,7 +913,7 @@ namespace SourceGit.ViewModels
                             .Where(s => !string.IsNullOrEmpty(s) && (string.IsNullOrEmpty(active) || s.StartsWith(active, StringComparison.OrdinalIgnoreCase)))
                             .Take(10);
                         foreach (var sha in soloTokens)
-                            yield return new Controls.TokenSuggestion { Name = sha, Description = $"[Solo] {sha}" };
+                            yield return new Controls.TokenSuggestion { Name = $"solo {sha}", Description = $"[Solo] {sha}" };
                         break;
 
                     case "commit":
@@ -922,7 +922,7 @@ namespace SourceGit.ViewModels
                             .Take(10)
                             .Select(c => new Controls.TokenSuggestion
                             {
-                                Name = c.SHA[..Math.Min(10, c.SHA.Length)],
+                                Name = $"commit {c.SHA[..Math.Min(10, c.SHA.Length)]}",
                                 Description = $"[提交信息] {c.Subject ?? ""} · {c.Author.Name}",
                             });
                         foreach (var s in msgMatches)
