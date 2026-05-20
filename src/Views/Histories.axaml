@@ -119,66 +119,7 @@
         <DataGrid.Columns>
           <DataGridTemplateColumn Width="*" IsReadOnly="True">
             <DataGridTemplateColumn.Header>
-              <Grid>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                  <ToggleButton x:Name="ToggleHeaderActions"
-                                Classes="line_path"
-                                Width="24" Height="24"
-                                Padding="4">
-                    <Path Width="14" Height="14" Data="{StaticResource Icons.Branch}"/>
-                  </ToggleButton>
-
-                  <StackPanel Orientation="Horizontal" IsVisible="{Binding #ToggleHeaderActions.IsChecked}">
-                    <ToggleButton Classes="line_path"
-                                  Width="24" Height="24"
-                                  Padding="4"
-                                  IsChecked="{Binding Repo.IsReflogEnabled, Mode=TwoWay}"
-                                  ToolTip.Tip="{DynamicResource Text.Repository.ShowLostCommits}">
-                      <Path Width="14" Height="14" Data="{StaticResource Icons.Logs}"/>
-                    </ToggleButton>
-                    <ToggleButton Classes="line_path"
-                                  Width="24" Height="24"
-                                  Padding="4"
-                                  IsChecked="{Binding Repo.IsFirstParentOnlyEnabled, Mode=TwoWay}"
-                                  ToolTip.Tip="{DynamicResource Text.Repository.ShowFirstParentOnly}">
-                      <Path Width="14" Height="14" Data="{StaticResource Icons.Merge}"/>
-                    </ToggleButton>
-                    <ToggleButton Classes="line_path"
-                                  Width="24" Height="24"
-                                  Padding="4"
-                                  IsChecked="{Binding Repo.IsSimplifyByDecorationEnabled, Mode=TwoWay}"
-                                  ToolTip.Tip="{DynamicResource Text.Repository.ShowDecoratedCommitsOnly}">
-                      <Path Width="14" Height="14" Data="{StaticResource Icons.Branch}"/>
-                    </ToggleButton>
-                    <ToggleButton Classes="line_path"
-                                  Width="24" Height="24"
-                                  Padding="4"
-                                  IsChecked="{Binding Source={x:Static vm:Preferences.Instance}, Path=EnableLinearCommitFolding, Mode=TwoWay}"
-                                  ToolTip.Tip="{DynamicResource ToolTip.Histories.Fold}">
-                      <Path Width="14" Height="14" Data="{StaticResource Icons.CollapseToBottom}"/>
-                    </ToggleButton>
-
-                    <Rectangle Width="1" Height="14" Margin="4,0" Fill="{DynamicResource Brush.Border2}" VerticalAlignment="Center"/>
-
-                    <Button Classes="icon_button"
-                            Width="24" Height="24"
-                            Padding="4"
-                            Click="OnSoloModeOnCurrentHead"
-                            ToolTip.Tip="{DynamicResource Text.Repository.SoloModeOnCurrentHead}">
-                      <Path Width="14" Height="14" Data="{StaticResource Icons.LightOn}"/>
-                    </Button>
-                    <Button Classes="icon_button"
-                            Width="24" Height="24"
-                            Padding="4"
-                            Click="OnClearSoloMode"
-                            IsVisible="{Binding SoloTargets.Count, Converter={x:Static c:IntConverters.IsGreaterThanZero}}"
-                            ToolTip.Tip="{DynamicResource Text.Repository.ClearSoloMode}">
-                      <Path Width="14" Height="14" Data="{StaticResource Icons.LightOff}"/>
-                    </Button>
-                  </StackPanel>
-                </StackPanel>
-                <TextBlock Classes="table_header" Text="{DynamicResource Text.Histories.Header.GraphAndSubject}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-              </Grid>
+              <TextBlock Classes="table_header" Text="{DynamicResource Text.Histories.Header.GraphAndSubject}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </DataGridTemplateColumn.Header>
 
             <DataGridTemplateColumn.CellTemplate>
