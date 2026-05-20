@@ -6,7 +6,7 @@
 //   In-memory filters (a:, m:, is:, s:, since:, until:, f:, p:, ...):
 //     evaluated per-commit against _rawCommits in UpdateDisplayCommits.
 //
-//   Persistent git log filters (b:/branch:, t:/tag:, r:/remote:, git:):
+//   Persistent git log filters (b:/branch:, t:/tag:, r:/remote:, gitlog:):
 //     SKIPPED in UpdateDisplayCommits (skip list at group processing).
 //     Instead, their CollectionChanged handler creates HistoryFilter
 //     entries in RepositoryUIStates.HistoryFilters, which feeds into
@@ -202,9 +202,9 @@ namespace SourceGit.ViewModels
 
                 foreach (var group in spec.Groups)
                 {
-                        // git:, sort:, b:, t:, r: are persistent tokens handled in CollectionChanged, not in-memory filters
+                        // gitlog:, sort:, b:, t:, r: are persistent tokens handled in CollectionChanged, not in-memory filters
                     if (group.ProviderPrefix
-                            is "git:"
+                            is "gitlog:"
                             or "sort:"
                             or "b:"
                             or "t:"
@@ -458,11 +458,11 @@ namespace SourceGit.ViewModels
             {
                 var tokens = new List<string>();
                 if (flags.HasFlag(Models.HistoryShowFlags.Reflog))
-                    tokens.Add("git:reflog");
+                    tokens.Add("gitlog:reflog");
                 if (flags.HasFlag(Models.HistoryShowFlags.FirstParentOnly))
-                    tokens.Add("git:1st-p");
+                    tokens.Add("gitlog:1st-p");
                 if (flags.HasFlag(Models.HistoryShowFlags.SimplifyByDecoration))
-                    tokens.Add("git:decora");
+                    tokens.Add("gitlog:decora");
                 return tokens;
             }
 
@@ -470,7 +470,7 @@ namespace SourceGit.ViewModels
             {
                 var desired = BuildGitOptionTokens(flags);
                 var current = SearchTokens
-                    .Where(t => t.StartsWith("git:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("gitlog:", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 bool same = desired.Count == current.Count;
@@ -604,7 +604,7 @@ namespace SourceGit.ViewModels
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] { "Commit Date", "Topologically" }, Controls.TokenLogicMode.SingleReplace));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("git:", "git 解析选项", groupGit, new[] { "reflog", "1st-p", "decora" }, Controls.TokenLogicMode.AutoOr, isPersistent: true));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("gitlog:", "git 解析选项", groupGit, new[] { "reflog", "1st-p", "decora" }, Controls.TokenLogicMode.AutoOr, isPersistent: true));
 
             bool ToggleColumnByName(string name)
             {
@@ -680,7 +680,7 @@ namespace SourceGit.ViewModels
                     return;
 
                 var gitOptions = SearchTokens
-                    .Where(t => t.StartsWith("git:", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.StartsWith("gitlog:", StringComparison.OrdinalIgnoreCase))
                     .Select(t => t.Substring(t.IndexOf(':') + 1).Trim())
                     .Where(t => !string.IsNullOrEmpty(t))
                     .ToList();
@@ -808,7 +808,7 @@ namespace SourceGit.ViewModels
                 UpdateDisplayCommits();
             };
 
-            // Initial sync: reflect persisted HistoryShowFlags into git:* tokens.
+            // Initial sync: reflect persisted HistoryShowFlags into gitlog:* tokens.
             SyncGitTokensFromFlags(_repo.HistoryShowFlags);
         }
 
