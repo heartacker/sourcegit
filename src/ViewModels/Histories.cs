@@ -609,16 +609,16 @@ namespace SourceGit.ViewModels
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> messageSuggester = (pattern, ct) =>
             {
-                // var subjects = _rawCommits
-                //     .Select(c => c.Subject)
-                //     .Where(s => !string.IsNullOrEmpty(s))
-                //     .Distinct(StringComparer.OrdinalIgnoreCase);
+                var subjects = _commits
+                    .Select(c => c.Subject)
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
 
-                // var suggestions = subjects
-                //     .Where(s => string.IsNullOrEmpty(pattern) || s.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                //     .Take(100)
-                //     .Select(s => new Controls.TokenSuggestion { Name = s });
-                return Task.FromResult(Enumerable.Empty<Controls.TokenSuggestion>());
+                var suggestions = subjects
+                    .Where(s => string.IsNullOrEmpty(pattern) || s.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    .Take(100)
+                    .Select(s => new Controls.TokenSuggestion { Name = s });
+                return Task.FromResult(suggestions);
             };
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> soloCommitSuggester = (pattern, ct) =>
