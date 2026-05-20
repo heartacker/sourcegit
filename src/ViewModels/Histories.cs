@@ -556,19 +556,38 @@ namespace SourceGit.ViewModels
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> remoteSuggester = (pattern, ct) =>
             {
-                var remoteNames = _rawCommits
+                var remoteBranches = _rawCommits
                     .SelectMany(c => c.Decorators)
                     .Where(d => d.Type == Models.DecoratorType.RemoteBranchHead)
                     .Select(d => d.Name)
                     .Where(n => !string.IsNullOrEmpty(n))
-                    .Distinct(StringComparer.OrdinalIgnoreCase);
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
-                var suggestions = remoteNames
+                // Suggest remote names (prefixes like "G") for folder-level filtering
+                var remoteNames = remoteBranches
+                    .Select(n => n.Contains('/') ? n[..n.IndexOf('/')] : n)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(n => new Controls.TokenSuggestion { Name = n, Description = "所有远程分支" });
+
+                // Suggest specific remote branch names (like "G/H")
+                var branchSuggestions = remoteBranches
                     .Where(n => string.IsNullOrEmpty(pattern) || n.Contains(pattern, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(n => n)
                     .Take(100)
                     .Select(n => new Controls.TokenSuggestion { Name = n });
-                return Task.FromResult(suggestions);
+
+                var suggestions = branchSuggestions.ToList();
+                foreach (var rn in remoteNames)
+                {
+                    if (string.IsNullOrEmpty(pattern) || rn.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!suggestions.Any(s => s.Name == rn.Name))
+                            suggestions.Insert(0, rn);
+                    }
+                }
+
+                return Task.FromResult((IEnumerable<Controls.TokenSuggestion>)suggestions);
             };
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> tagSuggester = (pattern, ct) =>
