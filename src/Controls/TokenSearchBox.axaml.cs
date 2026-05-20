@@ -1663,6 +1663,9 @@ namespace SourceGit.Controls
         }
 
         // 普通提交：允许对 || / && 做控制层拆解，并将每段作为独立 Token。
+        // 根据 provider 的 LogicMode 智能决定是否保留运算符 Token：
+        //   - 运算符与 LogicMode 默认一致（AutoOr + ||, AutoAnd + &&）→ 直接拆分不留 Token
+        //   - 运算符与 LogicMode 不一致（AutoOr + &&, AutoAnd + ||）→ 保留运算符 Token
         private void CommitTextAsToken(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
@@ -1677,15 +1680,87 @@ namespace SourceGit.Controls
                 }
                 else
                 {
-                    var expanded = ExpandInlineSegmentsForControl(part);
-                    if (expanded.Count > 0)
+                    CommitTextPartWithOperators(part);
+                }
+            }
+        }
+
+        // 按 ||/&& 拆分，在运算符与 LogicMode 不一致时保留运算符 Token
+        private void CommitTextPartWithOperators(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+
+            // Split into segments and track operators between them
+            var segments = new List<string>();
+            var operators = new List<string>();
+            var start = 0;
+
+            for (int i = 0; i < text.Length - 1; i++)
+            {
+                string foundOp = null;
+                if (text[i] == '|' && text[i + 1] == '|') foundOp = "||";
+                else if (text[i] == '&' && text[i + 1] == '&') foundOp = "&&";
+
+                if (foundOp != null)
+                {
+                    var part = text[start..i].Trim();
+                    if (!string.IsNullOrEmpty(part))
+                        segments.Add(part);
+                    operators.Add(foundOp);
+                    start = i + 2;
+                    i++;
+                }
+            }
+
+            var tail = text[start..].Trim();
+            if (!string.IsNullOrEmpty(tail))
+                segments.Add(tail);
+
+            if (segments.Count <= 1)
+            {
+                AddToken(text);
+                return;
+            }
+
+            // Inherit prefix from first segment for bare values (same as ExpandInlineSegmentsForControl)
+            var basePrefix = GetPrefixFromToken(segments[0]);
+            for (int i = 0; i < segments.Count; i++)
+            {
+                var token = segments[i];
+                var neg = token.StartsWith("-", StringComparison.Ordinal);
+                var raw = neg ? token[1..] : token;
+                if (raw.Contains(':'))
+                    continue;
+
+                if (!string.IsNullOrEmpty(basePrefix))
+                    segments[i] = neg ? $"-{basePrefix}{raw}" : $"{basePrefix}{raw}";
+            }
+
+            // Add tokens, conditionally inserting operator tokens
+            for (int i = 0; i < segments.Count; i++)
+            {
+                AddToken(segments[i]);
+
+                if (i < operators.Count)
+                {
+                    var curPrefix = GetPrefixFromToken(segments[i]);
+                    var nextPrefix = GetPrefixFromToken(segments[i + 1]);
+
+                    // Only consider operator between same-prefix tokens
+                    if (curPrefix != null && nextPrefix != null &&
+                        string.Equals(curPrefix, nextPrefix, StringComparison.OrdinalIgnoreCase))
                     {
-                        foreach (var token in expanded)
-                            AddToken(token);
-                    }
-                    else
-                    {
-                        AddToken(part);
+                        var provider = MatchProvider(Providers, curPrefix, out _);
+                        if (provider != null)
+                        {
+                            var defaultOp = provider.LogicMode == TokenLogicMode.AutoAnd ? "&&" : "||";
+                            if (operators[i] != defaultOp)
+                            {
+                                // Operator overrides LogicMode default → keep it as a token
+                                AddToken(operators[i]);
+                            }
+                        }
                     }
                 }
             }
