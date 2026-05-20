@@ -59,6 +59,59 @@ namespace SourceGit.Controls
     ///        - 流体气泡 (Merged Bubble)：同类项静默态视觉合并。
     ///        - 两段式删除：Backspace 首次选中 Token，再次删除/编辑。
     ///        - 异步建议：支持通过 Provider 增量查询建议。
+    ///
+    ///     9) 取反替换规则（Negation Replacement）
+    ///        - AddToken 时自动检测是否存在相反版本（-b:main ↔ b:main）。
+    ///        - 若存在则移除旧版本，确保同一值不会同时存在正负两种形态。
+    ///        - 适用于所有前缀（a:, b:, t:, r:, m:, is: 等），对 ||/&& 运算符无效。
+    ///
+    ///     10) 建议上屏机制（CommitSuggestion）
+    ///        - 点击建议项时不直接 AddToken，而是将文本写入 TextBox 供用户确认。
+    ///        - 模拟手动输入流程，避免绕过 Enter 提交协议导致状态不一致。
+    ///        - 用户按 Enter 后由 OnKeyDown 统一处理规范化与提交。
+    ///
+    ///     11) Token 删除按钮（PART_DeleteButton）
+    ///        - 每个 Token 气泡右侧悬停显示 × 删除按钮。
+    ///        - 仅在 hover 或 selected 时可见。
+    ///        - 运算符 Token（||, &&）强制隐藏删除按钮。
+    ///
+    ///     12) 运算符 Token（||, &&）
+    ///        - 作为独立 Token 芯片插入，不可被删除按钮删除。
+    ///        - 视觉上加粗淡化（FontWeight Bold + Opacity 0.5）。
+    ///        - 排序时与普通 Token 互斥，不能出现在 AutoGrouping 的同类块中。
+    ///
+    ///     13) Backspace 交互协议
+    ///        - 输入为空时按 Backspace：若选中了 Token 则删除，否则选中末尾 Token。
+    ///        - 已选中 Token 时按 Backspace：直接删除该 Token。
+    ///        - Ctrl+Backspace：无论是否选中，直接删除末尾 Token。
+    ///        - 删除持久 Token 时会同步更新 PersistentTokens 和 _persistentTokenSet。
+    ///
+    ///     14) 气泡合并与视觉状态（Merged Bubble）
+    ///        - 相邻同 provider 的 Token 在非交互状态下合并为一个连续气泡。
+    ///        - 合并时按位置分 Start / Middle / Operator / End 四种圆角状态。
+    ///        - TokenSearchBox:not(:pointerover):not(:focus-within) 时触发合并。
+    ///        - hover 或 focus 时气泡展开为独立圆角，便于定位和删除。
+    ///
+    ///     15) Provider 视觉定制
+    ///        - 每个 provider 可配置图标（Icon）、颜色（由 TokenToColorConverter 映射）。
+    ///        - 持久 Token 使用实心背景色（TokenToBackgroundConverter），临时 Token 仅边框色。
+    ///        - 颜色映射为语义哈希：相同前缀的 Token 颜色一致。
+    ///
+    ///     16) 建议弹窗（PART_SuggestionsPopup）
+    ///        - Provider 可返回 TokenSuggestionHeader（分组标题）和 TokenSuggestion（可选条目）。
+    ///        - header 显示分组名（粗体+小字+灰色），条目显示图标+名称+描述。
+    ///        - 弹窗支持键盘导航（↑↓ 选择，Enter/Tab 上屏）。
+    ///        - 点击弹窗外区域自动关闭（IsLightDismissEnabled）。
+    ///
+    ///     17) 清除按钮三段优先级
+    ///        - 输入框非空时：清除文本。
+    ///        - 文本为空时：删除最后一个临时 Token。
+    ///        - 无临时 Token 时：删除最后一个持久 Token。
+    ///        - 搜索图标与清除按钮共享位置，根据状态切换可见性。
+    ///
+    ///     18) 点击外部处理（PointerPressed / LightDismiss）
+    ///        - 点击控件外部区域自动关闭弹窗并取消 Token 选中状态。
+    ///        - 点击控件本身聚焦输入框但不拦截事件传递。
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
     [TemplatePart("PART_TokensList", typeof(ListBox))]
