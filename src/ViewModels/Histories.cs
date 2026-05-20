@@ -203,10 +203,9 @@ namespace SourceGit.ViewModels
                     foreach (var sub in spec.SubGroups)
                     {
                         var r = ApplyGroupFilters(_rawCommits, sub);
+                        ApplyFallbackTerms(sub, ref r);
                         processed = processed == null ? r : processed.Union(r).DistinctBy(c => c.SHA).ToList();
                     }
-
-                    ApplyFallbackTerms(spec, ref processed);
                 }
                 else
                 {
