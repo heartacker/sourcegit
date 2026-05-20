@@ -1691,7 +1691,6 @@ namespace SourceGit.Controls
             if (string.IsNullOrWhiteSpace(text))
                 return;
 
-            // Split into segments and track operators between them
             var segments = new List<string>();
             var operators = new List<string>();
             var start = 0;
@@ -1717,51 +1716,42 @@ namespace SourceGit.Controls
             if (!string.IsNullOrEmpty(tail))
                 segments.Add(tail);
 
-            if (segments.Count <= 1)
+            if (segments.Count == 0)
+                return;
+
+            if (segments.Count == 1 && operators.Count == 0)
             {
                 AddToken(text);
                 return;
             }
 
-            // With explicit operators, each segment stands independently (no prefix inheritance).
-            // Without operators, inherit the first segment's prefix for bare values.
-            if (operators.Count == 0)
+            // 1. Internal Prefix Inheritance & Default 'm:'
+            var basePrefix = GetPrefixFromToken(segments[0]);
+            for (int i = 0; i < segments.Count; i++)
             {
-                var basePrefix = GetPrefixFromToken(segments[0]);
-                for (int i = 0; i < segments.Count; i++)
-                {
-                    var token = segments[i];
-                    var neg = token.StartsWith("-", StringComparison.Ordinal);
-                    var raw = neg ? token[1..] : token;
-                    if (raw.Contains(':'))
-                        continue;
+                var token = segments[i];
+                var neg = token.StartsWith("-", StringComparison.Ordinal);
+                var raw = neg ? token[1..] : token;
 
-                    if (!string.IsNullOrEmpty(basePrefix))
-                        segments[i] = neg ? $"-{basePrefix}{raw}" : $"{basePrefix}{raw}";
+                if (!raw.Contains(':'))
+                {
+                    var prefixToUse = !string.IsNullOrEmpty(basePrefix) ? basePrefix : "m:";
+                    segments[i] = neg ? $"-{prefixToUse}{raw}" : $"{prefixToUse}{raw}";
                 }
             }
 
-            // Determine which segments need paren wrapping (cross-prefix || groups)
+            // 2. Determine Paren Wrapping (Smart wrap based on LogicMode)
             var needParens = new bool[segments.Count];
-            for (int i = 0; i < segments.Count; i++)
+            if (operators.Count > 0)
             {
-                var curPrefix = GetPrefixFromToken(segments[i]);
-                if (curPrefix == null) continue;
-
-                if (i > 0 && i - 1 < operators.Count && operators[i - 1] == "||")
+                for (int i = 0; i < operators.Count; i++)
                 {
-                    var prevPrefix = GetPrefixFromToken(segments[i - 1]);
-                    if (prevPrefix != null && !string.Equals(prevPrefix, curPrefix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        needParens[i] = true;
-                        needParens[i - 1] = true;
-                    }
-                }
+                    var p1 = GetPrefixFromToken(segments[i]);
+                    var p2 = GetPrefixFromToken(segments[i + 1]);
 
-                if (i < operators.Count && operators[i] == "||")
-                {
-                    var nextPrefix = GetPrefixFromToken(segments[i + 1]);
-                    if (nextPrefix != null && !string.Equals(curPrefix, nextPrefix, StringComparison.OrdinalIgnoreCase))
+                    // Wrap cross-prefix || groups in visual parentheses only
+                    // Same-prefix non-default operators are handled by ParseGroup's explicitPosOps
+                    if (!string.Equals(p1, p2, StringComparison.OrdinalIgnoreCase) && operators[i] == "||")
                     {
                         needParens[i] = true;
                         needParens[i + 1] = true;
@@ -1769,7 +1759,7 @@ namespace SourceGit.Controls
                 }
             }
 
-            // Add tokens with paren wrapping for cross-prefix groups, conditionally inserting operator tokens
+            // 3. Add tokens with parens, skipping redundant operators for same-prefix defaults
             for (int i = 0; i < segments.Count; i++)
             {
                 if (needParens[i]) AddToken("(");
@@ -1778,35 +1768,18 @@ namespace SourceGit.Controls
 
                 if (i < operators.Count)
                 {
-                    var curPrefix = GetPrefixFromToken(segments[i]);
-                    var nextPrefix = GetPrefixFromToken(segments[i + 1]);
+                    var p1 = GetPrefixFromToken(segments[i]);
+                    var p2 = GetPrefixFromToken(segments[i + 1]);
+                    var op = operators[i];
 
-                    if (curPrefix != null && nextPrefix != null)
-                    {
-                        var isSamePrefix = string.Equals(curPrefix, nextPrefix, StringComparison.OrdinalIgnoreCase);
+                    // Preserve operator if we are in a paren group, or if it's explicitly typed and not implied
+                    var isCrossPrefix = !string.Equals(p1, p2, StringComparison.OrdinalIgnoreCase);
+                    var provider = MatchProvider(Providers, p1 ?? "m:", out _);
+                    var defaultOp = (provider?.LogicMode == TokenLogicMode.AutoAnd) ? "&&" : "||";
 
-                        if (isSamePrefix)
-                        {
-                            // Same prefix: preserve operator only when it overrides LogicMode default
-                            var provider = MatchProvider(Providers, curPrefix, out _);
-                            if (provider != null)
-                            {
-                                var defaultOp = provider.LogicMode == TokenLogicMode.AutoAnd ? "&&" : "||";
-                                if (operators[i] != defaultOp)
-                                    AddToken(operators[i]);
-                            }
-                        }
-                        else if (operators[i] == "||")
-                        {
-                            // Different prefixes with || overrides default AND → preserve
-                            AddToken(operators[i]);
-                        }
-                        // && between different prefixes matches default AND → skip
-                    }
-                    else if (operators[i] == "||" && (curPrefix != null) != (nextPrefix != null))
+                    if (isCrossPrefix || op != defaultOp || needParens[i])
                     {
-                        // One side has prefix, other doesn't → cross-type OR
-                        AddToken(operators[i]);
+                        AddToken(op);
                     }
                 }
             }
@@ -1852,8 +1825,8 @@ namespace SourceGit.Controls
             if (!string.IsNullOrEmpty(tail))
                 segments.Add(tail);
 
-            if (segments.Count <= 1)
-                return [text];
+            if (segments.Count == 0)
+                return [];
 
             var basePrefix = GetPrefixFromToken(segments[0]);
             for (int i = 0; i < segments.Count; i++)
@@ -1862,13 +1835,10 @@ namespace SourceGit.Controls
                 var neg = token.StartsWith("-", StringComparison.Ordinal);
                 var raw = neg ? token[1..] : token;
                 if (raw.Contains(':'))
-                {
-                    segments[i] = token;
                     continue;
-                }
 
-                if (!string.IsNullOrEmpty(basePrefix))
-                    segments[i] = neg ? $"-{basePrefix}{raw}" : $"{basePrefix}{raw}";
+                var prefixToUse = !string.IsNullOrEmpty(basePrefix) ? basePrefix : "m:";
+                segments[i] = neg ? $"-{prefixToUse}{raw}" : $"{prefixToUse}{raw}";
             }
 
             return segments;
