@@ -454,12 +454,74 @@ namespace SourceGit.ViewModels
             _repo = repo;
             _commitDetailSharedData = new CommitDetailSharedData();
 
+            static List<string> BuildGitOptionTokens(Models.HistoryShowFlags flags)
+            {
+                var tokens = new List<string>();
+                if (flags.HasFlag(Models.HistoryShowFlags.Reflog))
+                    tokens.Add("git:reflog");
+                if (flags.HasFlag(Models.HistoryShowFlags.FirstParentOnly))
+                    tokens.Add("git:1st-p");
+                if (flags.HasFlag(Models.HistoryShowFlags.SimplifyByDecoration))
+                    tokens.Add("git:decora");
+                return tokens;
+            }
+
+            void SyncGitTokensFromFlags(Models.HistoryShowFlags flags)
+            {
+                var desired = BuildGitOptionTokens(flags);
+                var current = SearchTokens
+                    .Where(t => t.StartsWith("git:", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                bool same = desired.Count == current.Count;
+                if (same)
+                {
+                    foreach (var token in desired)
+                    {
+                        if (!current.Any(c => c.Equals(token, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            same = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (same)
+                    return;
+
+                _suppressSearchTokenCollectionChanged = true;
+                try
+                {
+                    foreach (var old in current)
+                        SearchTokens.Remove(old);
+
+                    foreach (var token in desired)
+                        SearchTokens.Add(token);
+                }
+                finally
+                {
+                    _suppressSearchTokenCollectionChanged = false;
+                }
+            }
+
             _repo.UIStates.HistoryFilters.CollectionChanged += (_, e) =>
             {
                 if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
                     _searchDrivenFilters.Clear();
                 UpdateDisplayCommits();
             };
+
+            _repo.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName != nameof(Repository.HistoryShowFlags))
+                    return;
+
+                if (_syncingRepoFlagsFromTokens)
+                    return;
+
+                SyncGitTokensFromFlags(_repo.HistoryShowFlags);
+            };
+
             Preferences.Instance.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(Preferences.EnableLinearCommitFolding))
@@ -614,11 +676,8 @@ namespace SourceGit.ViewModels
 
             SearchTokens.CollectionChanged += (_, e) =>
             {
-                if (_suppressNextTokenCollectionRefresh)
-                {
-                    _suppressNextTokenCollectionRefresh = false;
+                if (_suppressSearchTokenCollectionChanged)
                     return;
-                }
 
                 var gitOptions = SearchTokens
                     .Where(t => t.StartsWith("git:", StringComparison.OrdinalIgnoreCase))
@@ -637,14 +696,22 @@ namespace SourceGit.ViewModels
                         flags |= Models.HistoryShowFlags.SimplifyByDecoration;
 
                     if (_repo.HistoryShowFlags != flags)
+                    {
+                        _syncingRepoFlagsFromTokens = true;
                         _repo.HistoryShowFlags = flags;
+                        _syncingRepoFlagsFromTokens = false;
+                    }
 
                     _gitOptionsDrivenByTokens = true;
                 }
                 else if (_gitOptionsDrivenByTokens)
                 {
                     if (_repo.HistoryShowFlags != Models.HistoryShowFlags.None)
+                    {
+                        _syncingRepoFlagsFromTokens = true;
                         _repo.HistoryShowFlags = Models.HistoryShowFlags.None;
+                        _syncingRepoFlagsFromTokens = false;
+                    }
 
                     _gitOptionsDrivenByTokens = false;
                 }
@@ -740,6 +807,9 @@ namespace SourceGit.ViewModels
 
                 UpdateDisplayCommits();
             };
+
+            // Initial sync: reflect persisted HistoryShowFlags into git:* tokens.
+            SyncGitTokensFromFlags(_repo.HistoryShowFlags);
         }
 
         public void SetVisibleCommitRange(int top, int bottom)
@@ -1345,7 +1415,8 @@ namespace SourceGit.ViewModels
         private int _visibleBottomIndex = -1;
         private Dictionary<string, Models.Commit> _commitMap = new();
         private bool _gitOptionsDrivenByTokens = false;
-        private bool _suppressNextTokenCollectionRefresh = false;
+        private bool _suppressSearchTokenCollectionChanged = false;
+        private bool _syncingRepoFlagsFromTokens = false;
         private readonly List<Models.HistoryFilter> _searchDrivenFilters = [];
         private bool _suppressGraphRefreshFromSelectionChange = false;
         private int _lineageRequestVersion = 0;
