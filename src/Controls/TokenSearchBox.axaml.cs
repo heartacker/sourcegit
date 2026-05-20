@@ -141,6 +141,7 @@ namespace SourceGit.Controls
     ///        - 输入 / 进入命令模式，建议列表展示可执行命令。
     ///        - /-  是内置命令：用于删除当前已存在 Token（支持 /-a:、/-main 过滤）。
     ///        - /-/ 是内置命令：用于删除当前已存在某一类 Token（支持 /-/a 过滤，过滤项为 prefix）。
+    ///        - /-/temp：清理所有临时 Token；/-/persistent：清理所有持久 Token。
     ///        - 外部可通过 SlashCommands 或 AddSlashCommand 注册 /hl、/st 等命令。
     ///        - Enter/Tab/点击建议项会触发命令回调，不会新增普通 Token。
     /// </summary>
@@ -936,12 +937,43 @@ namespace SourceGit.Controls
             return prefixes.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
+        private int DeleteTemporaryTokensByCommand()
+        {
+            var temporary = SelectedTokens
+                .Where(t => !_persistentTokenSet.Contains(t))
+                .ToList();
+
+            foreach (var token in temporary)
+                SelectedTokens.Remove(token);
+
+            return temporary.Count;
+        }
+
+        private int DeletePersistentTokensByCommand()
+        {
+            var persistent = PersistentTokens.ToList();
+            foreach (var token in persistent)
+                SelectedTokens.Remove(token);
+
+            PersistentTokens.Clear();
+            _persistentTokenSet.Clear();
+            return persistent.Count;
+        }
+
         private int DeleteTokensByPrefixCommand(string argument)
         {
             var raw = (argument ?? string.Empty).Trim().TrimStart('/').Trim();
             raw = raw.TrimEnd(':').Trim();
             if (string.IsNullOrEmpty(raw))
                 return 0;
+
+            if (raw.Equals("temp", StringComparison.OrdinalIgnoreCase) ||
+                raw.Equals("temporary", StringComparison.OrdinalIgnoreCase))
+                return DeleteTemporaryTokensByCommand();
+
+            if (raw.Equals("persistent", StringComparison.OrdinalIgnoreCase) ||
+                raw.Equals("persist", StringComparison.OrdinalIgnoreCase))
+                return DeletePersistentTokensByCommand();
 
             var knownPrefixes = GetKnownTokenPrefixes();
             var matchedPrefixes = knownPrefixes
@@ -1217,11 +1249,36 @@ namespace SourceGit.Controls
             var normalized = (pattern ?? string.Empty).Trim().TrimStart('/').Trim();
             normalized = normalized.TrimEnd(':').Trim();
 
+            var optionSuggestions = new List<TokenSuggestion>();
+            if (string.IsNullOrEmpty(normalized) || "temp".Contains(normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                optionSuggestions.Add(new TokenSuggestion
+                {
+                    Name = "/-/temp",
+                    Description = "清理全部临时 Token",
+                    IsSlashCommand = true,
+                    SlashCommandName = "-/",
+                    SlashCommandArgument = "temp",
+                });
+            }
+
+            if (string.IsNullOrEmpty(normalized) || "persistent".Contains(normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                optionSuggestions.Add(new TokenSuggestion
+                {
+                    Name = "/-/persistent",
+                    Description = "清理全部持久 Token",
+                    IsSlashCommand = true,
+                    SlashCommandName = "-/",
+                    SlashCommandArgument = "persistent",
+                });
+            }
+
             var prefixes = GetKnownTokenPrefixes()
                 .Where(p => string.IsNullOrEmpty(normalized) || p.Contains(normalized, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-            if (prefixes.Count == 0)
+            if (prefixes.Count == 0 && optionSuggestions.Count == 0)
             {
                 _popup.IsOpen = false;
                 return;
@@ -1231,6 +1288,9 @@ namespace SourceGit.Controls
             {
                 new TokenSuggestionHeader { Name = "批量移除前缀 (/-/)" }
             };
+
+            foreach (var option in optionSuggestions)
+                flatList.Add(option);
 
             foreach (var prefix in prefixes)
             {
