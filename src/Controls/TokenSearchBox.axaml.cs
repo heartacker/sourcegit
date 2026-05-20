@@ -16,6 +16,25 @@ using Avalonia.VisualTree;
 
 namespace SourceGit.Controls
 {
+    public class TokenSlashCommandContext
+    {
+        public TokenSearchBox SearchBox { get; init; }
+        public string CommandName { get; init; }
+        public string Argument { get; init; }
+        public string RawText { get; init; }
+        public IReadOnlyList<string> SelectedTokens { get; init; }
+        public IReadOnlyList<string> PersistentTokens { get; init; }
+    }
+
+    public class TokenSlashCommand
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Icon { get; set; }
+        public Func<TokenSlashCommandContext, bool> Handler { get; set; }
+        public Func<string, IEnumerable<TokenSuggestion>> ArgumentSuggester { get; set; }
+    }
+
     /// <summary>
     ///     提供类似 GitHub 风格的智能过滤搜索框，支持 Token 芯片化显示。
     ///
@@ -118,11 +137,11 @@ namespace SourceGit.Controls
     ///        - 作用于 AddToken 入口，确保 SelectedTokens 中始终使用最短规范前缀。
     ///        - 默认 true，可通过 AutoCompactProperty 关闭。
     ///
-    ///     20) 内置移除命令（/-）
-    ///        - 输入 /- 进入“移除模式”，建议列表显示当前已存在 Token。
-    ///        - 可继续输入关键字过滤（如 /-a:、/-main）。
-    ///        - Enter/Tab/点击建议项会直接删除对应 Token，不会新增 Token。
-    ///        - 删除后清空输入并退出移除模式。
+    ///     20) 斜杠命令系统（/）
+    ///        - 输入 / 进入命令模式，建议列表展示可执行命令。
+    ///        - /- 是内置命令：用于删除当前已存在 Token（支持 /-a:、/-main 过滤）。
+    ///        - 外部可通过 SlashCommands 或 AddSlashCommand 注册 /hl、/st 等命令。
+    ///        - Enter/Tab/点击建议项会触发命令回调，不会新增普通 Token。
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
     [TemplatePart("PART_TokensList", typeof(ListBox))]
@@ -143,6 +162,9 @@ namespace SourceGit.Controls
 
         public static readonly StyledProperty<ObservableCollection<ITokenSuggestionProvider>> ProvidersProperty =
             AvaloniaProperty.Register<TokenSearchBox, ObservableCollection<ITokenSuggestionProvider>>(nameof(Providers));
+
+        public static readonly StyledProperty<ObservableCollection<TokenSlashCommand>> SlashCommandsProperty =
+            AvaloniaProperty.Register<TokenSearchBox, ObservableCollection<TokenSlashCommand>>(nameof(SlashCommands));
 
         public static readonly StyledProperty<string> WatermarkProperty =
             AvaloniaProperty.Register<TokenSearchBox, string>(nameof(Watermark));
@@ -200,6 +222,12 @@ namespace SourceGit.Controls
             set => SetValue(ProvidersProperty, value);
         }
 
+        public ObservableCollection<TokenSlashCommand> SlashCommands
+        {
+            get => GetValue(SlashCommandsProperty);
+            set => SetValue(SlashCommandsProperty, value);
+        }
+
         public string Watermark
         {
             get => GetValue(WatermarkProperty);
@@ -248,6 +276,7 @@ namespace SourceGit.Controls
             SetCurrentValue(SelectedTokensProperty, new ObservableCollection<string>());
             SetCurrentValue(PersistentTokensProperty, new ObservableCollection<string>());
             SetCurrentValue(ProvidersProperty, new ObservableCollection<ITokenSuggestionProvider>());
+            SetCurrentValue(SlashCommandsProperty, new ObservableCollection<TokenSlashCommand>());
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -684,16 +713,136 @@ namespace SourceGit.Controls
             return text.TrimStart();
         }
 
-        private static bool TryParseRemoveCommandSegment(string text, out string pattern)
+        private static bool TryParseSlashCommandSegment(string text, out string commandName, out string argument)
         {
-            pattern = null;
+            commandName = null;
+            argument = string.Empty;
 
             var segment = GetCurrentSegment(text);
-            if (!segment.StartsWith("/-", StringComparison.Ordinal))
+            if (!segment.StartsWith("/", StringComparison.Ordinal))
                 return false;
 
-            pattern = segment.Length > 2 ? segment[2..].Trim() : string.Empty;
+            if (segment.StartsWith("/-", StringComparison.Ordinal))
+            {
+                commandName = "-";
+                argument = segment.Length > 2 ? segment[2..].Trim() : string.Empty;
+                return true;
+            }
+
+            var body = segment.Length > 1 ? segment[1..] : string.Empty;
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                commandName = string.Empty;
+                return true;
+            }
+
+            var spaceIdx = body.IndexOf(' ');
+            if (spaceIdx < 0)
+            {
+                commandName = body.Trim();
+                return true;
+            }
+
+            commandName = body[..spaceIdx].Trim();
+            argument = body[(spaceIdx + 1)..].TrimStart();
             return true;
+        }
+
+        public bool AddSlashCommand(TokenSlashCommand command, bool replaceExisting = false)
+        {
+            if (command == null || string.IsNullOrWhiteSpace(command.Name))
+                return false;
+
+            var normalizedName = command.Name.Trim().TrimStart('/');
+            if (string.Equals(normalizedName, "-", StringComparison.Ordinal))
+                return false;
+
+            var existing = SlashCommands.FirstOrDefault(c => string.Equals(c.Name, normalizedName, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+            {
+                if (!replaceExisting)
+                    return false;
+
+                SlashCommands.Remove(existing);
+            }
+
+            command.Name = normalizedName;
+            SlashCommands.Add(command);
+            return true;
+        }
+
+        public bool RemoveSlashCommand(string commandName)
+        {
+            if (string.IsNullOrWhiteSpace(commandName))
+                return false;
+
+            var normalizedName = commandName.Trim().TrimStart('/');
+            var existing = SlashCommands.FirstOrDefault(c => string.Equals(c.Name, normalizedName, StringComparison.OrdinalIgnoreCase));
+            if (existing == null)
+                return false;
+
+            SlashCommands.Remove(existing);
+            return true;
+        }
+
+        private IEnumerable<TokenSlashCommand> EnumerateSlashCommands()
+        {
+            yield return new TokenSlashCommand
+            {
+                Name = "-",
+                Description = "移除已存在 Token",
+            };
+
+            if (SlashCommands == null)
+                yield break;
+
+            foreach (var cmd in SlashCommands)
+            {
+                if (cmd == null || string.IsNullOrWhiteSpace(cmd.Name))
+                    continue;
+
+                var normalizedName = cmd.Name.Trim().TrimStart('/');
+                if (string.Equals(normalizedName, "-", StringComparison.Ordinal))
+                    continue;
+
+                yield return new TokenSlashCommand
+                {
+                    Name = normalizedName,
+                    Description = cmd.Description,
+                    Icon = cmd.Icon,
+                    Handler = cmd.Handler,
+                    ArgumentSuggester = cmd.ArgumentSuggester,
+                };
+            }
+        }
+
+        private bool ExecuteExternalSlashCommand(string commandName, string argument)
+        {
+            var command = SlashCommands?.FirstOrDefault(
+                c => string.Equals(c?.Name?.Trim().TrimStart('/'),
+                commandName, StringComparison.OrdinalIgnoreCase));
+
+            if (command?.Handler == null)
+                return false;
+
+            var context = new TokenSlashCommandContext
+            {
+                SearchBox = this,
+                CommandName = commandName,
+                Argument = argument ?? string.Empty,
+                RawText = Text ?? string.Empty,
+                SelectedTokens = SelectedTokens?.ToList() ?? [],
+                PersistentTokens = PersistentTokens?.ToList() ?? [],
+            };
+
+            try
+            {
+                return command.Handler(context);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static string BuildTextWithCurrentSegmentReplaced(string originalText, string newSegment)
@@ -731,11 +880,45 @@ namespace SourceGit.Controls
         {
             var currentText = Text ?? string.Empty;
 
-            // Built-in remove command: typing /- enters token-removal mode.
-            if (TryParseRemoveCommandSegment(currentText, out _))
+            if (suggestion?.IsSlashCommand == true)
             {
-                if (!string.IsNullOrWhiteSpace(suggestion?.Name))
-                    RemoveToken(suggestion.Name);
+                var cmd = suggestion.SlashCommandName?.Trim();
+                if (string.Equals(cmd, "-", StringComparison.Ordinal))
+                {
+                    var tokenToRemove = suggestion.SlashCommandArgument?.Trim();
+                    if (!string.IsNullOrWhiteSpace(tokenToRemove))
+                    {
+                        RemoveToken(tokenToRemove);
+
+                        SetCurrentValue(TextProperty, string.Empty);
+                        if (_textBox != null)
+                        {
+                            _textBox.Focus();
+                            _textBox.CaretIndex = _textBox.Text.Length;
+                        }
+
+                        _suggestionList.SelectedItem = null;
+                        if (_popup != null)
+                            _popup.IsOpen = false;
+                        return;
+                    }
+
+                    // Picking '/-' from command palette switches into remove mode.
+                    SetCurrentValue(TextProperty, "/-");
+                    if (_textBox != null)
+                    {
+                        _textBox.Focus();
+                        _textBox.CaretIndex = _textBox.Text.Length;
+                    }
+
+                    _suggestionList.SelectedItem = null;
+                    _ = UpdateSuggestionsAsync(Text ?? string.Empty);
+                    return;
+                }
+                else if (!string.IsNullOrWhiteSpace(cmd))
+                {
+                    ExecuteExternalSlashCommand(cmd, suggestion.SlashCommandArgument);
+                }
 
                 SetCurrentValue(TextProperty, string.Empty);
                 if (_textBox != null)
@@ -809,7 +992,112 @@ namespace SourceGit.Controls
             foreach (var token in tokens)
             {
                 var desc = IsPersistentToken(token) ? "持久 Token · 回车/点击删除" : "临时 Token · 回车/点击删除";
-                flatList.Add(new TokenSuggestion { Name = token, Description = desc });
+                flatList.Add(new TokenSuggestion
+                {
+                    Name = token,
+                    Description = desc,
+                    IsSlashCommand = true,
+                    SlashCommandName = "-",
+                    SlashCommandArgument = token,
+                });
+            }
+
+            _suggestionList.ItemsSource = flatList;
+            _popup.IsOpen = true;
+            _suggestionList.SelectedIndex = flatList.Count > 1 ? 1 : -1;
+        }
+
+        private void ShowSlashCommandSuggestions(string commandPattern, string argument)
+        {
+            if (_popup == null || _suggestionList == null)
+                return;
+
+            if (string.Equals(commandPattern, "-", StringComparison.Ordinal) ||
+                (commandPattern?.StartsWith("-", StringComparison.Ordinal) ?? false))
+            {
+                var removePattern = string.Equals(commandPattern, "-", StringComparison.Ordinal)
+                    ? argument
+                    : commandPattern[1..] + (string.IsNullOrEmpty(argument) ? string.Empty : $" {argument}");
+                ShowRemoveTokenSuggestions(removePattern);
+                return;
+            }
+
+            var normalizedPattern = commandPattern?.Trim() ?? string.Empty;
+            var normalizedArgument = argument?.Trim() ?? string.Empty;
+
+            var allCommands = EnumerateSlashCommands().ToList();
+            var exactCommand = allCommands.FirstOrDefault(c => string.Equals(c.Name, normalizedPattern, StringComparison.OrdinalIgnoreCase));
+            if (exactCommand?.ArgumentSuggester != null)
+            {
+                var argSuggestions = exactCommand.ArgumentSuggester(normalizedArgument)?.ToList() ?? [];
+                if (argSuggestions.Count > 0)
+                {
+                    var argList = new List<object>
+                    {
+                        new TokenSuggestionHeader { Name = $"命令参数 (/{exactCommand.Name})" }
+                    };
+
+                    foreach (var argSuggestion in argSuggestions)
+                    {
+                        if (string.IsNullOrWhiteSpace(argSuggestion?.Name))
+                            continue;
+
+                        argList.Add(new TokenSuggestion
+                        {
+                            Name = $"/{exactCommand.Name} {argSuggestion.Name}",
+                            Description = string.IsNullOrWhiteSpace(argSuggestion.Description)
+                                ? "回车/点击执行命令"
+                                : argSuggestion.Description,
+                            Icon = string.IsNullOrWhiteSpace(argSuggestion.Icon) ? exactCommand.Icon : argSuggestion.Icon,
+                            IsSlashCommand = true,
+                            SlashCommandName = exactCommand.Name,
+                            SlashCommandArgument = argSuggestion.Name,
+                        });
+                    }
+
+                    if (argList.Count > 1)
+                    {
+                        _suggestionList.ItemsSource = argList;
+                        _popup.IsOpen = true;
+                        _suggestionList.SelectedIndex = 1;
+                        return;
+                    }
+                }
+            }
+
+            var commands = EnumerateSlashCommands()
+                .Where(c => string.IsNullOrEmpty(normalizedPattern)
+                    || c.Name.StartsWith(normalizedPattern, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (commands.Count == 0)
+            {
+                _popup.IsOpen = false;
+                return;
+            }
+
+            var flatList = new List<object>
+            {
+                new TokenSuggestionHeader { Name = "命令工具 (/)" }
+            };
+
+            foreach (var cmd in commands)
+            {
+                var commandName = cmd.Name?.Trim() ?? string.Empty;
+                var desc = string.IsNullOrWhiteSpace(cmd.Description)
+                    ? "回车/点击执行命令"
+                    : cmd.Description;
+
+                flatList.Add(new TokenSuggestion
+                {
+                    Name = $"/{commandName}",
+                    Description = desc,
+                    Icon = cmd.Icon,
+                    IsSlashCommand = true,
+                    SlashCommandName = commandName,
+                    SlashCommandArgument = argument,
+                });
             }
 
             _suggestionList.ItemsSource = flatList;
@@ -1033,9 +1321,9 @@ namespace SourceGit.Controls
                 return;
             }
 
-            if (TryParseRemoveCommandSegment(text, out var removePattern))
+            if (TryParseSlashCommandSegment(text, out var slashCommandName, out var slashArgument))
             {
-                ShowRemoveTokenSuggestions(removePattern);
+                ShowSlashCommandSuggestions(slashCommandName, slashArgument);
                 return;
             }
 
@@ -1175,21 +1463,33 @@ namespace SourceGit.Controls
         // 3) Ctrl+Enter：跳过规范化，直接整段提交
         private void OnTextBoxKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter && TryParseRemoveCommandSegment(Text ?? string.Empty, out var removePattern))
+            if (e.Key == Key.Enter && TryParseSlashCommandSegment(Text ?? string.Empty, out var slashCommandName, out var slashArgument))
             {
-                // Remove-command mode must never fall through to normal token commit.
-                if (_suggestionList?.SelectedItem is TokenSuggestion selected)
+                if (_suggestionList?.SelectedItem is TokenSuggestion selected && selected.IsSlashCommand)
                 {
                     CommitSuggestion(selected);
                 }
-                else if (!string.IsNullOrWhiteSpace(removePattern))
+                else if (string.Equals(slashCommandName, "-", StringComparison.Ordinal))
                 {
+                    var removePattern = slashArgument?.Trim() ?? string.Empty;
                     var exact = SelectedTokens.FirstOrDefault(t =>
                         !IsOperatorToken(t) && string.Equals(t, removePattern, StringComparison.OrdinalIgnoreCase));
                     if (!string.IsNullOrEmpty(exact))
                         RemoveToken(exact);
 
                     SetCurrentValue(TextProperty, string.Empty);
+                    if (_popup != null)
+                        _popup.IsOpen = false;
+                }
+                else if (!string.IsNullOrWhiteSpace(slashCommandName))
+                {
+                    ExecuteExternalSlashCommand(slashCommandName, slashArgument);
+                    SetCurrentValue(TextProperty, string.Empty);
+                    if (_popup != null)
+                        _popup.IsOpen = false;
+                }
+                else
+                {
                     if (_popup != null)
                         _popup.IsOpen = false;
                 }

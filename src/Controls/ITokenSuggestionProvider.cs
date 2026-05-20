@@ -38,6 +38,9 @@ namespace SourceGit.Controls
         public string Name { get; set; }
         public string Description { get; set; }
         public string Icon { get; set; }
+        public bool IsSlashCommand { get; set; }
+        public string SlashCommandName { get; set; }
+        public string SlashCommandArgument { get; set; }
     }
 
     /// <summary>
