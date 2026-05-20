@@ -1,4 +1,31 @@
-﻿using System;
+﻿// Token Filter Logic:
+//   SearchTokens are parsed by QueryParser into groups by prefix.
+//   Each group is either handled in-memory (UpdateDisplayCommits) or
+//   triggers git log re-execution via HistoryFilters (BuildHistoryParams).
+//
+//   In-memory filters (a:, m:, is:, s:, since:, until:, f:, p:, ...):
+//     evaluated per-commit against _rawCommits in UpdateDisplayCommits.
+//
+//   Persistent git log filters (b:/branch:, t:/tag:, r:/remote:, git:):
+//     SKIPPED in UpdateDisplayCommits (skip list at group processing).
+//     Instead, their CollectionChanged handler creates HistoryFilter
+//     entries in RepositoryUIStates.HistoryFilters, which feeds into
+//     BuildHistoryParams() to rebuild git log arguments.
+//
+//   HistoryFilters flow:
+//     SearchTokens -(b:/t:/r:)-> HistoryFilters -(BuildHistoryParams)-> git log
+//     Sidebar UI ---(branch:/tag:/remote:)-> HistoryFilters -(same)->
+//
+//   Negation (-b:xxx):
+//     TokenSearchBox.AddToken replaces opposite versions (-b:main <-> b:main).
+//     Parser creates Excluded-mode HistoryFilter entries.
+//     BuildHistoryParams uses ^prefix for excludes when includes exist,
+//     or --exclude with --branches/--remotes/--tags for exclude-only.
+//
+//   Cancellation:
+//     Same (pattern, type) with both Included and Excluded -> both removed.
+
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
