@@ -24,6 +24,72 @@
 //
 //   Cancellation:
 //     Same (pattern, type) with both Included and Excluded -> both removed.
+//
+//   ====== 数据流 / Data Flow ======
+//   _rawCommits = git log 原始输出，仅受持久过滤器影响（b:, t:, r:, gitlog:）。
+//                 这些持久过滤器通过重新执行 git log 来筛选（AND 关系），
+//                 不受内存过滤器影响（a:, m:, is: 等）。
+//   _commits    = _rawCommits 经过 UpdateDisplayCommits() 应用所有内存过滤器后的结果。
+//                 这就是实际显示的提交列表。
+//
+//   ====== 建议器优先级缓存 / Suggester Priority Cache ======
+//   每个建议器从 _suggestionCache[prefix] 读取，而非直接读 _commits。
+//   _suggestionCache[P] = _rawCommits 经过优先级高于 P 的组筛选后的结果。
+//   优先级数字越小优先级越高（0 = 最高）。
+//
+//   优先级体系:
+//     0: b:, t:, r:, gitlog:   (git log 级别，缓存 = _rawCommits)
+//    10: is:                   (状态筛选)
+//    20: solo:                 (Solo 提交链)
+//    30: a:, c:, e:            (身份)
+//    40: s:, f:, p:            (搜索)
+//    50: since:, until:        (时间)
+//    60: S:, G:, change:, signed:, parent: (高级 git)
+//   100: m:                    (消息 — 最低)
+//   999: sort:                 (不是过滤器)
+//
+//   缓存算法:
+//     cache[P] = _rawCommits
+//     对每个其他组 G:
+//       跳过自身和持久组(b:/t:/r:/gitlog:)
+//       仅当 priority(G) < priority(P) 时（G 优先级更高）才应用
+//       应用方式: ExprEvaluator.Evaluate(G.Expr, val => EvalTerm(G.prefix, c, val))
+//     持久组(b:/t:/r:)缓存 = _rawCommits（nothing is higher priority）
+//
+//   示例 "a:acker m:fix"：
+//     cache["a:"] = _rawCommits（没有优先级高于 a: 的内存组）
+//     cache["m:"] = _rawCommits 经 a: 筛选（a: 优先级高于 m:）
+//     → 编辑 a: 时显示所有作者，编辑 m: 时只显示 acker 的提交信息
+//
+//   ====== 括号分组 / Parentheses Grouping ======
+//   输入 (a:acker m:bug) (a:bob m:fix) 实现跨前缀 OR。
+//   QueryParser.PartitionByParentheses() 将 token 按 () 切分为子组。
+//   每个子组内部 AND 连接，子组之间 OR 连接（Union DistinctBy SHA）。
+//   ( 和 ) 作为运算符 Token，无删除按钮，气泡半透明粗体显示。
+//
+//   ====== 逻辑模式 / Logic Modes ======
+//   AutoOr (同前缀 OR):
+//     相同前缀的 token 之间是 OR 关系（并集）。
+//     例如 "a:acker a:bob" → 显示 acker 或 bob 的提交。
+//     适用前缀: a:, m:, b:, t:, r:, gitlog:
+//   AutoAnd (同前缀 AND):
+//     相同前缀的 token 之间是 AND 关系（交集）。
+//     例如 "is:merged is:tag" → 既是合并提交又打了标签的提交。
+//     适用前缀: is:
+//   SingleReplace (同前缀替换):
+//     只允许一个值，新值替换旧值。
+//     适用前缀: sort:
+//   不同前缀之间始终是 AND 关系，与各自模式无关：
+//     例如 "a:acker m:fix" → 作者为 acker 且提交消息包含 fix
+//
+//   ====== AutoOr 建议作用域（由缓存保证） ======
+//   _commits = (所有 a: OR) AND (所有 m: OR) AND (所有 is: AND) AND ...
+//
+//   建议器不再直接读 _commits，而是读 _suggestionCache[其前缀]。
+//   缓存中已排除了自身同前缀的组，因此:
+//     - AutoOr 前缀：建议范围被更高优先级前缀缩小，但不受自身同前缀影响
+//     - AutoAnd 前缀：建议范围被更高优先级前缀缩小，也被自身同前缀缩小（因为 AND 会缩小结果）
+//     - 持久前缀(b:/t:/r:)：缓存 = _rawCommits，完全不受内存过滤器影响
 
 using System;
 using System.Collections.Generic;
@@ -130,116 +196,36 @@ namespace SourceGit.ViewModels
             {
                 var spec = Controls.QueryParser.Parse(SearchTokens, SearchProviders);
 
-                // Collect all positive leaf values (Term nodes not under Not)
-                static IEnumerable<string> PositiveLeaves(Controls.ExprNode node)
+                if (spec.HasSubGroups)
                 {
-                    if (node == null)
-                        yield break;
-                    if (node.Op == Controls.ExprOp.Term)
-                    { yield return node.Value; yield break; }
-                    if (node.Op == Controls.ExprOp.Not)
-                        yield break;
-                    if (node.Children != null)
-                        foreach (var child in node.Children)
-                            if (child.Op != Controls.ExprOp.Not)
-                                foreach (var v in PositiveLeaves(child))
-                                    yield return v;
-                }
-
-                // Collect all negated leaf values (Term nodes under Not)
-                static IEnumerable<string> NegativeLeaves(Controls.ExprNode node)
-                {
-                    if (node == null)
-                        yield break;
-                    if (node.Op == Controls.ExprOp.Not && node.Children?.Count > 0)
+                    // Multiple parenthesized groups: each is AND-ed internally, OR-ed across groups
+                    processed = null;
+                    foreach (var sub in spec.SubGroups)
                     {
-                        var inner = node.Children[0];
-                        if (inner.Op == Controls.ExprOp.Term)
-                            yield return inner.Value;
-                        yield break;
-                    }
-                    if (node.Children != null)
-                        foreach (var child in node.Children)
-                            foreach (var v in NegativeLeaves(child))
-                                yield return v;
-                }
-
-                // Generic per-prefix term evaluator
-                static bool MatchesState(string filter, Models.Commit commit) => filter switch
-                {
-                    "merged" => commit.IsMerged,
-                    "unmerged" => !commit.IsMerged,
-                    "tag" or "tags" => commit.IsTag,
-                    "branch" or "branches" => commit.HasDecorators && !commit.IsTag,
-                    "merge" => commit.IsMergeCommit,
-                    "cherrypick" => commit.IsCherryPicked,
-                    "head" => commit.IsCurrentHead,
-                    "folded" => commit.IsFolded,
-                    _ => true,
-                };
-
-                static bool EvalTerm(string prefix, Models.Commit c, string val) => prefix switch
-                {
-                    "a:" => c.Author.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
-                                c.Author.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
-                    "m:" => (c.Subject ?? string.Empty).Contains(val, StringComparison.OrdinalIgnoreCase),
-                    "t:" => c.Decorators.Any(d => d.Type == Models.DecoratorType.Tag &&
-                                    d.Name.Contains(val, StringComparison.OrdinalIgnoreCase)),
-                    "r:" => c.Decorators.Any(d => d.Type == Models.DecoratorType.RemoteBranchHead &&
-                                    d.Name.Contains(val, StringComparison.OrdinalIgnoreCase)),
-                    "s:" => c.SHA.Contains(val, StringComparison.OrdinalIgnoreCase),
-                    "c:" => c.Committer.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
-                                c.Committer.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
-                    "e:" => c.Author.Email.Contains(val, StringComparison.OrdinalIgnoreCase) ||
-                                c.Committer.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
-                    "since:" => DateTimeOffset.TryParse(val, out var dtSince) &&
-                                DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime) >= dtSince,
-                    "until:" => DateTimeOffset.TryParse(val, out var dtUntil) &&
-                                DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime) <= dtUntil,
-                    "is:" => MatchesState(val.ToLowerInvariant(), c),
-                    _ => true,
-                };
-
-                foreach (var group in spec.Groups)
-                {
-                        // gitlog:, sort:, b:, t:, r: are persistent tokens handled in CollectionChanged, not in-memory filters
-                    if (group.ProviderPrefix
-                            is "gitlog:"
-                            or "sort:"
-                            or "b:"
-                            or "t:"
-                            or "r:"
-                        )
-                        continue;
-
-                    // solo: runs a lineage-based commit subset selection
-                    if (group.ProviderPrefix == "solo:")
-                    {
-                        var soloVals = PositiveLeaves(group.Expr).ToList();
-                        if (soloVals.Count > 0)
-                            processed = FilterCommits(processed, soloVals);
-                        continue;
+                        var r = ApplyGroupFilters(_rawCommits, sub);
+                        processed = processed == null ? r : processed.Union(r).DistinctBy(c => c.SHA).ToList();
                     }
 
-                    // All other groups: evaluate each commit against the AST
-                    var prefix = group.ProviderPrefix;
-                    var expr = group.Expr;
-                    processed = processed
-                        .Where(c => Controls.ExprEvaluator.Evaluate(expr, val => EvalTerm(prefix, c, val)))
-                        .ToList();
+                    ApplyFallbackTerms(spec, ref processed);
+                }
+                else
+                {
+                    // Single group: existing behavior
+                    processed = ApplyGroupFilters(_rawCommits, spec);
+                    ApplyFallbackTerms(spec, ref processed);
                 }
 
-                // Fallback: plain-text tokens without a known prefix → subject search
-                if (spec.FallbackTerms.Count > 0 || spec.FallbackNotTerms.Count > 0)
+                ComputeSuggestionCache(spec);
+            }
+            else
+            {
+                // No tokens: all caches = _rawCommits
+                _suggestionCache = new Dictionary<string, List<Models.Commit>>();
+                foreach (var provider in SearchProviders)
                 {
-                    processed = processed.Where(c =>
-                    {
-                        var msg = c.Subject ?? string.Empty;
-                        var include = spec.FallbackTerms.Count == 0 ||
-                                      spec.FallbackTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        var exclude = spec.FallbackNotTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
-                        return include && !exclude;
-                    }).ToList();
+                    if (provider.Prefix is "sort:" or "gitlog:")
+                        continue;
+                    _suggestionCache[provider.Prefix] = _rawCommits;
                 }
             }
 
@@ -530,7 +516,8 @@ namespace SourceGit.ViewModels
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> authorSuggester = (pattern, ct) =>
             {
-                var authors = _rawCommits.Select(c => c.Author).DistinctBy(a => a.Name);
+                var source = _suggestionCache.GetValueOrDefault("a:") ?? _commits;
+                var authors = source.Select(c => c.Author).DistinctBy(a => a.Name);
                 var suggestions = authors
                     .Where(a => string.IsNullOrEmpty(pattern) || a.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase) || a.Email.Contains(pattern, StringComparison.OrdinalIgnoreCase))
                     .Select(a => new Controls.TokenSuggestion { Name = a.Name, Description = a.Email });
@@ -539,7 +526,8 @@ namespace SourceGit.ViewModels
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> branchSuggester = (pattern, ct) =>
             {
-                var branchNames = _rawCommits
+                var branchSource = _suggestionCache.GetValueOrDefault("b:") ?? _commits;
+                var branchNames = branchSource
                     .SelectMany(c => c.Decorators)
                     .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead)
                     .Select(d => d.Name)
@@ -556,7 +544,8 @@ namespace SourceGit.ViewModels
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> remoteSuggester = (pattern, ct) =>
             {
-                var remoteBranches = _rawCommits
+                var remoteSource = _suggestionCache.GetValueOrDefault("r:") ?? _commits;
+                var remoteBranches = remoteSource
                     .SelectMany(c => c.Decorators)
                     .Where(d => d.Type == Models.DecoratorType.RemoteBranchHead)
                     .Select(d => d.Name)
@@ -592,7 +581,8 @@ namespace SourceGit.ViewModels
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> tagSuggester = (pattern, ct) =>
             {
-                var tagNames = _rawCommits
+                var tagSource = _suggestionCache.GetValueOrDefault("t:") ?? _commits;
+                var tagNames = tagSource
                     .SelectMany(c => c.Decorators)
                     .Where(d => d.Type == Models.DecoratorType.Tag)
                     .Select(d => d.Name)
@@ -609,7 +599,8 @@ namespace SourceGit.ViewModels
 
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> messageSuggester = (pattern, ct) =>
             {
-                var subjects = _commits
+                var messageSource = _suggestionCache.GetValueOrDefault("m:") ?? _commits;
+                var subjects = messageSource
                     .Select(c => c.Subject)
                     .Where(s => !string.IsNullOrEmpty(s))
                     .Distinct(StringComparer.OrdinalIgnoreCase);
@@ -624,7 +615,8 @@ namespace SourceGit.ViewModels
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> soloCommitSuggester = (pattern, ct) =>
             {
                 var query = pattern?.Trim() ?? string.Empty;
-                var commits = _rawCommits
+                var soloSource = _suggestionCache.GetValueOrDefault("solo:") ?? _commits;
+                var commits = soloSource
                     .Where(c => !string.IsNullOrWhiteSpace(c?.SHA))
                     .Where(c =>
                         string.IsNullOrEmpty(query) ||
@@ -638,7 +630,8 @@ namespace SourceGit.ViewModels
                         Description = $"{c.SHA[..Math.Min(10, c.SHA.Length)]} · {c.Author.Name}",
                     });
 
-                var head = _rawCommits.FirstOrDefault(x => x.IsCurrentHead);
+                // NOTE: this also uses _commits so HEAD only appears when it's in the filtered view
+                var head = soloSource.FirstOrDefault(x => x.IsCurrentHead);
                 if (head != null && (string.IsNullOrEmpty(query) ||
                                      "HEAD".Contains(query, StringComparison.OrdinalIgnoreCase) ||
                                      (!string.IsNullOrEmpty(head.Subject) && head.Subject.Contains(query, StringComparison.OrdinalIgnoreCase))))
@@ -670,32 +663,32 @@ namespace SourceGit.ViewModels
                 "branch", "merge", "cherrypick",
                 "head", "folded" };
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤",
-            groupAdvanced, isProv, Controls.TokenLogicMode.AutoAnd, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者", groupFilters, suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "author:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息", groupFilters, suggester: messageSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "message:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支", groupFilters, suggester: branchSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "branch:" }, icon: implementedIcon, isPersistent: true));
+            groupAdvanced, isProv, Controls.TokenLogicMode.AutoAnd, icon: implementedIcon, priority: 10));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者", groupFilters, suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "author:" }, icon: implementedIcon, priority: 30));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息", groupFilters, suggester: messageSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "message:" }, icon: implementedIcon, priority: 100));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支", groupFilters, suggester: branchSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "branch:" }, icon: implementedIcon, isPersistent: true, priority: 0));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("solo:", "Solo 提交链过滤", groupView,
                 suggester: soloCommitSuggester, logicMode: Controls.TokenLogicMode.AutoOr,
-                alias: new[] { "sole:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, suggester: tagSuggester, alias: new[] { "tag:" }, icon: implementedIcon, isPersistent: true));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, suggester: remoteSuggester, alias: new[] { "remote:" }, icon: implementedIcon, isPersistent: true));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径", groupFilters, alias: new[] { "file:" }));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径", groupFilters, alias: new[] { "path:" }));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希", groupFilters, alias: new[] { "sha:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间", groupFilters, alias: new[] { "after:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间", groupFilters, alias: new[] { "before:" }, icon: implementedIcon));
+                alias: new[] { "sole:" }, icon: implementedIcon, priority: 20));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, suggester: tagSuggester, alias: new[] { "tag:" }, icon: implementedIcon, isPersistent: true, priority: 0));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, suggester: remoteSuggester, alias: new[] { "remote:" }, icon: implementedIcon, isPersistent: true, priority: 0));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径", groupFilters, alias: new[] { "file:" }, priority: 40));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径", groupFilters, alias: new[] { "path:" }, priority: 40));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希", groupFilters, alias: new[] { "sha:" }, icon: implementedIcon, priority: 40));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间", groupFilters, alias: new[] { "after:" }, icon: implementedIcon, priority: 50));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间", groupFilters, alias: new[] { "before:" }, icon: implementedIcon, priority: 50));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("c:", "提交者", groupAdvanced, alias: new[] { "committer:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("e:", "邮箱", groupAdvanced, alias: new[] { "email:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("S:", "内容搜索 (Pickaxe)", groupAdvanced));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("G:", "正则搜索 (Grep)", groupAdvanced));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("change:", "变更类型", groupAdvanced));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态", groupAdvanced));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索", groupAdvanced));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("c:", "提交者", groupAdvanced, alias: new[] { "committer:" }, icon: implementedIcon, priority: 30));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("e:", "邮箱", groupAdvanced, alias: new[] { "email:" }, icon: implementedIcon, priority: 30));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("S:", "内容搜索 (Pickaxe)", groupAdvanced, priority: 60));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("G:", "正则搜索 (Grep)", groupAdvanced, priority: 60));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("change:", "变更类型", groupAdvanced, priority: 60));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态", groupAdvanced, priority: 60));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索", groupAdvanced, priority: 60));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] { "Commit Date", "Topologically" }, Controls.TokenLogicMode.SingleReplace));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] { "Commit Date", "Topologically" }, Controls.TokenLogicMode.SingleReplace, priority: 999));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("gitlog:", "git 解析选项", groupGit, new[] { "reflog", "1st-p", "decora" }, Controls.TokenLogicMode.AutoOr, isPersistent: true));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("gitlog:", "git 解析选项", groupGit, new[] { "reflog", "1st-p", "decora" }, Controls.TokenLogicMode.AutoOr, isPersistent: true, priority: 0));
 
             bool ToggleColumnByName(string name)
             {
@@ -837,94 +830,147 @@ namespace SourceGit.ViewModels
 
             IEnumerable<Controls.TokenSuggestion> SuggestGotoArguments(Controls.TokenSlashSuggestionContext ctx)
             {
+                var tokens = ctx.ArgumentTokens;
+                var endsWithSpace = ctx.EndsWithWhitespace;
                 var active = ctx.ActiveToken ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(active))
+
+                // No sub-command yet: suggest sub-commands
+                if (tokens.Count == 0 || (tokens.Count == 1 && !endsWithSpace))
                 {
-                    yield return new Controls.TokenSuggestion { Name = "HEAD", Description = "当前分支头提交" };
+                    var subCommands = new[] { "sha", "tag", "branch", "head", "commit" };
+                    foreach (var cmd in subCommands)
+                    {
+                        if (!string.IsNullOrEmpty(active) && !cmd.StartsWith(active, StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        var syntax = cmd switch
+                        {
+                            "sha" => "/goto sha <SHA>",
+                            "tag" => "/goto tag <标签名>",
+                            "branch" => "/goto branch <分支名>",
+                            "head" => "/goto head",
+                            "commit" => "/goto commit <关键词>",
+                            _ => "",
+                        };
+                        yield return new Controls.TokenSuggestion { Name = cmd, Description = syntax };
+                    }
                     yield break;
                 }
 
-                // Suggest HEAD
-                if ("HEAD".StartsWith(active, StringComparison.OrdinalIgnoreCase))
-                    yield return new Controls.TokenSuggestion { Name = "HEAD", Description = "当前分支头提交" };
+                // Has sub-command: suggest values
+                var subCmd = tokens[0].ToLowerInvariant();
+                switch (subCmd)
+                {
+                    case "head":
+                        yield break;
 
-                // Suggest matching local branches
-                var branchNames = (_rawCommits ?? [])
-                    .SelectMany(c => c.Decorators)
-                    .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead)
-                    .Select(d => d.Name)
-                    .Where(n => !string.IsNullOrEmpty(n))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Where(n => n.Contains(active, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(n => n)
-                    .Take(20);
-                foreach (var name in branchNames)
-                    yield return new Controls.TokenSuggestion { Name = name, Description = "分支" };
+                    case "branch":
+                        var branchNames = (_commits ?? [])
+                            .SelectMany(c => c.Decorators)
+                            .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead)
+                            .Select(d => d.Name)
+                            .Where(n => !string.IsNullOrEmpty(n))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .Where(n => n.Contains(active, StringComparison.OrdinalIgnoreCase))
+                            .OrderBy(n => n)
+                            .Take(20);
+                        foreach (var name in branchNames)
+                            yield return new Controls.TokenSuggestion { Name = name, Description = "分支" };
+                        break;
 
-                // Suggest matching tags
-                var tagNames = (_rawCommits ?? [])
-                    .SelectMany(c => c.Decorators)
-                    .Where(d => d.Type == Models.DecoratorType.Tag)
-                    .Select(d => d.Name)
-                    .Where(n => !string.IsNullOrEmpty(n))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Where(n => n.Contains(active, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(n => n)
-                    .Take(20);
-                foreach (var name in tagNames)
-                    yield return new Controls.TokenSuggestion { Name = name, Description = "标签" };
+                    case "tag":
+                        var tagNames = (_commits ?? [])
+                            .SelectMany(c => c.Decorators)
+                            .Where(d => d.Type == Models.DecoratorType.Tag)
+                            .Select(d => d.Name)
+                            .Where(n => !string.IsNullOrEmpty(n))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .Where(n => n.Contains(active, StringComparison.OrdinalIgnoreCase))
+                            .OrderBy(n => n)
+                            .Take(20);
+                        foreach (var name in tagNames)
+                            yield return new Controls.TokenSuggestion { Name = name, Description = "标签" };
+                        break;
 
-                // Suggest commits by SHA
-                var shaMatches = (_rawCommits ?? [])
-                    .Where(c => !string.IsNullOrWhiteSpace(c?.SHA) && c.SHA.StartsWith(active, StringComparison.OrdinalIgnoreCase))
-                    .Take(10)
-                    .Select(c => new Controls.TokenSuggestion
-                    {
-                        Name = c.SHA[..Math.Min(10, c.SHA.Length)],
-                        Description = $"[SHA] {c.Subject ?? ""} · {c.Author.Name}",
-                    });
-                foreach (var s in shaMatches)
-                    yield return s;
+                    case "sha":
+                        var shaMatches = (_commits ?? [])
+                            .Where(c => !string.IsNullOrWhiteSpace(c?.SHA) && c.SHA.StartsWith(active, StringComparison.OrdinalIgnoreCase))
+                            .Take(10)
+                            .Select(c => new Controls.TokenSuggestion
+                            {
+                                Name = c.SHA[..Math.Min(10, c.SHA.Length)],
+                                Description = $"[SHA] {c.Subject ?? ""} · {c.Author.Name}",
+                            });
+                        foreach (var s in shaMatches)
+                            yield return s;
+                        break;
 
-                // Suggest commits by message
-                var msgMatches = (_rawCommits ?? [])
-                    .Where(c => !string.IsNullOrWhiteSpace(c?.SHA) && !string.IsNullOrEmpty(c.Subject) && c.Subject.Contains(active, StringComparison.OrdinalIgnoreCase))
-                    .Where(c => !c.SHA.StartsWith(active, StringComparison.OrdinalIgnoreCase)) // 去重 SHA 已有的
-                    .Take(10)
-                    .Select(c => new Controls.TokenSuggestion
-                    {
-                        Name = c.SHA[..Math.Min(10, c.SHA.Length)],
-                        Description = $"[提交信息] {c.Subject ?? ""} · {c.Author.Name}",
-                    });
-                foreach (var s in msgMatches)
-                    yield return s;
+                    case "commit":
+                        var msgMatches = (_commits ?? [])
+                            .Where(c => !string.IsNullOrWhiteSpace(c?.SHA) && !string.IsNullOrEmpty(c.Subject) && c.Subject.Contains(active, StringComparison.OrdinalIgnoreCase))
+                            .Take(10)
+                            .Select(c => new Controls.TokenSuggestion
+                            {
+                                Name = c.SHA[..Math.Min(10, c.SHA.Length)],
+                                Description = $"[提交信息] {c.Subject ?? ""} · {c.Author.Name}",
+                            });
+                        foreach (var s in msgMatches)
+                            yield return s;
+                        break;
+                }
             }
 
             bool ExecuteGotoCommand(Controls.TokenSlashExecuteContext ctx)
             {
-                var token = ctx.ArgumentTokens?.FirstOrDefault()?.Trim();
-                if (string.IsNullOrEmpty(token))
+                var tokens = ctx.ArgumentTokens?.ToList() ?? [];
+                if (tokens.Count == 0)
                     return false;
 
-                if (token.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
+                var subCmd = tokens[0].Trim().ToLowerInvariant();
+                switch (subCmd)
                 {
-                    _repo.NavigateToCommit("HEAD");
-                    return true;
-                }
+                    case "head":
+                        _repo.NavigateToCommit("HEAD");
+                        return true;
 
-                // Try branch first
-                _repo.NavigateToBranch($"refs/heads/{token}");
-                // Try tag
-                _repo.NavigateToTag(token);
-                // Fallback to commit SHA
-                _repo.NavigateToCommit(token);
-                return true;
+                    case "branch":
+                        if (tokens.Count < 2)
+                            return false;
+                        _repo.NavigateToBranch(tokens[1].Trim());
+                        return true;
+
+                    case "tag":
+                        if (tokens.Count < 2)
+                            return false;
+                        _repo.NavigateToTag(string.Join(" ", tokens.Skip(1)).Trim());
+                        return true;
+
+                    case "sha":
+                        if (tokens.Count < 2)
+                            return false;
+                        _repo.NavigateToCommit(tokens[1].Trim());
+                        return true;
+
+                    case "commit":
+                        if (tokens.Count < 2)
+                            return false;
+                        var query = string.Join(" ", tokens.Skip(1)).Trim().ToLowerInvariant();
+                        var match = (_commits ?? [])
+                            .FirstOrDefault(c => c.Subject != null &&
+                                c.Subject.Contains(query, StringComparison.OrdinalIgnoreCase));
+                        if (match == null)
+                            return false;
+                        _repo.NavigateToCommit(match.SHA);
+                        return true;
+
+                    default:
+                        return false;
+                }
             }
 
             SearchSlashCommands.Add(new Controls.TokenSlashCommand
             {
                 Name = "goto",
-                Description = "跳转：/goto <HEAD|分支名|标签名|SHA>",
+                Description = "跳转：/goto <sha|tag|branch|head|commit> [参数]",
                 Icon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5",
                 RequiresArgument = true,
                 Suggest = SuggestGotoArguments,
@@ -1645,6 +1691,173 @@ namespace SourceGit.ViewModels
             return result;
         }
 
+        private static bool MatchesState(string filter, Models.Commit commit) => filter switch
+        {
+            "merged" => commit.IsMerged,
+            "unmerged" => !commit.IsMerged,
+            "tag" or "tags" => commit.IsTag,
+            "branch" or "branches" => commit.HasDecorators && !commit.IsTag,
+            "merge" => commit.IsMergeCommit,
+            "cherrypick" => commit.IsCherryPicked,
+            "head" => commit.IsCurrentHead,
+            "folded" => commit.IsFolded,
+            _ => true,
+        };
+
+        private static bool EvalTerm(string prefix, Models.Commit c, string val) => prefix switch
+        {
+            "a:" => c.Author.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+                        c.Author.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
+            "m:" => (c.Subject ?? string.Empty).Contains(val, StringComparison.OrdinalIgnoreCase),
+            "t:" => c.Decorators.Any(d => d.Type == Models.DecoratorType.Tag &&
+                            d.Name.Contains(val, StringComparison.OrdinalIgnoreCase)),
+            "r:" => c.Decorators.Any(d => d.Type == Models.DecoratorType.RemoteBranchHead &&
+                            d.Name.Contains(val, StringComparison.OrdinalIgnoreCase)),
+            "s:" => c.SHA.Contains(val, StringComparison.OrdinalIgnoreCase),
+            "c:" => c.Committer.Name.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+                        c.Committer.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
+            "e:" => c.Author.Email.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+                        c.Committer.Email.Contains(val, StringComparison.OrdinalIgnoreCase),
+            "since:" => DateTimeOffset.TryParse(val, out var dtSince) &&
+                        DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime) >= dtSince,
+            "until:" => DateTimeOffset.TryParse(val, out var dtUntil) &&
+                        DateTimeOffset.FromUnixTimeSeconds((long)c.CommitterTime) <= dtUntil,
+            "is:" => MatchesState(val.ToLowerInvariant(), c),
+            _ => true,
+        };
+
+        private List<Models.Commit> ApplyGroupFilters(List<Models.Commit> source, Controls.QuerySpec spec)
+        {
+            var processed = source;
+
+            static IEnumerable<string> PositiveLeaves(Controls.ExprNode node)
+            {
+                if (node == null)
+                    yield break;
+                if (node.Op == Controls.ExprOp.Term)
+                { yield return node.Value; yield break; }
+                if (node.Op == Controls.ExprOp.Not)
+                    yield break;
+                if (node.Children != null)
+                    foreach (var child in node.Children)
+                        if (child.Op != Controls.ExprOp.Not)
+                            foreach (var v in PositiveLeaves(child))
+                                yield return v;
+            }
+
+            foreach (var group in spec.Groups)
+            {
+                if (group.ProviderPrefix is "gitlog:" or "sort:" or "b:" or "t:" or "r:")
+                    continue;
+
+                if (group.ProviderPrefix == "solo:")
+                {
+                    var soloVals = PositiveLeaves(group.Expr).ToList();
+                    if (soloVals.Count > 0)
+                        processed = FilterCommits(processed, soloVals);
+                    continue;
+                }
+
+                var prefix = group.ProviderPrefix;
+                var expr = group.Expr;
+                processed = processed
+                    .Where(c => Controls.ExprEvaluator.Evaluate(expr, val => EvalTerm(prefix, c, val)))
+                    .ToList();
+            }
+
+            return processed;
+        }
+
+        private static void ApplyFallbackTerms(Controls.QuerySpec spec, ref List<Models.Commit> processed)
+        {
+            if (spec.FallbackTerms.Count > 0 || spec.FallbackNotTerms.Count > 0)
+            {
+                processed = processed.Where(c =>
+                {
+                    var msg = c.Subject ?? string.Empty;
+                    var include = spec.FallbackTerms.Count == 0 ||
+                                  spec.FallbackTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
+                    var exclude = spec.FallbackNotTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
+                    return include && !exclude;
+                }).ToList();
+            }
+        }
+
+        private int GetProviderPriority(string prefix)
+        {
+            foreach (var p in SearchProviders)
+            {
+                if (p.Prefix == prefix)
+                    return p.Priority;
+            }
+            return 999;
+        }
+
+        private void ComputeSuggestionCache(Controls.QuerySpec spec)
+        {
+            _suggestionCache = new Dictionary<string, List<Models.Commit>>();
+
+            // With sub-groups (parentheses): use _commits directly
+            if (spec.SubGroups.Count > 0)
+            {
+                foreach (var provider in SearchProviders)
+                {
+                    var p = provider.Prefix;
+                    if (p is "sort:" or "gitlog:")
+                        continue;
+                    _suggestionCache[p] = _commits;
+                }
+                return;
+            }
+
+            // Compute per-prefix cache: _rawCommits filtered by higher-priority groups only
+            var persistentPrefixes = new[] { "b:", "t:", "r:", "gitlog:", "sort:", "solo:" };
+            foreach (var group in spec.Groups)
+            {
+                var prefix = group.ProviderPrefix;
+
+                // Skip persistent/special groups (they don't use EvalTerm)
+                if (persistentPrefixes.Contains(prefix))
+                    continue;
+
+                int targetPriority = GetProviderPriority(prefix);
+
+                var cacheSource = new List<Models.Commit>(_rawCommits);
+                foreach (var otherGroup in spec.Groups)
+                {
+                    var otherPrefix = otherGroup.ProviderPrefix;
+
+                    // Skip self
+                    if (otherPrefix == prefix)
+                        continue;
+
+                    // Skip persistent/special groups (already applied at git level)
+                    if (persistentPrefixes.Contains(otherPrefix))
+                        continue;
+
+                    // Only apply higher priority (lower number = higher priority)
+                    int otherPriority = GetProviderPriority(otherPrefix);
+                    if (otherPriority >= targetPriority)
+                        continue;
+
+                    var otherExpr = otherGroup.Expr;
+                    cacheSource = cacheSource
+                        .Where(c => Controls.ExprEvaluator.Evaluate(otherExpr,
+                            val => EvalTerm(otherPrefix, c, val)))
+                        .ToList();
+                }
+
+                _suggestionCache[prefix] = cacheSource;
+            }
+
+            // Persistent prefixes: cache = _rawCommits (priority 0, nothing is higher)
+            foreach (var persistent in persistentPrefixes)
+            {
+                if (!_suggestionCache.ContainsKey(persistent) && persistent is not ("sort:" or "gitlog:"))
+                    _suggestionCache[persistent] = _rawCommits;
+            }
+        }
+
         private Repository _repo = null;
         private List<string> _soloTargets = [];
         private CommitDetailSharedData _commitDetailSharedData = null;
@@ -1652,6 +1865,7 @@ namespace SourceGit.ViewModels
         private string _searchText = string.Empty;
         private List<Models.Commit> _commits = [];
         private List<Models.Commit> _rawCommits = [];
+        private Dictionary<string, List<Models.Commit>> _suggestionCache = new();
         private Models.CommitGraph _graph = null;
         private long _hoveredCommitIndex = -1;
         private bool[] _hoveredLineageCommits = null;

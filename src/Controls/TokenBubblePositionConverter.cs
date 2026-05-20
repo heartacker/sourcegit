@@ -37,7 +37,7 @@ namespace SourceGit.Controls
 
             static bool IsOperatorToken(string t)
             {
-                return t == "||" || t == "&&" || t == "|" || t == "&";
+                return t == "||" || t == "&&" || t == "|" || t == "&" || t == "(" || t == ")";
             }
 
             // 辅助方法：提取前缀（剥离负号）

@@ -733,7 +733,7 @@ namespace SourceGit.Controls
 
         private static bool IsOperatorToken(string token)
         {
-            return token == "||" || token == "&&" || token == "|" || token == "&";
+            return token == "||" || token == "&&" || token == "|" || token == "&" || token == "(" || token == ")";
         }
 
         private static bool TryFindLastOperator(string text, out int opStart, out int opLength)
@@ -1668,25 +1668,40 @@ namespace SourceGit.Controls
             if (string.IsNullOrWhiteSpace(text))
                 return;
 
-            var expanded = ExpandInlineSegmentsForControl(text.Trim());
-            if (expanded.Count > 0)
+            var parenParts = SplitParenthesizedExpression(text.Trim());
+            foreach (var part in parenParts)
             {
-                foreach (var token in expanded)
-                    AddToken(token);
-            }
-            else
-            {
-                AddToken(text.Trim());
+                if (part == "(" || part == ")")
+                {
+                    AddToken(part);
+                }
+                else
+                {
+                    var expanded = ExpandInlineSegmentsForControl(part);
+                    if (expanded.Count > 0)
+                    {
+                        foreach (var token in expanded)
+                            AddToken(token);
+                    }
+                    else
+                    {
+                        AddToken(part);
+                    }
+                }
             }
         }
 
-        // 强制提交：不做拆解（Ctrl+Enter），整段文本直接作为一个 Token。
+        // 强制提交：不做 ||/&& 拆解（Ctrl+Enter），但仍拆分括号 Token。
         private void CommitTextAsTokenNoExpand(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
                 return;
 
-            AddToken(text.Trim());
+            var parenParts = SplitParenthesizedExpression(text.Trim());
+            foreach (var part in parenParts)
+            {
+                AddToken(part.Trim());
+            }
         }
 
         // 控件内规范化：
@@ -1738,8 +1753,42 @@ namespace SourceGit.Controls
             return segments;
         }
 
+        // 将含括号的表达式拆分为独立 Token：(a:acker m:bug) → (, a:acker, m:bug, )
+        private static List<string> SplitParenthesizedExpression(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return [];
+
+            var result = new List<string>();
+            var i = 0;
+            while (i < text.Length)
+            {
+                if (char.IsWhiteSpace(text[i]))
+                {
+                    i++;
+                    continue;
+                }
+
+                if (text[i] == '(' || text[i] == ')')
+                {
+                    result.Add(text[i].ToString());
+                    i++;
+                    continue;
+                }
+
+                var start = i;
+                while (i < text.Length && !char.IsWhiteSpace(text[i]) && text[i] != '(' && text[i] != ')')
+                    i++;
+
+                if (i > start)
+                    result.Add(text[start..i]);
+            }
+
+            return result;
+        }
+
         // 返回规范化后的显示文本。
-        // 若输入与规范化结果不同，表示用户仍在“修正阶段”，本次 Enter 只改写文本不提交。
+        // 若输入与规范化结果不同，表示用户仍在”修正阶段”，本次 Enter 只改写文本不提交。
         private static string NormalizeInlineExpressionForControl(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
@@ -1963,7 +2012,7 @@ namespace SourceGit.Controls
                 {
                     flatList.Add(new TokenSuggestionHeader { Name = g.Key.Name });
                 }
-                foreach (var p in g)
+                foreach (var p in g.OrderBy(p => p.Priority))
                 {
                     var desc = p.Description;
                     if (p.FullPrefix != null && p.FullPrefix.Length > 0)

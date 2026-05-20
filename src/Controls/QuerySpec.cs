@@ -38,5 +38,8 @@ namespace SourceGit.Controls
         public List<GroupSpec> Groups { get; set; } = new List<GroupSpec>();
         public List<string> FallbackTerms { get; set; } = new List<string>();
         public List<string> FallbackNotTerms { get; set; } = new List<string>();
+        public List<QuerySpec> SubGroups { get; set; } = new List<QuerySpec>();
+
+        public bool HasSubGroups => SubGroups.Count > 0;
     }
 }

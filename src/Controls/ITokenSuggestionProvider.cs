@@ -131,6 +131,11 @@ namespace SourceGit.Controls
         bool IsPersistent { get; }
 
         /// <summary>
+        ///     Priority for ordering and cache computation. Lower value = higher priority.
+        /// </summary>
+        int Priority { get; }
+
+        /// <summary>
         ///     Returns a list of suggestions based on the user's current input after the prefix.
         /// </summary>
         /// <param name="pattern">The text user typed after the prefix.</param>
@@ -151,6 +156,7 @@ namespace SourceGit.Controls
         public TokenSuggestionGroup Group { get; }
         public TokenLogicMode LogicMode { get; }
         public bool IsPersistent { get; }
+        public int Priority { get; }
 
         private readonly Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> _suggester;
         private readonly IEnumerable<TokenSuggestion> _staticOptions;
@@ -158,7 +164,7 @@ namespace SourceGit.Controls
         public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group = null,
             Func<string, CancellationToken, Task<IEnumerable<TokenSuggestion>>> suggester = null,
             TokenLogicMode logicMode = TokenLogicMode.AutoOr, string[] alias = null, string icon = null,
-            bool isPersistent = false)
+            bool isPersistent = false, int priority = 0)
         {
             Prefix = prefix;
             FullPrefix = alias;
@@ -168,11 +174,12 @@ namespace SourceGit.Controls
             _suggester = suggester;
             LogicMode = logicMode;
             IsPersistent = isPersistent;
+            Priority = priority;
         }
 
         public StaticTokenSuggestionProvider(string prefix, string description, TokenSuggestionGroup group,
             IEnumerable<string> staticOptions, TokenLogicMode logicMode = TokenLogicMode.AutoOr,
-            string[] alias = null, string icon = null, bool isPersistent = false)
+            string[] alias = null, string icon = null, bool isPersistent = false, int priority = 0)
         {
             Prefix = prefix;
             FullPrefix = alias;
@@ -182,6 +189,7 @@ namespace SourceGit.Controls
             _staticOptions = staticOptions.Select(x => new TokenSuggestion { Name = x }).ToList();
             LogicMode = logicMode;
             IsPersistent = isPersistent;
+            Priority = priority;
         }
 
         public Task<IEnumerable<TokenSuggestion>> GetSuggestionsAsync(string pattern, CancellationToken cancellationToken)

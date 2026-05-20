@@ -147,6 +147,14 @@
                                 <Setter Property="FontWeight" Value="Bold"/>
                                 <Setter Property="Opacity" Value="0.5"/>
                               </Style>
+                              <Style Selector="TextBlock[Text=(]">
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Opacity" Value="0.5"/>
+                              </Style>
+                              <Style Selector="TextBlock[Text=)]">
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Opacity" Value="0.5"/>
+                              </Style>
                             </TextBlock.Styles>
                           </TextBlock>
 
@@ -185,6 +193,12 @@
                                 <Setter Property="IsVisible" Value="False"/>
                               </Style>
                               <Style Selector="Button[CommandParameter=&amp;&amp;]">
+                                <Setter Property="IsVisible" Value="False"/>
+                              </Style>
+                              <Style Selector="Button[CommandParameter=(]">
+                                <Setter Property="IsVisible" Value="False"/>
+                              </Style>
+                              <Style Selector="Button[CommandParameter=)]">
                                 <Setter Property="IsVisible" Value="False"/>
                               </Style>
                             </Button.Styles>

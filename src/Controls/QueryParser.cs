@@ -114,10 +114,77 @@ namespace SourceGit.Controls
             return new ExprNode { Op = op, Children = nodes };
         }
 
+        public static List<List<string>> PartitionByParentheses(IEnumerable<string> tokens)
+        {
+            var result = new List<List<string>>();
+            var current = new List<string>();
+            int depth = 0;
+            bool hasParens = false;
+
+            foreach (var token in tokens)
+            {
+                if (string.IsNullOrWhiteSpace(token)) continue;
+
+                if (token == "(")
+                {
+                    hasParens = true;
+                    if (depth == 0 && current.Count > 0)
+                    {
+                        result.Add(current);
+                        current = new List<string>();
+                    }
+                    depth++;
+                }
+                else if (token == ")")
+                {
+                    if (depth > 0)
+                    {
+                        depth--;
+                        if (depth == 0 && current.Count > 0)
+                        {
+                            result.Add(current);
+                            current = new List<string>();
+                        }
+                    }
+                }
+                else
+                {
+                    current.Add(token);
+                }
+            }
+
+            if (current.Count > 0 || (!hasParens && result.Count == 0))
+                result.Add(current);
+
+            return result;
+        }
+
         public static QuerySpec Parse(IEnumerable<string> tokens, IEnumerable<ITokenSuggestionProvider> providers)
         {
-            var spec = new QuerySpec();
+            var tokenList = tokens.ToList();
             var providersList = providers.ToList();
+
+            // Check for parenthesized grouping
+            var subGroups = PartitionByParentheses(tokenList);
+            if (subGroups.Count > 1)
+            {
+                // Multiple sub-groups: each is AND-ed internally, OR-ed across groups
+                var spec = new QuerySpec();
+                foreach (var groupTokens in subGroups)
+                {
+                    if (groupTokens.Count == 0) continue;
+                    spec.SubGroups.Add(ParseGroup(groupTokens, providersList));
+                }
+                return spec;
+            }
+
+            // Single group (no parens): existing behavior
+            return ParseGroup(tokenList, providersList);
+        }
+
+        private static QuerySpec ParseGroup(List<string> tokens, List<ITokenSuggestionProvider> providersList)
+        {
+            var spec = new QuerySpec();
 
             var groups = new Dictionary<ITokenSuggestionProvider, (List<ExprNode> pos, List<ExprNode> neg)>();
 

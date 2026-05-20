@@ -108,7 +108,7 @@ namespace SourceGit.Controls
 
         private static bool IsOperatorToken(string token)
         {
-            return token == "||" || token == "&&" || token == "|" || token == "&";
+            return token == "||" || token == "&&" || token == "|" || token == "&" || token == "(" || token == ")";
         }
 
         private static string GetPrefix(string token)
