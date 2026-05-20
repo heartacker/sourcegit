@@ -1798,7 +1798,7 @@ namespace SourceGit.Controls
                 }
                 else
                 {
-                    await UpdateSuggestionsAsync(val.TrimEnd());
+                    await UpdateSuggestionsAsync(val);
                 }
             }
         }
@@ -1980,9 +1980,62 @@ namespace SourceGit.Controls
         {
             if (e.Key == Key.Enter && TryParseSlashCommandSegment(Text ?? string.Empty, out var slashCommandName, out var slashArgument))
             {
-                if (_suggestionList?.SelectedItem is TokenSuggestion selected && selected.IsSlashCommand)
+                var normalizedArg = slashArgument?.Trim() ?? string.Empty;
+                var selectedSlashSuggestion = _suggestionList?.SelectedItem as TokenSuggestion;
+
+                // If the user has already typed a complete slash command, Enter should execute it
+                // even when suggestions are visible.
+                if (string.Equals(slashCommandName, "-/", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(normalizedArg))
                 {
-                    CommitSuggestion(selected);
+                    DeleteTokensByPrefixCommand(slashArgument);
+                    SetCurrentValue(TextProperty, string.Empty);
+                    if (_popup != null)
+                        _popup.IsOpen = false;
+                    e.Handled = true;
+                    return;
+                }
+
+                if (string.Equals(slashCommandName, "-", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(normalizedArg))
+                {
+                    var removePattern = slashArgument?.Trim() ?? string.Empty;
+                    if (TryParsePrefixClassRemoveArgument(removePattern, out var prefixKey))
+                    {
+                        DeleteTokensByPrefix(prefixKey, includeNegated: true);
+                    }
+                    else
+                    {
+                        var exact = SelectedTokens.FirstOrDefault(t =>
+                            !IsOperatorToken(t) && string.Equals(t, removePattern, StringComparison.OrdinalIgnoreCase));
+                        if (!string.IsNullOrEmpty(exact))
+                            RemoveToken(exact);
+                    }
+
+                    SetCurrentValue(TextProperty, string.Empty);
+                    if (_popup != null)
+                        _popup.IsOpen = false;
+                    e.Handled = true;
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(slashCommandName))
+                {
+                    var external = GetExternalSlashCommand(slashCommandName);
+                    var canExecuteDirectly = external != null &&
+                                             (external.RequiresArgument == false || !string.IsNullOrWhiteSpace(normalizedArg));
+                    if (canExecuteDirectly)
+                    {
+                        ExecuteExternalSlashCommand(slashCommandName, slashArgument);
+                        SetCurrentValue(TextProperty, string.Empty);
+                        if (_popup != null)
+                            _popup.IsOpen = false;
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (selectedSlashSuggestion?.IsSlashCommand == true)
+                {
+                    CommitSuggestion(selectedSlashSuggestion);
                 }
                 else if (string.Equals(slashCommandName, "-/", StringComparison.Ordinal))
                 {
