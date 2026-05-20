@@ -117,6 +117,12 @@ namespace SourceGit.Controls
     ///        - 开启后，输入 alias 前缀（如 branch:xxx）自动转为短前缀（b:xxx）。
     ///        - 作用于 AddToken 入口，确保 SelectedTokens 中始终使用最短规范前缀。
     ///        - 默认 true，可通过 AutoCompactProperty 关闭。
+    ///
+    ///     20) 内置移除命令（/-）
+    ///        - 输入 /- 进入“移除模式”，建议列表显示当前已存在 Token。
+    ///        - 可继续输入关键字过滤（如 /-a:、/-main）。
+    ///        - Enter/Tab/点击建议项会直接删除对应 Token，不会新增 Token。
+    ///        - 删除后清空输入并退出移除模式。
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
     [TemplatePart("PART_TokensList", typeof(ListBox))]
@@ -678,6 +684,18 @@ namespace SourceGit.Controls
             return text.TrimStart();
         }
 
+        private static bool TryParseRemoveCommandSegment(string text, out string pattern)
+        {
+            pattern = null;
+
+            var segment = GetCurrentSegment(text);
+            if (!segment.StartsWith("/-", StringComparison.Ordinal))
+                return false;
+
+            pattern = segment.Length > 2 ? segment[2..].Trim() : string.Empty;
+            return true;
+        }
+
         private static string BuildTextWithCurrentSegmentReplaced(string originalText, string newSegment)
         {
             if (string.IsNullOrEmpty(originalText))
@@ -712,6 +730,26 @@ namespace SourceGit.Controls
         private void CommitSuggestion(TokenSuggestion suggestion)
         {
             var currentText = Text ?? string.Empty;
+
+            // Built-in remove command: typing /- enters token-removal mode.
+            if (TryParseRemoveCommandSegment(currentText, out _))
+            {
+                if (!string.IsNullOrWhiteSpace(suggestion?.Name))
+                    RemoveToken(suggestion.Name);
+
+                SetCurrentValue(TextProperty, string.Empty);
+                if (_textBox != null)
+                {
+                    _textBox.Focus();
+                    _textBox.CaretIndex = _textBox.Text.Length;
+                }
+
+                _suggestionList.SelectedItem = null;
+                if (_popup != null)
+                    _popup.IsOpen = false;
+                return;
+            }
+
             var segment = GetCurrentSegment(currentText);
             var isNegated = segment.StartsWith("-");
             var checkStr = isNegated ? segment.Substring(1) : segment;
@@ -740,6 +778,43 @@ namespace SourceGit.Controls
             _suggestionList.SelectedItem = null;
             // 不主动关闭弹窗，让 OnTextBoxPropertyChanged 触发 UpdateSuggestionsAsync
             // 按“上屏后的新文本”重新拉取建议（比如从 provider 列表切到作者列表）。
+        }
+
+        private void ShowRemoveTokenSuggestions(string pattern)
+        {
+            if (_popup == null || _suggestionList == null)
+                return;
+
+            var normalized = pattern?.Trim() ?? string.Empty;
+
+            var tokens = SelectedTokens
+                .Where(t => !IsOperatorToken(t))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(t => string.IsNullOrEmpty(normalized) || t.Contains(normalized, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(t => IsPersistentToken(t))
+                .ThenBy(t => t, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (tokens.Count == 0)
+            {
+                _popup.IsOpen = false;
+                return;
+            }
+
+            var flatList = new List<object>
+            {
+                new TokenSuggestionHeader { Name = "移除 Token (/-)" }
+            };
+
+            foreach (var token in tokens)
+            {
+                var desc = IsPersistentToken(token) ? "持久 Token · 回车/点击删除" : "临时 Token · 回车/点击删除";
+                flatList.Add(new TokenSuggestion { Name = token, Description = desc });
+            }
+
+            _suggestionList.ItemsSource = flatList;
+            _popup.IsOpen = true;
+            _suggestionList.SelectedIndex = flatList.Count > 1 ? 1 : -1;
         }
 
         private string BuildSuggestionReplacementText(TokenSuggestion suggestion)
@@ -958,6 +1033,12 @@ namespace SourceGit.Controls
                 return;
             }
 
+            if (TryParseRemoveCommandSegment(text, out var removePattern))
+            {
+                ShowRemoveTokenSuggestions(removePattern);
+                return;
+            }
+
             var segment = GetCurrentSegment(text);
             var isNegated = segment.StartsWith("-");
             var checkStr = isNegated ? segment.Substring(1) : segment;
@@ -1094,6 +1175,29 @@ namespace SourceGit.Controls
         // 3) Ctrl+Enter：跳过规范化，直接整段提交
         private void OnTextBoxKeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.Enter && TryParseRemoveCommandSegment(Text ?? string.Empty, out var removePattern))
+            {
+                // Remove-command mode must never fall through to normal token commit.
+                if (_suggestionList?.SelectedItem is TokenSuggestion selected)
+                {
+                    CommitSuggestion(selected);
+                }
+                else if (!string.IsNullOrWhiteSpace(removePattern))
+                {
+                    var exact = SelectedTokens.FirstOrDefault(t =>
+                        !IsOperatorToken(t) && string.Equals(t, removePattern, StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrEmpty(exact))
+                        RemoveToken(exact);
+
+                    SetCurrentValue(TextProperty, string.Empty);
+                    if (_popup != null)
+                        _popup.IsOpen = false;
+                }
+
+                e.Handled = true;
+                return;
+            }
+
             if (_popup?.IsOpen == true && _suggestionList != null)
             {
                 if (e.Key == Key.Enter)
