@@ -34,13 +34,14 @@
     <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" RowDefinitions="Auto,*">
       <Border Grid.Row="0" Padding="8,4" Background="{DynamicResource Brush.DataGridHeaderBG}">
         <ctrl:TokenSearchBox x:Name="TokenFilterBox"
-                Watermark="Filter commits (e.g. is:Merged) ..."
-                            MinHeight="30"
-                            HorizontalAlignment="Stretch"
-                            Text="{Binding SearchText, Mode=TwoWay}"
-                            SelectedTokens="{Binding SearchTokens}"
-                Providers="{Binding SearchProviders}"
-                SlashCommands="{Binding SearchSlashCommands}"/>
+                             Watermark="Filter Command Center..."
+                             MinHeight="30"
+                             CornerRadius="16"
+                             HorizontalAlignment="Stretch"
+                             Text="{Binding SearchText, Mode=TwoWay}"
+                             SelectedTokens="{Binding SearchTokens}"
+                             Providers="{Binding SearchProviders}"
+                             SlashCommands="{Binding SearchSlashCommands}"/>
       </Border>
 
       <v:HistoriesCommitList Grid.Row="1" x:Name="CommitListContainer"
