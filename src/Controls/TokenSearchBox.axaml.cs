@@ -1914,6 +1914,13 @@ namespace SourceGit.Controls
             var isNegated = segment.StartsWith("-");
             var checkStr = isNegated ? segment.Substring(1) : segment;
 
+            // When typing ( or ), show all providers so user can pick a prefix for the parenthesized expression
+            if (checkStr is "(" or ")")
+            {
+                ShowDefaultProviders("", token);
+                return;
+            }
+
             var matchedProvider = MatchProvider(Providers, checkStr, out var matchedPrefix);
 
             if (matchedProvider != null)
