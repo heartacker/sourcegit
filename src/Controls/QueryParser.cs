@@ -187,13 +187,24 @@ namespace SourceGit.Controls
             var spec = new QuerySpec();
 
             var groups = new Dictionary<ITokenSuggestionProvider, (List<ExprNode> pos, List<ExprNode> neg)>();
+            var explicitPosOps = new Dictionary<ITokenSuggestionProvider, List<ExprOp>>();
+            ITokenSuggestionProvider lastPosProvider = null;
+            ExprOp? pendingOp = null;
 
             foreach (var token in tokens)
             {
                 if (string.IsNullOrWhiteSpace(token)) continue;
 
                 if (token is "||" or "&&" or "|" or "&")
+                {
+                    pendingOp = token switch
+                    {
+                        "||" or "|" => ExprOp.Or,
+                        "&&" or "&" => ExprOp.And,
+                        _ => ExprOp.Or,
+                    };
                     continue;
+                }
 
                 bool isNegative = token.StartsWith("-", StringComparison.Ordinal);
                 string testToken = isNegative ? token[1..] : token;
@@ -231,6 +242,18 @@ namespace SourceGit.Controls
 
                     var inlineExpr = new ExprNode { Op = ExprOp.Term, Value = val };
 
+                    // Track explicit operators between consecutive same-provider positive entries
+                    if (!isNegative && lastPosProvider == matchedProvider && pendingOp.HasValue)
+                    {
+                        if (!explicitPosOps.ContainsKey(matchedProvider))
+                            explicitPosOps[matchedProvider] = new List<ExprOp>();
+                        explicitPosOps[matchedProvider].Add(pendingOp.Value);
+                    }
+
+                    if (!isNegative)
+                        lastPosProvider = matchedProvider;
+                    pendingOp = null;
+
                     if (!groups.ContainsKey(matchedProvider))
                         groups[matchedProvider] = (new List<ExprNode>(), new List<ExprNode>());
 
@@ -241,6 +264,9 @@ namespace SourceGit.Controls
                 }
                 else
                 {
+                    lastPosProvider = null;
+                    pendingOp = null;
+
                     if (isNegative)
                         spec.FallbackNotTerms.Add(testToken.Trim());
                     else
@@ -257,9 +283,32 @@ namespace SourceGit.Controls
                 var groupSpec = new GroupSpec { ProviderPrefix = p.Prefix };
                 var groupNodes = new List<ExprNode>();
 
-                var positiveExpr = MergeNodesByMode(posList, p.LogicMode);
-                if (positiveExpr != null)
-                    groupNodes.Add(positiveExpr);
+                ExprNode positiveExpr = null;
+                if (posList.Count > 0)
+                {
+                    // Check if explicit operators override the default LogicMode
+                    if (explicitPosOps.TryGetValue(p, out var ops) &&
+                        ops.Count == posList.Count - 1 &&
+                        posList.Count >= 2)
+                    {
+                        var distinct = ops.Distinct().ToList();
+                        if (distinct.Count == 1)
+                        {
+                            var defaultOp = p.LogicMode == TokenLogicMode.AutoAnd ? ExprOp.And : ExprOp.Or;
+                            if (distinct[0] != defaultOp)
+                            {
+                                // Explicit operator overrides LogicMode default
+                                positiveExpr = new ExprNode { Op = distinct[0], Children = new List<ExprNode>(posList) };
+                            }
+                        }
+                    }
+
+                    if (positiveExpr == null)
+                        positiveExpr = MergeNodesByMode(posList, p.LogicMode);
+
+                    if (positiveExpr != null)
+                        groupNodes.Add(positiveExpr);
+                }
 
                 foreach (var negExpr in negList)
                 {
