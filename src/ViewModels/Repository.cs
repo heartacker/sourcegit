@@ -1045,8 +1045,8 @@ namespace SourceGit.ViewModels
 
         public void SetTagFilterMode(Models.Tag tag, Models.FilterMode mode)
         {
-            var token = $"tag:{tag.Name}";
-            var negToken = $"-tag:{tag.Name}";
+            var token = $"t:{tag.Name}";
+            var negToken = $"-t:{tag.Name}";
 
             if (mode == Models.FilterMode.Included)
             {
@@ -1132,7 +1132,7 @@ namespace SourceGit.ViewModels
         {
             var isLocal = node.Path.StartsWith("refs/heads/", StringComparison.Ordinal);
             var tree = isLocal ? _localBranchTrees : _remoteBranchTrees;
-            var tokenPrefix = isLocal ? "branch:" : "remote:";
+            var tokenPrefix = isLocal ? "b:" : "r:";
             var tokenValue = node.Backend is Models.Branch b
                 ? (isLocal ? b.Name : b.FriendlyName)
                 : (isLocal ? node.Path.Substring("refs/heads/".Length) : node.Path.Substring("refs/remotes/".Length));
@@ -2202,11 +2202,11 @@ namespace SourceGit.ViewModels
             var prefix = filter.Mode == Models.FilterMode.Excluded ? "-" : string.Empty;
             return filter.Type switch
             {
-                Models.FilterType.Tag => $"{prefix}tag:{filter.Pattern}",
-                Models.FilterType.LocalBranch => $"{prefix}branch:{TrimBranchRef(filter.Pattern, "refs/heads/")}",
-                Models.FilterType.LocalBranchFolder => $"{prefix}branch:{TrimBranchRef(filter.Pattern, "refs/heads/")}",
-                Models.FilterType.RemoteBranch => $"{prefix}remote:{TrimBranchRef(filter.Pattern, "refs/remotes/")}",
-                Models.FilterType.RemoteBranchFolder => $"{prefix}remote:{TrimBranchRef(filter.Pattern, "refs/remotes/")}",
+                Models.FilterType.Tag => $"{prefix}t:{filter.Pattern}",
+                Models.FilterType.LocalBranch => $"{prefix}b:{TrimBranchRef(filter.Pattern, "refs/heads/")}",
+                Models.FilterType.LocalBranchFolder => $"{prefix}b:{TrimBranchRef(filter.Pattern, "refs/heads/")}",
+                Models.FilterType.RemoteBranch => $"{prefix}r:{TrimBranchRef(filter.Pattern, "refs/remotes/")}",
+                Models.FilterType.RemoteBranchFolder => $"{prefix}r:{TrimBranchRef(filter.Pattern, "refs/remotes/")}",
                 _ => null,
             };
         }
