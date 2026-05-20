@@ -835,6 +835,102 @@ namespace SourceGit.ViewModels
                 Execute = ExecuteUiSlashCommand,
             });
 
+            IEnumerable<Controls.TokenSuggestion> SuggestGotoArguments(Controls.TokenSlashSuggestionContext ctx)
+            {
+                var active = ctx.ActiveToken ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(active))
+                {
+                    yield return new Controls.TokenSuggestion { Name = "HEAD", Description = "当前分支头提交" };
+                    yield break;
+                }
+
+                // Suggest HEAD
+                if ("HEAD".StartsWith(active, StringComparison.OrdinalIgnoreCase))
+                    yield return new Controls.TokenSuggestion { Name = "HEAD", Description = "当前分支头提交" };
+
+                // Suggest matching local branches
+                var branchNames = (_rawCommits ?? [])
+                    .SelectMany(c => c.Decorators)
+                    .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead)
+                    .Select(d => d.Name)
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Where(n => n.Contains(active, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(n => n)
+                    .Take(20);
+                foreach (var name in branchNames)
+                    yield return new Controls.TokenSuggestion { Name = name, Description = "分支" };
+
+                // Suggest matching tags
+                var tagNames = (_rawCommits ?? [])
+                    .SelectMany(c => c.Decorators)
+                    .Where(d => d.Type == Models.DecoratorType.Tag)
+                    .Select(d => d.Name)
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Where(n => n.Contains(active, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(n => n)
+                    .Take(20);
+                foreach (var name in tagNames)
+                    yield return new Controls.TokenSuggestion { Name = name, Description = "标签" };
+
+                // Suggest commits by SHA
+                var shaMatches = (_rawCommits ?? [])
+                    .Where(c => !string.IsNullOrWhiteSpace(c?.SHA) && c.SHA.StartsWith(active, StringComparison.OrdinalIgnoreCase))
+                    .Take(10)
+                    .Select(c => new Controls.TokenSuggestion
+                    {
+                        Name = c.SHA[..Math.Min(10, c.SHA.Length)],
+                        Description = $"[SHA] {c.Subject ?? ""} · {c.Author.Name}",
+                    });
+                foreach (var s in shaMatches)
+                    yield return s;
+
+                // Suggest commits by message
+                var msgMatches = (_rawCommits ?? [])
+                    .Where(c => !string.IsNullOrWhiteSpace(c?.SHA) && !string.IsNullOrEmpty(c.Subject) && c.Subject.Contains(active, StringComparison.OrdinalIgnoreCase))
+                    .Where(c => !c.SHA.StartsWith(active, StringComparison.OrdinalIgnoreCase)) // 去重 SHA 已有的
+                    .Take(10)
+                    .Select(c => new Controls.TokenSuggestion
+                    {
+                        Name = c.SHA[..Math.Min(10, c.SHA.Length)],
+                        Description = $"[提交信息] {c.Subject ?? ""} · {c.Author.Name}",
+                    });
+                foreach (var s in msgMatches)
+                    yield return s;
+            }
+
+            bool ExecuteGotoCommand(Controls.TokenSlashExecuteContext ctx)
+            {
+                var token = ctx.ArgumentTokens?.FirstOrDefault()?.Trim();
+                if (string.IsNullOrEmpty(token))
+                    return false;
+
+                if (token.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
+                {
+                    _repo.NavigateToCommit("HEAD");
+                    return true;
+                }
+
+                // Try branch first
+                _repo.NavigateToBranch($"refs/heads/{token}");
+                // Try tag
+                _repo.NavigateToTag(token);
+                // Fallback to commit SHA
+                _repo.NavigateToCommit(token);
+                return true;
+            }
+
+            SearchSlashCommands.Add(new Controls.TokenSlashCommand
+            {
+                Name = "goto",
+                Description = "跳转：/goto <HEAD|分支名|标签名|SHA>",
+                Icon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5",
+                RequiresArgument = true,
+                Suggest = SuggestGotoArguments,
+                Execute = ExecuteGotoCommand,
+            });
+
             SearchTokens.CollectionChanged += (_, e) =>
             {
                 if (_suppressSearchTokenCollectionChanged)
