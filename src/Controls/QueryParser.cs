@@ -178,8 +178,98 @@ namespace SourceGit.Controls
                 return spec;
             }
 
-            // Single group (no parens): existing behavior
+            // Check for cross-prefix || operators that should create OR sub-groups
+            var orSubGroups = PartitionByCrossProviderOr(tokenList, providersList);
+            if (orSubGroups.Count > 1)
+            {
+                var spec = new QuerySpec();
+                foreach (var groupTokens in orSubGroups)
+                {
+                    if (groupTokens.Count == 0) continue;
+                    spec.SubGroups.Add(ParseGroup(groupTokens, providersList));
+                }
+                return spec;
+            }
+
+            // Single group (no parens, no cross-prefix ||)
             return ParseGroup(tokenList, providersList);
+        }
+
+        private static List<List<string>> PartitionByCrossProviderOr(List<string> tokens, List<ITokenSuggestionProvider> providers)
+        {
+            // Build a quick provider lookup for each token
+            var tokenProviders = new ITokenSuggestionProvider[tokens.Count];
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                var t = tokens[i];
+                if (t is "||" or "&&" or "|" or "&" or "(" or ")")
+                    continue;
+
+                var check = t.StartsWith("-") ? t[1..] : t;
+                foreach (var p in providers)
+                {
+                    if (check.StartsWith(p.Prefix, StringComparison.OrdinalIgnoreCase) ||
+                        (p.FullPrefix != null && p.FullPrefix.Any(fp => check.StartsWith(fp, StringComparison.OrdinalIgnoreCase))))
+                    {
+                        tokenProviders[i] = p;
+                        break;
+                    }
+                }
+            }
+
+            // Find split points: || between different providers
+            var splitAfter = new HashSet<int>();
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i] is "||" or "|")
+                {
+                    // Find previous non-operator token's provider
+                    ITokenSuggestionProvider prevProvider = null;
+                    for (int j = i - 1; j >= 0; j--)
+                    {
+                        if (tokenProviders[j] != null)
+                        {
+                            prevProvider = tokenProviders[j];
+                            break;
+                        }
+                    }
+
+                    // Find next non-operator token's provider
+                    ITokenSuggestionProvider nextProvider = null;
+                    for (int j = i + 1; j < tokens.Count; j++)
+                    {
+                        if (tokenProviders[j] != null)
+                        {
+                            nextProvider = tokenProviders[j];
+                            break;
+                        }
+                    }
+
+                    if (prevProvider != null && nextProvider != null && prevProvider != nextProvider)
+                        splitAfter.Add(i);
+                }
+            }
+
+            if (splitAfter.Count == 0)
+                return [tokens];
+
+            // Split tokens at the identified points
+            var result = new List<List<string>>();
+            var current = new List<string>();
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                current.Add(tokens[i]);
+                if (splitAfter.Contains(i))
+                {
+                    result.Add(current);
+                    current = new List<string>();
+                }
+            }
+
+            if (current.Count > 0)
+                result.Add(current);
+
+            return result;
         }
 
         private static QuerySpec ParseGroup(List<string> tokens, List<ITokenSuggestionProvider> providersList)

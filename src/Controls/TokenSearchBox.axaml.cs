@@ -1747,20 +1747,27 @@ namespace SourceGit.Controls
                     var curPrefix = GetPrefixFromToken(segments[i]);
                     var nextPrefix = GetPrefixFromToken(segments[i + 1]);
 
-                    // Only consider operator between same-prefix tokens
-                    if (curPrefix != null && nextPrefix != null &&
-                        string.Equals(curPrefix, nextPrefix, StringComparison.OrdinalIgnoreCase))
+                    if (curPrefix != null && nextPrefix != null)
                     {
-                        var provider = MatchProvider(Providers, curPrefix, out _);
-                        if (provider != null)
+                        var isSamePrefix = string.Equals(curPrefix, nextPrefix, StringComparison.OrdinalIgnoreCase);
+
+                        if (isSamePrefix)
                         {
-                            var defaultOp = provider.LogicMode == TokenLogicMode.AutoAnd ? "&&" : "||";
-                            if (operators[i] != defaultOp)
+                            // Same prefix: preserve operator only when it overrides LogicMode default
+                            var provider = MatchProvider(Providers, curPrefix, out _);
+                            if (provider != null)
                             {
-                                // Operator overrides LogicMode default → keep it as a token
-                                AddToken(operators[i]);
+                                var defaultOp = provider.LogicMode == TokenLogicMode.AutoAnd ? "&&" : "||";
+                                if (operators[i] != defaultOp)
+                                    AddToken(operators[i]);
                             }
                         }
+                        else if (operators[i] == "||")
+                        {
+                            // Different prefixes with || overrides default AND → preserve
+                            AddToken(operators[i]);
+                        }
+                        // && between different prefixes matches default AND → skip
                     }
                 }
             }
