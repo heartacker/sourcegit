@@ -39,13 +39,13 @@
 //
 //   优先级体系:
 //     0: b:, t:, r:, gitlog:   (git log 级别，缓存 = _rawCommits)
-//    10: is:                   (状态筛选)
-//    20: solo:                 (Solo 提交链)
-//    30: a:, c:, e:            (身份)
-//    40: s:, f:, p:            (搜索)
-//    50: since:, until:        (时间)
-//    60: S:, G:, change:, signed:, parent: (高级 git)
-//   100: m:                    (消息 — 最低)
+//     1: solo:                 (Solo 提交链)
+//    11: is:                   (状态筛选)
+//    31: a:, c:, e:            (身份)
+//    41: s:, f:, p:            (搜索)
+//    51: since:, until:        (时间)
+//    61: S:, G:, change:, signed:, parent: (高级 git)
+//   101: m:                    (消息 — 最低)
 //   999: sort:                 (不是过滤器)
 //
 //   缓存算法:
@@ -663,28 +663,28 @@ namespace SourceGit.ViewModels
                 "branch", "merge", "cherrypick",
                 "head", "folded" };
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("is:", "状态过滤",
-            groupAdvanced, isProv, Controls.TokenLogicMode.AutoAnd, icon: implementedIcon, priority: 10));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者", groupFilters, suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "author:" }, icon: implementedIcon, priority: 30));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息", groupFilters, suggester: messageSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "message:" }, icon: implementedIcon, priority: 100));
+            groupAdvanced, isProv, Controls.TokenLogicMode.AutoAnd, icon: implementedIcon, priority: 11));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("a:", "作者", groupFilters, suggester: authorSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "author:" }, icon: implementedIcon, priority: 31));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("m:", "提交消息", groupFilters, suggester: messageSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "message:" }, icon: implementedIcon, priority: 101));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("b:", "分支", groupFilters, suggester: branchSuggester, logicMode: Controls.TokenLogicMode.AutoOr, alias: new[] { "branch:" }, icon: implementedIcon, isPersistent: true, priority: 0));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("solo:", "Solo 提交链过滤", groupView,
                 suggester: soloCommitSuggester, logicMode: Controls.TokenLogicMode.AutoOr,
-                alias: new[] { "sole:" }, icon: implementedIcon, priority: 20));
+                alias: new[] { "sole:" }, icon: implementedIcon, priority: 1));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, suggester: tagSuggester, alias: new[] { "tag:" }, icon: implementedIcon, isPersistent: true, priority: 0));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, suggester: remoteSuggester, alias: new[] { "remote:" }, icon: implementedIcon, isPersistent: true, priority: 0));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径", groupFilters, alias: new[] { "file:" }, priority: 40));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径", groupFilters, alias: new[] { "path:" }, priority: 40));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希", groupFilters, alias: new[] { "sha:" }, icon: implementedIcon, priority: 40));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间", groupFilters, alias: new[] { "after:" }, icon: implementedIcon, priority: 50));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间", groupFilters, alias: new[] { "before:" }, icon: implementedIcon, priority: 50));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径", groupFilters, alias: new[] { "file:" }, priority: 41));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径", groupFilters, alias: new[] { "path:" }, priority: 41));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希", groupFilters, alias: new[] { "sha:" }, icon: implementedIcon, priority: 41));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间", groupFilters, alias: new[] { "after:" }, icon: implementedIcon, priority: 51));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间", groupFilters, alias: new[] { "before:" }, icon: implementedIcon, priority: 51));
 
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("c:", "提交者", groupAdvanced, alias: new[] { "committer:" }, icon: implementedIcon, priority: 30));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("e:", "邮箱", groupAdvanced, alias: new[] { "email:" }, icon: implementedIcon, priority: 30));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("S:", "内容搜索 (Pickaxe)", groupAdvanced, priority: 60));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("G:", "正则搜索 (Grep)", groupAdvanced, priority: 60));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("change:", "变更类型", groupAdvanced, priority: 60));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态", groupAdvanced, priority: 60));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索", groupAdvanced, priority: 60));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("c:", "提交者", groupAdvanced, alias: new[] { "committer:" }, icon: implementedIcon, priority: 31));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("e:", "邮箱", groupAdvanced, alias: new[] { "email:" }, icon: implementedIcon, priority: 31));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("S:", "内容搜索 (Pickaxe)", groupAdvanced, priority: 61));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("G:", "正则搜索 (Grep)", groupAdvanced, priority: 61));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("change:", "变更类型", groupAdvanced, priority: 61));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("signed:", "GPG 签名状态", groupAdvanced, priority: 61));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("parent:", "父提交搜索", groupAdvanced, priority: 61));
 
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sort:", "排序方式", groupView, new[] { "Commit Date", "Topologically" }, Controls.TokenLogicMode.SingleReplace, priority: 999));
 
