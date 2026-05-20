@@ -112,6 +112,11 @@ namespace SourceGit.Controls
     ///     18) 点击外部处理（PointerPressed / LightDismiss）
     ///        - 点击控件外部区域自动关闭弹窗并取消 Token 选中状态。
     ///        - 点击控件本身聚焦输入框但不拦截事件传递。
+    ///
+    ///     19) AutoCompact 自动精简前缀
+    ///        - 开启后，输入 alias 前缀（如 branch:xxx）自动转为短前缀（b:xxx）。
+    ///        - 作用于 AddToken 入口，确保 SelectedTokens 中始终使用最短规范前缀。
+    ///        - 默认 true，可通过 AutoCompactProperty 关闭。
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
     [TemplatePart("PART_TokensList", typeof(ListBox))]
@@ -144,6 +149,12 @@ namespace SourceGit.Controls
         /// </summary>
         public static readonly StyledProperty<bool> AutoGroupingProperty =
             AvaloniaProperty.Register<TokenSearchBox, bool>(nameof(AutoGrouping), true);
+
+        /// <summary>
+        ///     是否开启自动精简前缀：开启后，输入 branch:xxx 自动转为 b:xxx。
+        /// </summary>
+        public static readonly StyledProperty<bool> AutoCompactProperty =
+            AvaloniaProperty.Register<TokenSearchBox, bool>(nameof(AutoCompact), true);
 
         /// <summary>
         ///     内部用于动态计算 ScrollViewer 的最大高度。
@@ -199,6 +210,12 @@ namespace SourceGit.Controls
         {
             get => GetValue(AutoGroupingProperty);
             set => SetValue(AutoGroupingProperty, value);
+        }
+
+        public bool AutoCompact
+        {
+            get => GetValue(AutoCompactProperty);
+            set => SetValue(AutoCompactProperty, value);
         }
 
         public double MaxListHeight
@@ -1226,6 +1243,15 @@ namespace SourceGit.Controls
             var matchedProvider = !IsOperatorToken(token)
                 ? MatchProvider(Providers, checkStr, out matchedPrefix)
                 : null;
+
+            // Auto-compact: normalize alias prefixes to short form (branch: -> b:)
+            if (AutoCompact && matchedProvider != null && matchedPrefix != matchedProvider.Prefix)
+            {
+                var value = checkStr.Substring(matchedPrefix.Length);
+                token = (isNegated ? "-" : "") + matchedProvider.Prefix + value;
+                checkStr = matchedProvider.Prefix + value;
+                matchedPrefix = matchedProvider.Prefix;
+            }
 
             var isStoreToken = IsStoreProviderToken(token, out var storeProvider, out var _);
             if (isStoreToken && _persistentTokenSet.Add(token))
