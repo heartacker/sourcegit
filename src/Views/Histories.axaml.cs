@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -770,6 +770,12 @@ namespace SourceGit.Views
                 }
             }
 
+            e.Handled = true;
+        }
+
+        private void OnTokenFilterHotKey(object sender, RoutedEventArgs e)
+        {
+            TokenFilterBox.FocusSearchTextBox();
             e.Handled = true;
         }
 
@@ -1901,4 +1907,3 @@ namespace SourceGit.Views
         private Cursor _resizingCursor = new Cursor(StandardCursorType.SizeWestEast);
     }
 }
-

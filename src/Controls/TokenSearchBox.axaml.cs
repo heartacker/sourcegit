@@ -473,6 +473,20 @@ namespace SourceGit.Controls
         }
 
         /// <summary>
+        ///     将焦点设置到内部输入框，确保可立即输入关键字。
+        /// </summary>
+        public void FocusSearchTextBox(NavigationMethod navigationMethod = NavigationMethod.Directional)
+        {
+            if (_textBox != null)
+            {
+                _textBox.Focus(navigationMethod);
+                return;
+            }
+
+            Focus(navigationMethod);
+        }
+
+        /// <summary>
         ///     按前缀批量删除 Token（例如重置所有作者过滤）。
         /// </summary>
         public int DeleteTokensByPrefix(string prefix, bool includeNegated = true, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
