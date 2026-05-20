@@ -33,6 +33,12 @@ namespace SourceGit.Controls
     /// <summary>
     ///     Represents a suggestion item for the token search box.
     /// </summary>
+    public enum TokenSuggestionActionType
+    {
+        Insert,
+        Execute,
+    }
+
     public class TokenSuggestion
     {
         public string Name { get; set; }
@@ -41,6 +47,18 @@ namespace SourceGit.Controls
         public bool IsSlashCommand { get; set; }
         public string SlashCommandName { get; set; }
         public string SlashCommandArgument { get; set; }
+        public bool CanExecuteDirectly { get; set; }
+        public TokenSuggestionActionType ActionType { get; set; } = TokenSuggestionActionType.Insert;
+        public string ActionTooltip => ActionType == TokenSuggestionActionType.Execute ? "执行" : "上屏";
+
+        // todo: use different icons for execute and insert actions
+        // todo: add to resources:
+        // "M2 6 L5 9 L10 2" for execute (a right arrow)
+        // "M2 10 L4 10 L10 4 L8 2 L2 8 Z" for insert (a pencil)
+        public string ActionIcon =>
+            ActionType == TokenSuggestionActionType.Execute
+                ? "M2 6 L5 9 L10 2"
+                : "M2 10 L4 10 L10 4 L8 2 L2 8 Z";
     }
 
     /// <summary>

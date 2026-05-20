@@ -651,10 +651,20 @@ namespace SourceGit.Controls
 
         private void OnSuggestionPointerReleased(object sender, PointerReleasedEventArgs e)
         {
-            var item = (e.Source as Visual)?.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
+            var sourceVisual = e.Source as Visual;
+            var item = sourceVisual?.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
             if (item?.DataContext is TokenSuggestion suggestion)
             {
-                CommitSuggestion(suggestion);
+                var fromActionButton = sourceVisual is Button btn && btn.Name == "PART_SuggestionActionButton";
+                if (!fromActionButton && sourceVisual != null)
+                {
+                    fromActionButton = sourceVisual
+                        .GetVisualAncestors()
+                        .OfType<Button>()
+                        .Any(b => b.Name == "PART_SuggestionActionButton");
+                }
+
+                CommitSuggestion(suggestion, fromActionButton);
                 e.Handled = true;
             }
         }
@@ -913,12 +923,14 @@ namespace SourceGit.Controls
             {
                 Name = "-",
                 Description = "移除已存在 Token",
+                RequiresArgument = true,
             };
 
             yield return new TokenSlashCommand
             {
                 Name = "-/",
                 Description = "按前缀批量移除 Token（示例：/-/a）",
+                RequiresArgument = true,
             };
 
             if (SlashCommands == null)
@@ -1110,14 +1122,58 @@ namespace SourceGit.Controls
             return false;
         }
 
-        // 建议列表中的 Enter/Tab 只负责“上屏”，不直接生成 Token。
-        // 这样用户可以继续编辑（例如先选出 a:acker，再继续输入 ||bo）。
-        private void CommitSuggestion(TokenSuggestion suggestion)
+        private string BuildSlashSuggestionReplacementText(TokenSuggestion suggestion)
+        {
+            var cmd = suggestion?.SlashCommandName?.Trim() ?? string.Empty;
+            var arg = suggestion?.SlashCommandArgument?.Trim() ?? string.Empty;
+
+            string replacement;
+            if (!string.IsNullOrWhiteSpace(suggestion?.Name) && suggestion.Name.StartsWith("/", StringComparison.Ordinal))
+            {
+                replacement = suggestion.Name;
+            }
+            else if (string.Equals(cmd, "-", StringComparison.Ordinal))
+            {
+                replacement = string.IsNullOrWhiteSpace(arg) ? "/-" : $"/-{arg}";
+            }
+            else if (string.Equals(cmd, "-/", StringComparison.Ordinal))
+            {
+                replacement = string.IsNullOrWhiteSpace(arg) ? "/-/" : $"/-/{arg}";
+            }
+            else
+            {
+                var external = GetExternalSlashCommand(cmd);
+                if (string.IsNullOrWhiteSpace(arg))
+                    replacement = external?.RequiresArgument == true ? $"/{cmd} " : $"/{cmd}";
+                else
+                    replacement = $"/{cmd} {arg}";
+            }
+
+            return BuildTextWithCurrentSegmentReplaced(Text ?? string.Empty, replacement);
+        }
+
+        // 普通点击=上屏；动作按钮点击=执行。
+        private void CommitSuggestion(TokenSuggestion suggestion, bool requestExecute = false)
         {
             var currentText = Text ?? string.Empty;
 
             if (suggestion?.IsSlashCommand == true)
             {
+                if (!requestExecute || !suggestion.CanExecuteDirectly)
+                {
+                    var replacement = BuildSlashSuggestionReplacementText(suggestion);
+                    SetCurrentValue(TextProperty, replacement);
+                    if (_textBox != null)
+                    {
+                        _textBox.Focus();
+                        _textBox.CaretIndex = _textBox.Text.Length;
+                    }
+
+                    _suggestionList.SelectedItem = null;
+                    _ = UpdateSuggestionsAsync(Text ?? string.Empty);
+                    return;
+                }
+
                 var cmd = suggestion.SlashCommandName?.Trim();
                 if (string.Equals(cmd, "-", StringComparison.Ordinal))
                 {
@@ -1243,6 +1299,27 @@ namespace SourceGit.Controls
                 replacementText = BuildTextWithCurrentSegmentReplaced(currentText, prefixPart);
             }
 
+            if (requestExecute && suggestion.CanExecuteDirectly)
+            {
+                var executeText = replacementText;
+                var normalized = NormalizeInlineExpressionForControl(executeText);
+                if (!string.Equals(normalized, executeText, StringComparison.Ordinal))
+                    executeText = normalized;
+
+                CommitTextAsToken(executeText);
+                SetCurrentValue(TextProperty, string.Empty);
+                if (_textBox != null)
+                {
+                    _textBox.Focus();
+                    _textBox.CaretIndex = _textBox.Text.Length;
+                }
+
+                _suggestionList.SelectedItem = null;
+                if (_popup != null)
+                    _popup.IsOpen = false;
+                return;
+            }
+
             SetCurrentValue(TextProperty, replacementText);
             if (_textBox != null)
             {
@@ -1332,6 +1409,8 @@ namespace SourceGit.Controls
                     IsSlashCommand = true,
                     SlashCommandName = "-",
                     SlashCommandArgument = token,
+                    CanExecuteDirectly = true,
+                    ActionType = TokenSuggestionActionType.Execute,
                 });
             }
 
@@ -1358,6 +1437,8 @@ namespace SourceGit.Controls
                     IsSlashCommand = true,
                     SlashCommandName = "-/",
                     SlashCommandArgument = "temp",
+                    CanExecuteDirectly = true,
+                    ActionType = TokenSuggestionActionType.Execute,
                 });
             }
 
@@ -1370,6 +1451,8 @@ namespace SourceGit.Controls
                     IsSlashCommand = true,
                     SlashCommandName = "-/",
                     SlashCommandArgument = "persistent",
+                    CanExecuteDirectly = true,
+                    ActionType = TokenSuggestionActionType.Execute,
                 });
             }
 
@@ -1400,6 +1483,8 @@ namespace SourceGit.Controls
                     IsSlashCommand = true,
                     SlashCommandName = "-/",
                     SlashCommandArgument = prefix,
+                    CanExecuteDirectly = true,
+                    ActionType = TokenSuggestionActionType.Execute,
                 });
             }
 
@@ -1463,6 +1548,8 @@ namespace SourceGit.Controls
                             IsSlashCommand = true,
                             SlashCommandName = exactCommand.Name,
                             SlashCommandArgument = argSuggestion.Name,
+                            CanExecuteDirectly = true,
+                            ActionType = TokenSuggestionActionType.Execute,
                         });
                     }
 
@@ -1508,6 +1595,8 @@ namespace SourceGit.Controls
                     IsSlashCommand = true,
                     SlashCommandName = commandName,
                     SlashCommandArgument = argument,
+                    CanExecuteDirectly = cmd.RequiresArgument == false,
+                    ActionType = cmd.RequiresArgument ? TokenSuggestionActionType.Insert : TokenSuggestionActionType.Execute,
                 });
             }
 
@@ -1754,6 +1843,11 @@ namespace SourceGit.Controls
                         return;
 
                     var list = new List<TokenSuggestion>(suggestions);
+                    foreach (var item in list)
+                    {
+                        item.CanExecuteDirectly = true;
+                        item.ActionType = TokenSuggestionActionType.Execute;
+                    }
                     if (list.Count > 0)
                     {
                         _suggestionList.ItemsSource = list;
@@ -1791,6 +1885,11 @@ namespace SourceGit.Controls
                                 return;
 
                             var list = new List<TokenSuggestion>(suggestions);
+                            foreach (var item in list)
+                            {
+                                item.CanExecuteDirectly = true;
+                                item.ActionType = TokenSuggestionActionType.Execute;
+                            }
                             if (list.Count > 0)
                             {
                                 _suggestionList.ItemsSource = list;
@@ -1837,6 +1936,11 @@ namespace SourceGit.Controls
                         desc = $"{desc} ({string.Join(", ", p.FullPrefix)})";
 
                     flatList.Add(new TokenSuggestion { Name = p.Prefix, Description = desc, Icon = p.Icon });
+                    if (flatList[^1] is TokenSuggestion suggestion)
+                    {
+                        suggestion.CanExecuteDirectly = false;
+                        suggestion.ActionType = TokenSuggestionActionType.Insert;
+                    }
                 }
             }
 
