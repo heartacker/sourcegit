@@ -541,12 +541,29 @@ namespace SourceGit.ViewModels
             {
                 var branchNames = _rawCommits
                     .SelectMany(c => c.Decorators)
-                    .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.RemoteBranchHead or Models.DecoratorType.CurrentBranchHead)
+                    .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead)
                     .Select(d => d.Name)
                     .Where(n => !string.IsNullOrEmpty(n))
                     .Distinct(StringComparer.OrdinalIgnoreCase);
 
                 var suggestions = branchNames
+                    .Where(n => string.IsNullOrEmpty(pattern) || n.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(n => n)
+                    .Take(100)
+                    .Select(n => new Controls.TokenSuggestion { Name = n });
+                return Task.FromResult(suggestions);
+            };
+
+            Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> remoteSuggester = (pattern, ct) =>
+            {
+                var remoteNames = _rawCommits
+                    .SelectMany(c => c.Decorators)
+                    .Where(d => d.Type == Models.DecoratorType.RemoteBranchHead)
+                    .Select(d => d.Name)
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                var suggestions = remoteNames
                     .Where(n => string.IsNullOrEmpty(pattern) || n.Contains(pattern, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(n => n)
                     .Take(100)
@@ -625,7 +642,7 @@ namespace SourceGit.ViewModels
                 suggester: soloCommitSuggester, logicMode: Controls.TokenLogicMode.AutoOr,
                 alias: new[] { "sole:" }, icon: implementedIcon));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, alias: new[] { "tag:" }, icon: implementedIcon, isPersistent: true));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, alias: new[] { "remote:" }, icon: implementedIcon, isPersistent: true));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, suggester: remoteSuggester, alias: new[] { "remote:" }, icon: implementedIcon, isPersistent: true));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径", groupFilters, alias: new[] { "file:" }));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径", groupFilters, alias: new[] { "path:" }));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希", groupFilters, alias: new[] { "sha:" }, icon: implementedIcon));
