@@ -396,6 +396,7 @@ namespace SourceGit.Models
             var hasExcludeRemotes = false;
             var hasExcludeTags = false;
             var excludeArgs = new System.Text.StringBuilder();
+            var folderExcludes = new List<string>();
 
             foreach (var filter in HistoryFilters)
             {
@@ -421,9 +422,9 @@ namespace SourceGit.Models
                     else if (filter.Mode == FilterMode.Excluded)
                     {
                         var glob = $"{filter.Pattern.AsSpan(11)}/*";
-                        excludedRevisions.Add($"--exclude=refs/heads/{glob}");
                         excludeArgs.Append($"--exclude=\"{glob}\" --decorate-refs-exclude=\"{filter.Pattern}/*\" ");
                         hasExcludeBranches = true;
+                        folderExcludes.Add($"--branches={filter.Pattern.AsSpan(11)}/*");
                     }
                 }
                 else if (filter.Type == FilterType.RemoteBranch)
@@ -448,9 +449,9 @@ namespace SourceGit.Models
                     else if (filter.Mode == FilterMode.Excluded)
                     {
                         var glob = $"{filter.Pattern.AsSpan(13)}/*";
-                        excludedRevisions.Add($"--exclude=refs/remotes/{glob}");
                         excludeArgs.Append($"--exclude=\"{glob}\" --decorate-refs-exclude=\"{filter.Pattern}/*\" ");
                         hasExcludeRemotes = true;
+                        folderExcludes.Add($"--remotes={filter.Pattern.AsSpan(13)}/*");
                     }
                 }
                 else if (filter.Type == FilterType.Tag)
@@ -485,7 +486,7 @@ namespace SourceGit.Models
                 builder.Append("--simplify-by-decoration ");
 
             var hasIncluded = includedRefs.Count > 0;
-            var hasExcluded = excludedRevisions.Count > 0;
+            var hasExcluded = excludedRevisions.Count > 0 || folderExcludes.Count > 0;
 
             if (hasIncluded || hasExcluded)
             {
@@ -507,6 +508,17 @@ namespace SourceGit.Models
                         {
                             builder.Append(rev);
                             builder.Append(' ');
+                        }
+
+                        // Folder-style excludes (can't use ^prefix, use --not with glob)
+                        if (folderExcludes.Count > 0)
+                        {
+                            builder.Append("--not ");
+                            foreach (var arg in folderExcludes)
+                            {
+                                builder.Append(arg);
+                                builder.Append(' ');
+                            }
                         }
                     }
                     else

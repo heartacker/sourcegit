@@ -601,7 +601,11 @@ namespace SourceGit.ViewModels
                     {
                         var val = check[(check.IndexOf(':') + 1)..].Trim();
                         if (val.Length > 0)
-                            newSearchFilters.Add(new Models.HistoryFilter($"refs/remotes/{val}", Models.FilterType.RemoteBranch, mode));
+                        {
+                            // No "/" means it's a remote name (e.g. "origin"), not a specific ref → use folder type
+                            var type = val.Contains('/') ? Models.FilterType.RemoteBranch : Models.FilterType.RemoteBranchFolder;
+                            newSearchFilters.Add(new Models.HistoryFilter($"refs/remotes/{val}", type, mode));
+                        }
                     }
                 }
 
