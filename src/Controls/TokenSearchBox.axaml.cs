@@ -1723,18 +1723,22 @@ namespace SourceGit.Controls
                 return;
             }
 
-            // Inherit prefix from first segment for bare values (same as ExpandInlineSegmentsForControl)
-            var basePrefix = GetPrefixFromToken(segments[0]);
-            for (int i = 0; i < segments.Count; i++)
+            // With explicit operators, each segment stands independently (no prefix inheritance).
+            // Without operators, inherit the first segment's prefix for bare values.
+            if (operators.Count == 0)
             {
-                var token = segments[i];
-                var neg = token.StartsWith("-", StringComparison.Ordinal);
-                var raw = neg ? token[1..] : token;
-                if (raw.Contains(':'))
-                    continue;
+                var basePrefix = GetPrefixFromToken(segments[0]);
+                for (int i = 0; i < segments.Count; i++)
+                {
+                    var token = segments[i];
+                    var neg = token.StartsWith("-", StringComparison.Ordinal);
+                    var raw = neg ? token[1..] : token;
+                    if (raw.Contains(':'))
+                        continue;
 
-                if (!string.IsNullOrEmpty(basePrefix))
-                    segments[i] = neg ? $"-{basePrefix}{raw}" : $"{basePrefix}{raw}";
+                    if (!string.IsNullOrEmpty(basePrefix))
+                        segments[i] = neg ? $"-{basePrefix}{raw}" : $"{basePrefix}{raw}";
+                }
             }
 
             // Add tokens, conditionally inserting operator tokens
@@ -1768,6 +1772,11 @@ namespace SourceGit.Controls
                             AddToken(operators[i]);
                         }
                         // && between different prefixes matches default AND → skip
+                    }
+                    else if (operators[i] == "||" && (curPrefix != null) != (nextPrefix != null))
+                    {
+                        // One side has prefix, other doesn't → cross-type OR
+                        AddToken(operators[i]);
                     }
                 }
             }

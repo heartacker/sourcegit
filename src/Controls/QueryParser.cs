@@ -245,7 +245,7 @@ namespace SourceGit.Controls
                         }
                     }
 
-                    if (prevProvider != null && nextProvider != null && prevProvider != nextProvider)
+                    if (prevProvider != nextProvider)
                         splitAfter.Add(i);
                 }
             }
