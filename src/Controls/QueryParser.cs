@@ -173,6 +173,7 @@ namespace SourceGit.Controls
                 foreach (var groupTokens in subGroups)
                 {
                     if (groupTokens.Count == 0) continue;
+                    if (groupTokens.Count == 1 && (groupTokens[0] is "||" or "&&" or "|" or "&")) continue;
                     spec.SubGroups.Add(ParseGroup(groupTokens, providersList));
                 }
                 return spec;

@@ -1324,7 +1324,7 @@ namespace SourceGit.Controls
             if (matchedProvider != null)
             {
                 var prefixPart = isNegated ? "-" + matchedPrefix : matchedPrefix;
-                replacementText = prefixPart + insertValue;
+                replacementText = BuildTextWithCurrentSegmentReplaced(currentText, prefixPart + insertValue);
             }
             else
             {
@@ -1741,10 +1741,40 @@ namespace SourceGit.Controls
                 }
             }
 
-            // Add tokens, conditionally inserting operator tokens
+            // Determine which segments need paren wrapping (cross-prefix || groups)
+            var needParens = new bool[segments.Count];
             for (int i = 0; i < segments.Count; i++)
             {
+                var curPrefix = GetPrefixFromToken(segments[i]);
+                if (curPrefix == null) continue;
+
+                if (i > 0 && i - 1 < operators.Count && operators[i - 1] == "||")
+                {
+                    var prevPrefix = GetPrefixFromToken(segments[i - 1]);
+                    if (prevPrefix != null && !string.Equals(prevPrefix, curPrefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        needParens[i] = true;
+                        needParens[i - 1] = true;
+                    }
+                }
+
+                if (i < operators.Count && operators[i] == "||")
+                {
+                    var nextPrefix = GetPrefixFromToken(segments[i + 1]);
+                    if (nextPrefix != null && !string.Equals(curPrefix, nextPrefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        needParens[i] = true;
+                        needParens[i + 1] = true;
+                    }
+                }
+            }
+
+            // Add tokens with paren wrapping for cross-prefix groups, conditionally inserting operator tokens
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if (needParens[i]) AddToken("(");
                 AddToken(segments[i]);
+                if (needParens[i]) AddToken(")");
 
                 if (i < operators.Count)
                 {
