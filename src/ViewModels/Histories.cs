@@ -571,6 +571,23 @@ namespace SourceGit.ViewModels
                 return Task.FromResult(suggestions);
             };
 
+            Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> tagSuggester = (pattern, ct) =>
+            {
+                var tagNames = _rawCommits
+                    .SelectMany(c => c.Decorators)
+                    .Where(d => d.Type == Models.DecoratorType.Tag)
+                    .Select(d => d.Name)
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                var suggestions = tagNames
+                    .Where(n => string.IsNullOrEmpty(pattern) || n.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(n => n)
+                    .Take(100)
+                    .Select(n => new Controls.TokenSuggestion { Name = n });
+                return Task.FromResult(suggestions);
+            };
+
             Func<string, System.Threading.CancellationToken, Task<IEnumerable<Controls.TokenSuggestion>>> messageSuggester = (pattern, ct) =>
             {
                 // var subjects = _rawCommits
@@ -641,7 +658,7 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("solo:", "Solo 提交链过滤", groupView,
                 suggester: soloCommitSuggester, logicMode: Controls.TokenLogicMode.AutoOr,
                 alias: new[] { "sole:" }, icon: implementedIcon));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, alias: new[] { "tag:" }, icon: implementedIcon, isPersistent: true));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("t:", "标签", groupFilters, suggester: tagSuggester, alias: new[] { "tag:" }, icon: implementedIcon, isPersistent: true));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, suggester: remoteSuggester, alias: new[] { "remote:" }, icon: implementedIcon, isPersistent: true));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径", groupFilters, alias: new[] { "file:" }));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径", groupFilters, alias: new[] { "path:" }));
