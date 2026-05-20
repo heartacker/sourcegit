@@ -839,7 +839,7 @@ namespace SourceGit.ViewModels
                 // No sub-command yet: suggest sub-commands
                 if (tokens.Count == 0 || (tokens.Count == 1 && !endsWithSpace))
                 {
-                    var subCommands = new[] { "sha", "tag", "branch", "head", "commit" };
+                    var subCommands = new[] { "sha", "tag", "branch", "head", "commit", "solo" };
                     foreach (var cmd in subCommands)
                     {
                         if (!string.IsNullOrEmpty(active) && !cmd.StartsWith(active, StringComparison.OrdinalIgnoreCase))
@@ -851,6 +851,7 @@ namespace SourceGit.ViewModels
                             "branch" => "/goto branch <分支名>",
                             "head" => "/goto head",
                             "commit" => "/goto commit <关键词>",
+                            "solo" => "/goto solo <SHA>",
                             _ => "",
                         };
                         yield return new Controls.TokenSuggestion { Name = cmd, Description = syntax };
@@ -906,6 +907,16 @@ namespace SourceGit.ViewModels
                             yield return s;
                         break;
 
+                    case "solo":
+                        var soloTokens = SearchTokens
+                            .Where(t => t.StartsWith("solo:", StringComparison.OrdinalIgnoreCase))
+                            .Select(t => t["solo:".Length..])
+                            .Where(s => !string.IsNullOrEmpty(s) && (string.IsNullOrEmpty(active) || s.StartsWith(active, StringComparison.OrdinalIgnoreCase)))
+                            .Take(10);
+                        foreach (var sha in soloTokens)
+                            yield return new Controls.TokenSuggestion { Name = sha, Description = $"[Solo] {sha}" };
+                        break;
+
                     case "commit":
                         var msgMatches = (_commits ?? [])
                             .Where(c => !string.IsNullOrWhiteSpace(c?.SHA) && !string.IsNullOrEmpty(c.Subject) && c.Subject.Contains(active, StringComparison.OrdinalIgnoreCase))
@@ -952,6 +963,12 @@ namespace SourceGit.ViewModels
                         _repo.NavigateToCommit(tokens[1].Trim());
                         return true;
 
+                    case "solo":
+                        if (tokens.Count < 2)
+                            return false;
+                        _repo.NavigateToCommit(tokens[1].Trim());
+                        return true;
+
                     case "commit":
                         if (tokens.Count < 2)
                             return false;
@@ -972,7 +989,7 @@ namespace SourceGit.ViewModels
             SearchSlashCommands.Add(new Controls.TokenSlashCommand
             {
                 Name = "goto",
-                Description = "跳转：/goto <sha|tag|branch|head|commit> [参数]",
+                Description = "跳转：/goto <sha|tag|branch|head|commit|solo> [参数]",
                 Icon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5",
                 RequiresArgument = true,
                 Suggest = SuggestGotoArguments,
