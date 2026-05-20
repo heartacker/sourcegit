@@ -84,10 +84,11 @@ namespace SourceGit.Controls
     ///        - 若存在则移除旧版本，确保同一值不会同时存在正负两种形态。
     ///        - 适用于所有前缀（a:, b:, t:, r:, m:, is: 等），对 ||/&& 运算符无效。
     ///
-    ///     10) 建议上屏机制（CommitSuggestion）
-    ///        - 点击建议项时不直接 AddToken，而是将文本写入 TextBox 供用户确认。
-    ///        - 模拟手动输入流程，避免绕过 Enter 提交协议导致状态不一致。
-    ///        - 用户按 Enter 后由 OnKeyDown 统一处理规范化与提交。
+    ///     10) 建议交互机制（CommitSuggestion）
+    ///        - 普通 Token 建议：点击/回车仅上屏到 TextBox，不直接 AddToken。
+    ///        - Slash 命令建议：点击/回车直接执行命令分支（内置或外部回调）。
+    ///        - 对带参数建议器的外部命令（ArgumentSuggester），若参数为空则进入“参数输入态”。
+    ///          例如选中 /ui 后会变成 "/ui " 并继续弹出参数建议，而不是直接执行。
     ///
     ///     11) Token 删除按钮（PART_DeleteButton）
     ///        - 每个 Token 气泡右侧悬停显示 × 删除按钮。
@@ -143,7 +144,9 @@ namespace SourceGit.Controls
     ///        - /-/ 是内置命令：用于删除当前已存在某一类 Token（支持 /-/a 过滤，过滤项为 prefix）。
     ///        - /-/temp：清理所有临时 Token；/-/persistent：清理所有持久 Token。
     ///        - 外部可通过 SlashCommands 或 AddSlashCommand 注册 /hl、/st 等命令。
-    ///        - Enter/Tab/点击建议项会触发命令回调，不会新增普通 Token。
+    ///        - 无参数命令：选中或回车可直接执行，执行后清空输入。
+    ///        - 需要参数的命令：若命令提供 ArgumentSuggester 且参数为空，先进入 "/cmd " 参数输入态。
+    ///        - Enter/Tab/点击建议项在命令模式下不会新增普通 Token。
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
     [TemplatePart("PART_TokensList", typeof(ListBox))]
@@ -892,6 +895,16 @@ namespace SourceGit.Controls
             }
         }
 
+        private TokenSlashCommand GetExternalSlashCommand(string commandName)
+        {
+            if (string.IsNullOrWhiteSpace(commandName))
+                return null;
+
+            return SlashCommands?.FirstOrDefault(
+                c => string.Equals(c?.Name?.Trim().TrimStart('/'),
+                    commandName, StringComparison.OrdinalIgnoreCase));
+        }
+
         private List<string> GetKnownTokenPrefixes()
         {
             var prefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1110,6 +1123,23 @@ namespace SourceGit.Controls
                 }
                 else if (!string.IsNullOrWhiteSpace(cmd))
                 {
+                    var external = GetExternalSlashCommand(cmd);
+                    var arg = suggestion.SlashCommandArgument?.Trim() ?? string.Empty;
+                    if (external?.ArgumentSuggester != null && string.IsNullOrEmpty(arg))
+                    {
+                        // Command requires/accepts argument suggestions: enter argument mode first.
+                        SetCurrentValue(TextProperty, $"/{cmd} ");
+                        if (_textBox != null)
+                        {
+                            _textBox.Focus();
+                            _textBox.CaretIndex = _textBox.Text.Length;
+                        }
+
+                        _suggestionList.SelectedItem = null;
+                        _ = UpdateSuggestionsAsync(Text ?? string.Empty);
+                        return;
+                    }
+
                     ExecuteExternalSlashCommand(cmd, suggestion.SlashCommandArgument);
                 }
 
@@ -1809,6 +1839,22 @@ namespace SourceGit.Controls
                 }
                 else if (!string.IsNullOrWhiteSpace(slashCommandName))
                 {
+                    var external = GetExternalSlashCommand(slashCommandName);
+                    var arg = slashArgument?.Trim() ?? string.Empty;
+                    if (external?.ArgumentSuggester != null && string.IsNullOrEmpty(arg))
+                    {
+                        // Keep user in command-argument flow instead of executing empty command.
+                        SetCurrentValue(TextProperty, $"/{slashCommandName} ");
+                        _ = UpdateSuggestionsAsync(Text ?? string.Empty);
+                        if (_textBox != null)
+                        {
+                            _textBox.Focus();
+                            _textBox.CaretIndex = _textBox.Text.Length;
+                        }
+                        e.Handled = true;
+                        return;
+                    }
+
                     ExecuteExternalSlashCommand(slashCommandName, slashArgument);
                     SetCurrentValue(TextProperty, string.Empty);
                     if (_popup != null)
