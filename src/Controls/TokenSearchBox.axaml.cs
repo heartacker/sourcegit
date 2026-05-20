@@ -1198,6 +1198,12 @@ namespace SourceGit.Controls
                 }
             }
 
+            // Replace existing token when its negated/non-negated version is added
+            var opposite = isNegated ? checkStr : $"-{checkStr}";
+            var oppositeIdx = SelectedTokens.IndexOf(opposite);
+            if (oppositeIdx >= 0)
+                SelectedTokens.RemoveAt(oppositeIdx);
+
             if (!SelectedTokens.Contains(token))
             {
                 if (AutoGrouping && matchedProvider != null)

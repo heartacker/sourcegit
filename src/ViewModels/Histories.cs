@@ -419,7 +419,12 @@ namespace SourceGit.ViewModels
             _repo = repo;
             _commitDetailSharedData = new CommitDetailSharedData();
 
-            _repo.UIStates.HistoryFilters.CollectionChanged += (_, _) => UpdateDisplayCommits();
+            _repo.UIStates.HistoryFilters.CollectionChanged += (_, e) =>
+            {
+                if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+                    _searchDrivenFilters.Clear();
+                UpdateDisplayCommits();
+            };
             Preferences.Instance.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(Preferences.EnableLinearCommitFolding))
@@ -542,7 +547,7 @@ namespace SourceGit.ViewModels
                     _gitOptionsDrivenByTokens = false;
                 }
 
-                // Handle b:, t:, r: tokens via HistoryFilters for git log re-execution
+                // Handle b:/t:/r: tokens via HistoryFilters for git log re-execution
                 var newSearchFilters = new List<Models.HistoryFilter>();
                 foreach (var token in SearchTokens)
                 {
@@ -555,7 +560,7 @@ namespace SourceGit.ViewModels
                     {
                         var val = check[(check.IndexOf(':') + 1)..].Trim();
                         if (val.Length > 0)
-                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.LocalBranch, mode));
+                            newSearchFilters.Add(new Models.HistoryFilter($"refs/heads/{val}", Models.FilterType.LocalBranch, mode));
                     }
                     else if (check.StartsWith("t:", StringComparison.OrdinalIgnoreCase) ||
                              check.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
@@ -569,9 +574,27 @@ namespace SourceGit.ViewModels
                     {
                         var val = check[(check.IndexOf(':') + 1)..].Trim();
                         if (val.Length > 0)
-                            newSearchFilters.Add(new Models.HistoryFilter(val, Models.FilterType.RemoteBranch, mode));
+                            newSearchFilters.Add(new Models.HistoryFilter($"refs/remotes/{val}", Models.FilterType.RemoteBranch, mode));
                     }
                 }
+
+                // Cancel out entries where same (Pattern, Type) has both Included and Excluded
+                var seen = new Dictionary<(string, Models.FilterType), Models.FilterMode>();
+                var toCancel = new HashSet<(string, Models.FilterType)>();
+                foreach (var f in newSearchFilters)
+                {
+                    var key = (f.Pattern, f.Type);
+                    if (seen.TryGetValue(key, out var existing))
+                    {
+                        if (existing != f.Mode)
+                            toCancel.Add(key);
+                    }
+                    else
+                    {
+                        seen[key] = f.Mode;
+                    }
+                }
+                newSearchFilters.RemoveAll(f => toCancel.Contains((f.Pattern, f.Type)));
 
                 var changed = newSearchFilters.Count != _searchDrivenFilters.Count;
                 if (!changed)
@@ -596,8 +619,14 @@ namespace SourceGit.ViewModels
 
                     foreach (var nf in newSearchFilters)
                     {
-                        _repo.UIStates.HistoryFilters.Add(nf);
-                        _searchDrivenFilters.Add(nf);
+                        // Skip if already present (e.g. added by sidebar via branch:/tag:/remote: tokens)
+                        var exists = _repo.UIStates.HistoryFilters.Any(f =>
+                            f.Pattern == nf.Pattern && f.Type == nf.Type && f.Mode == nf.Mode);
+                        if (!exists)
+                        {
+                            _repo.UIStates.HistoryFilters.Add(nf);
+                            _searchDrivenFilters.Add(nf);
+                        }
                     }
 
                     _repo.RefreshCommits();

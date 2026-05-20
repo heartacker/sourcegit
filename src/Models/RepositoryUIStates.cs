@@ -391,45 +391,80 @@ namespace SourceGit.Models
         public string BuildHistoryParams()
         {
             var includedRefs = new List<string>();
-            var excludedBranches = new List<string>();
-            var excludedRemotes = new List<string>();
-            var excludedTags = new List<string>();
+            var excludedRevisions = new List<string>();
+            var hasExcludeBranches = false;
+            var hasExcludeRemotes = false;
+            var hasExcludeTags = false;
+            var excludeArgs = new System.Text.StringBuilder();
+
             foreach (var filter in HistoryFilters)
             {
                 if (filter.Type == FilterType.LocalBranch)
                 {
                     if (filter.Mode == FilterMode.Included)
+                    {
                         includedRefs.Add(filter.Pattern);
+                    }
                     else if (filter.Mode == FilterMode.Excluded)
-                        excludedBranches.Add($"--exclude=\"{filter.Pattern.AsSpan(11)}\" --decorate-refs-exclude=\"{filter.Pattern}\"");
+                    {
+                        excludedRevisions.Add($"^{filter.Pattern}");
+                        excludeArgs.Append($"--exclude=\"{filter.Pattern.AsSpan(11)}\" --decorate-refs-exclude=\"{filter.Pattern}\" ");
+                        hasExcludeBranches = true;
+                    }
                 }
                 else if (filter.Type == FilterType.LocalBranchFolder)
                 {
                     if (filter.Mode == FilterMode.Included)
+                    {
                         includedRefs.Add($"--branches={filter.Pattern.AsSpan(11)}/*");
+                    }
                     else if (filter.Mode == FilterMode.Excluded)
-                        excludedBranches.Add($"--exclude=\"{filter.Pattern.AsSpan(11)}/*\" --decorate-refs-exclude=\"{filter.Pattern}/*\"");
+                    {
+                        var glob = $"{filter.Pattern.AsSpan(11)}/*";
+                        excludedRevisions.Add($"--exclude=refs/heads/{glob}");
+                        excludeArgs.Append($"--exclude=\"{glob}\" --decorate-refs-exclude=\"{filter.Pattern}/*\" ");
+                        hasExcludeBranches = true;
+                    }
                 }
                 else if (filter.Type == FilterType.RemoteBranch)
                 {
                     if (filter.Mode == FilterMode.Included)
+                    {
                         includedRefs.Add(filter.Pattern);
+                    }
                     else if (filter.Mode == FilterMode.Excluded)
-                        excludedRemotes.Add($"--exclude=\"{filter.Pattern.AsSpan(13)}\" --decorate-refs-exclude=\"{filter.Pattern}\"");
+                    {
+                        excludedRevisions.Add($"^{filter.Pattern}");
+                        excludeArgs.Append($"--exclude=\"{filter.Pattern.AsSpan(13)}\" --decorate-refs-exclude=\"{filter.Pattern}\" ");
+                        hasExcludeRemotes = true;
+                    }
                 }
                 else if (filter.Type == FilterType.RemoteBranchFolder)
                 {
                     if (filter.Mode == FilterMode.Included)
+                    {
                         includedRefs.Add($"--remotes={filter.Pattern.AsSpan(13)}/*");
+                    }
                     else if (filter.Mode == FilterMode.Excluded)
-                        excludedRemotes.Add($"--exclude=\"{filter.Pattern.AsSpan(13)}/*\" --decorate-refs-exclude=\"{filter.Pattern}/*\"");
+                    {
+                        var glob = $"{filter.Pattern.AsSpan(13)}/*";
+                        excludedRevisions.Add($"--exclude=refs/remotes/{glob}");
+                        excludeArgs.Append($"--exclude=\"{glob}\" --decorate-refs-exclude=\"{filter.Pattern}/*\" ");
+                        hasExcludeRemotes = true;
+                    }
                 }
                 else if (filter.Type == FilterType.Tag)
                 {
                     if (filter.Mode == FilterMode.Included)
+                    {
                         includedRefs.Add($"refs/tags/{filter.Pattern}");
+                    }
                     else if (filter.Mode == FilterMode.Excluded)
-                        excludedTags.Add($"--exclude=\"{filter.Pattern}\" --decorate-refs-exclude=\"refs/tags/{filter.Pattern}\"");
+                    {
+                        excludedRevisions.Add($"^refs/tags/{filter.Pattern}");
+                        excludeArgs.Append($"--exclude=\"{filter.Pattern}\" --decorate-refs-exclude=\"refs/tags/{filter.Pattern}\" ");
+                        hasExcludeTags = true;
+                    }
                 }
             }
 
@@ -449,39 +484,46 @@ namespace SourceGit.Models
             if (HistoryShowFlags.HasFlag(HistoryShowFlags.SimplifyByDecoration))
                 builder.Append("--simplify-by-decoration ");
 
-            if (includedRefs.Count > 0)
+            var hasIncluded = includedRefs.Count > 0;
+            var hasExcluded = excludedRevisions.Count > 0;
+
+            if (hasIncluded || hasExcluded)
             {
-                foreach (var r in includedRefs)
+                if (hasIncluded)
                 {
-                    builder.Append(r);
-                    builder.Append(' ');
-                }
-            }
-            else if (excludedBranches.Count + excludedRemotes.Count + excludedTags.Count > 0)
-            {
-                foreach (var b in excludedBranches)
-                {
-                    builder.Append(b);
-                    builder.Append(' ');
+                    foreach (var r in includedRefs)
+                    {
+                        builder.Append(r);
+                        builder.Append(' ');
+                    }
                 }
 
-                builder.Append("--exclude=HEAD --branches ");
-
-                foreach (var r in excludedRemotes)
+                if (hasExcluded)
                 {
-                    builder.Append(r);
-                    builder.Append(' ');
+                    if (hasIncluded)
+                    {
+                        // Combined includes + excludes: use ^prefix for revision-level pruning
+                        foreach (var rev in excludedRevisions)
+                        {
+                            builder.Append(rev);
+                            builder.Append(' ');
+                        }
+                    }
+                    else
+                    {
+                        // Exclude-only: use --exclude with --branches/--remotes/--tags
+                        builder.Append(excludeArgs);
+
+                        if (hasExcludeBranches)
+                            builder.Append("--exclude=HEAD --branches ");
+
+                        if (hasExcludeRemotes)
+                            builder.Append("--exclude=origin/HEAD --remotes ");
+
+                        if (hasExcludeTags)
+                            builder.Append("--tags ");
+                    }
                 }
-
-                builder.Append("--exclude=origin/HEAD --remotes ");
-
-                foreach (var t in excludedTags)
-                {
-                    builder.Append(t);
-                    builder.Append(' ');
-                }
-
-                builder.Append("--tags ");
             }
             else
             {
