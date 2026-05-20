@@ -139,7 +139,8 @@ namespace SourceGit.Controls
     ///
     ///     20) 斜杠命令系统（/）
     ///        - 输入 / 进入命令模式，建议列表展示可执行命令。
-    ///        - /- 是内置命令：用于删除当前已存在 Token（支持 /-a:、/-main 过滤）。
+    ///        - /-  是内置命令：用于删除当前已存在 Token（支持 /-a:、/-main 过滤）。
+    ///        - /-/ 是内置命令：用于删除当前已存在某一类 Token（支持 /-/a 过滤，过滤项为 prefix）。
     ///        - 外部可通过 SlashCommands 或 AddSlashCommand 注册 /hl、/st 等命令。
     ///        - Enter/Tab/点击建议项会触发命令回调，不会新增普通 Token。
     /// </summary>
@@ -713,6 +714,38 @@ namespace SourceGit.Controls
             return text.TrimStart();
         }
 
+        private static string NormalizePrefixKey(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return string.Empty;
+
+            var s = raw.Trim();
+            if (s.StartsWith("-", StringComparison.Ordinal))
+                s = s[1..];
+            if (s.StartsWith("/", StringComparison.Ordinal))
+                s = s[1..];
+
+            var idx = s.IndexOf(':');
+            if (idx >= 0)
+                return s[..(idx + 1)].ToLowerInvariant();
+
+            return (s + ":").ToLowerInvariant();
+        }
+
+        private static bool TryParsePrefixClassRemoveArgument(string arg, out string prefixKey)
+        {
+            prefixKey = string.Empty;
+            if (string.IsNullOrWhiteSpace(arg))
+                return false;
+
+            var trimmed = arg.Trim();
+            if (!trimmed.StartsWith("/", StringComparison.Ordinal))
+                return false;
+
+            prefixKey = NormalizePrefixKey(trimmed);
+            return !string.IsNullOrEmpty(prefixKey);
+        }
+
         private static bool TryParseSlashCommandSegment(string text, out string commandName, out string argument)
         {
             commandName = null;
@@ -721,6 +754,13 @@ namespace SourceGit.Controls
             var segment = GetCurrentSegment(text);
             if (!segment.StartsWith("/", StringComparison.Ordinal))
                 return false;
+
+            if (segment.StartsWith("/-/", StringComparison.Ordinal))
+            {
+                commandName = "-/";
+                argument = segment.Length > 3 ? segment[3..].Trim() : string.Empty;
+                return true;
+            }
 
             if (segment.StartsWith("/-", StringComparison.Ordinal))
             {
@@ -793,6 +833,12 @@ namespace SourceGit.Controls
                 Description = "移除已存在 Token",
             };
 
+            yield return new TokenSlashCommand
+            {
+                Name = "-/",
+                Description = "按前缀批量移除 Token（示例：/-/a）",
+            };
+
             if (SlashCommands == null)
                 yield break;
 
@@ -845,6 +891,82 @@ namespace SourceGit.Controls
             }
         }
 
+        private List<string> GetKnownTokenPrefixes()
+        {
+            var prefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (Providers != null)
+            {
+                foreach (var provider in Providers)
+                {
+                    if (!string.IsNullOrWhiteSpace(provider?.Prefix))
+                    {
+                        var p = provider.Prefix.Trim().TrimEnd(':');
+                        if (!string.IsNullOrWhiteSpace(p))
+                            prefixes.Add(p);
+                    }
+
+                    if (provider?.FullPrefix != null)
+                    {
+                        foreach (var alias in provider.FullPrefix)
+                        {
+                            var p = alias?.Trim().TrimEnd(':');
+                            if (!string.IsNullOrWhiteSpace(p))
+                                prefixes.Add(p);
+                        }
+                    }
+                }
+            }
+
+            foreach (var token in SelectedTokens)
+            {
+                if (string.IsNullOrWhiteSpace(token) || IsOperatorToken(token))
+                    continue;
+
+                var check = token.StartsWith("-", StringComparison.Ordinal) ? token[1..] : token;
+                var idx = check.IndexOf(':');
+                if (idx > 0)
+                {
+                    var p = check[..idx].Trim();
+                    if (!string.IsNullOrWhiteSpace(p))
+                        prefixes.Add(p);
+                }
+            }
+
+            return prefixes.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        private int DeleteTokensByPrefixCommand(string argument)
+        {
+            var raw = (argument ?? string.Empty).Trim().TrimStart('/').Trim();
+            raw = raw.TrimEnd(':').Trim();
+            if (string.IsNullOrEmpty(raw))
+                return 0;
+
+            var knownPrefixes = GetKnownTokenPrefixes();
+            var matchedPrefixes = knownPrefixes
+                .Where(p => p.Equals(raw, StringComparison.OrdinalIgnoreCase))
+                .Select(p => p + ":")
+                .ToList();
+
+            if (matchedPrefixes.Count == 0)
+                matchedPrefixes.Add(raw + ":");
+
+            var toRemove = SelectedTokens
+                .Where(t => !IsOperatorToken(t))
+                .Where(t =>
+                {
+                    var check = t.StartsWith("-", StringComparison.Ordinal) ? t[1..] : t;
+                    return matchedPrefixes.Any(prefix => check.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+                })
+                .ToList();
+
+            foreach (var token in toRemove)
+                RemoveToken(token);
+
+            return toRemove.Count;
+        }
+
         private static string BuildTextWithCurrentSegmentReplaced(string originalText, string newSegment)
         {
             if (string.IsNullOrEmpty(originalText))
@@ -888,7 +1010,16 @@ namespace SourceGit.Controls
                     var tokenToRemove = suggestion.SlashCommandArgument?.Trim();
                     if (!string.IsNullOrWhiteSpace(tokenToRemove))
                     {
-                        RemoveToken(tokenToRemove);
+                        if (tokenToRemove.StartsWith("prefix:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var key = tokenToRemove[7..].Trim();
+                            if (!string.IsNullOrWhiteSpace(key))
+                                DeleteTokensByPrefix(key, includeNegated: true);
+                        }
+                        else
+                        {
+                            RemoveToken(tokenToRemove);
+                        }
 
                         SetCurrentValue(TextProperty, string.Empty);
                         if (_textBox != null)
@@ -905,6 +1036,36 @@ namespace SourceGit.Controls
 
                     // Picking '/-' from command palette switches into remove mode.
                     SetCurrentValue(TextProperty, "/-");
+                    if (_textBox != null)
+                    {
+                        _textBox.Focus();
+                        _textBox.CaretIndex = _textBox.Text.Length;
+                    }
+
+                    _suggestionList.SelectedItem = null;
+                    _ = UpdateSuggestionsAsync(Text ?? string.Empty);
+                    return;
+                }
+                else if (string.Equals(cmd, "-/", StringComparison.Ordinal))
+                {
+                    var removed = DeleteTokensByPrefixCommand(suggestion.SlashCommandArgument);
+                    if (removed > 0)
+                    {
+                        SetCurrentValue(TextProperty, string.Empty);
+                        if (_textBox != null)
+                        {
+                            _textBox.Focus();
+                            _textBox.CaretIndex = _textBox.Text.Length;
+                        }
+
+                        _suggestionList.SelectedItem = null;
+                        if (_popup != null)
+                            _popup.IsOpen = false;
+                        return;
+                    }
+
+                    // Picking '/-/' from command palette switches into prefix-remove mode.
+                    SetCurrentValue(TextProperty, "/-/");
                     if (_textBox != null)
                     {
                         _textBox.Focus();
@@ -970,6 +1131,47 @@ namespace SourceGit.Controls
 
             var normalized = pattern?.Trim() ?? string.Empty;
 
+            if (TryParsePrefixClassRemoveArgument(normalized, out var prefixFilter))
+            {
+                var prefixGroups = SelectedTokens
+                    .Where(t => !IsOperatorToken(t))
+                    .Select(t => NormalizePrefixKey(t))
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .GroupBy(p => p)
+                    .Select(g => new { Prefix = g.Key, Count = g.Count() })
+                    .Where(x => string.IsNullOrEmpty(prefixFilter) || x.Prefix.Contains(prefixFilter, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(x => x.Prefix, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (prefixGroups.Count == 0)
+                {
+                    _popup.IsOpen = false;
+                    return;
+                }
+
+                var grouped = new List<object>
+                {
+                    new TokenSuggestionHeader { Name = "移除 Token 前缀类 (/-/)" }
+                };
+
+                foreach (var g in prefixGroups)
+                {
+                    grouped.Add(new TokenSuggestion
+                    {
+                        Name = g.Prefix,
+                        Description = $"{g.Count} 项 · 回车/点击批量删除",
+                        IsSlashCommand = true,
+                        SlashCommandName = "-",
+                        SlashCommandArgument = $"prefix:{g.Prefix}",
+                    });
+                }
+
+                _suggestionList.ItemsSource = grouped;
+                _popup.IsOpen = true;
+                _suggestionList.SelectedIndex = grouped.Count > 1 ? 1 : -1;
+                return;
+            }
+
             var tokens = SelectedTokens
                 .Where(t => !IsOperatorToken(t))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1007,10 +1209,60 @@ namespace SourceGit.Controls
             _suggestionList.SelectedIndex = flatList.Count > 1 ? 1 : -1;
         }
 
+        private void ShowRemovePrefixSuggestions(string pattern)
+        {
+            if (_popup == null || _suggestionList == null)
+                return;
+
+            var normalized = (pattern ?? string.Empty).Trim().TrimStart('/').Trim();
+            normalized = normalized.TrimEnd(':').Trim();
+
+            var prefixes = GetKnownTokenPrefixes()
+                .Where(p => string.IsNullOrEmpty(normalized) || p.Contains(normalized, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (prefixes.Count == 0)
+            {
+                _popup.IsOpen = false;
+                return;
+            }
+
+            var flatList = new List<object>
+            {
+                new TokenSuggestionHeader { Name = "批量移除前缀 (/-/)" }
+            };
+
+            foreach (var prefix in prefixes)
+            {
+                flatList.Add(new TokenSuggestion
+                {
+                    Name = $"/-/{prefix}",
+                    Description = $"删除前缀 {prefix}: 的所有 Token",
+                    IsSlashCommand = true,
+                    SlashCommandName = "-/",
+                    SlashCommandArgument = prefix,
+                });
+            }
+
+            _suggestionList.ItemsSource = flatList;
+            _popup.IsOpen = true;
+            _suggestionList.SelectedIndex = flatList.Count > 1 ? 1 : -1;
+        }
+
         private void ShowSlashCommandSuggestions(string commandPattern, string argument)
         {
             if (_popup == null || _suggestionList == null)
                 return;
+
+            if (string.Equals(commandPattern, "-/", StringComparison.Ordinal) ||
+                (commandPattern?.StartsWith("-/", StringComparison.Ordinal) ?? false))
+            {
+                var prefixPattern = string.Equals(commandPattern, "-/", StringComparison.Ordinal)
+                    ? argument
+                    : commandPattern[2..] + (string.IsNullOrEmpty(argument) ? string.Empty : $" {argument}");
+                ShowRemovePrefixSuggestions(prefixPattern);
+                return;
+            }
 
             if (string.Equals(commandPattern, "-", StringComparison.Ordinal) ||
                 (commandPattern?.StartsWith("-", StringComparison.Ordinal) ?? false))
@@ -1469,13 +1721,27 @@ namespace SourceGit.Controls
                 {
                     CommitSuggestion(selected);
                 }
+                else if (string.Equals(slashCommandName, "-/", StringComparison.Ordinal))
+                {
+                    DeleteTokensByPrefixCommand(slashArgument);
+                    SetCurrentValue(TextProperty, string.Empty);
+                    if (_popup != null)
+                        _popup.IsOpen = false;
+                }
                 else if (string.Equals(slashCommandName, "-", StringComparison.Ordinal))
                 {
                     var removePattern = slashArgument?.Trim() ?? string.Empty;
-                    var exact = SelectedTokens.FirstOrDefault(t =>
-                        !IsOperatorToken(t) && string.Equals(t, removePattern, StringComparison.OrdinalIgnoreCase));
-                    if (!string.IsNullOrEmpty(exact))
-                        RemoveToken(exact);
+                    if (TryParsePrefixClassRemoveArgument(removePattern, out var prefixKey))
+                    {
+                        DeleteTokensByPrefix(prefixKey, includeNegated: true);
+                    }
+                    else
+                    {
+                        var exact = SelectedTokens.FirstOrDefault(t =>
+                            !IsOperatorToken(t) && string.Equals(t, removePattern, StringComparison.OrdinalIgnoreCase));
+                        if (!string.IsNullOrEmpty(exact))
+                            RemoveToken(exact);
+                    }
 
                     SetCurrentValue(TextProperty, string.Empty);
                     if (_popup != null)
