@@ -99,9 +99,9 @@ namespace SourceGit.ViewModels
             {
                 var fields = new[]
                 {
-                    new TokenSuggestion { Name = "author", Description = "作者列" },
-                    new TokenSuggestion { Name = "sha", Description = "SHA 列" },
-                    new TokenSuggestion { Name = "time", Description = "时间列" },
+                    new TokenSuggestion { Name = "author", Value = "author", Description = "作者列" },
+                    new TokenSuggestion { Name = "sha", Value = "sha", Description = "SHA 列" },
+                    new TokenSuggestion { Name = "time", Value = "time", Description = "时间列" },
                 };
 
                 if (string.IsNullOrWhiteSpace(pattern))
@@ -114,9 +114,9 @@ namespace SourceGit.ViewModels
             {
                 var values = new[]
                 {
-                    new TokenSuggestion { Name = $"{field} true", Description = "显式开启" },
-                    new TokenSuggestion { Name = $"{field} false", Description = "显式关闭" },
-                    new TokenSuggestion { Name = $"{field} toggle", Description = "切换" },
+                    new TokenSuggestion { Name = $"{field} true", Value = $"{field} true", Description = "显式开启" },
+                    new TokenSuggestion { Name = $"{field} false", Value = $"{field} false", Description = "显式关闭" },
+                    new TokenSuggestion { Name = $"{field} toggle", Value = $"{field} toggle", Description = "切换" },
                 };
 
                 if (string.IsNullOrWhiteSpace(pattern))
@@ -182,7 +182,7 @@ namespace SourceGit.ViewModels
                         "solo" => "/goto solo <SHA>",
                         _ => "",
                     };
-                    yield return new TokenSuggestion { Name = cmd, Description = syntax };
+                    yield return new TokenSuggestion { Name = cmd, Value = cmd, Description = syntax };
                 }
                 yield break;
             }
