@@ -970,7 +970,10 @@ namespace SourceGit.ViewModels
 
         public void NavigateToBranch(string branch, bool isDelayMode = false)
         {
-            var b = _branches.Find(b => b.FullName.Equals(branch, StringComparison.Ordinal));
+            var b = _branches.Find(b =>
+                b.FullName.Equals(branch, StringComparison.Ordinal) ||
+                b.Name.Equals(branch, StringComparison.Ordinal) ||
+                (!b.IsLocal && b.FriendlyName.Equals(branch, StringComparison.Ordinal)));
             if (b != null)
                 NavigateToCommit(b.Head);
         }

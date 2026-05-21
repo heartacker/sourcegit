@@ -1573,14 +1573,14 @@ namespace SourceGit.Controls
 
                         argList.Add(new TokenSuggestion
                         {
-                            Name = $"/{exactCommand.Name} {argSuggestion.Name}",
+                            Name = $"/{exactCommand.Name} {argSuggestion.Value}",
                             Description = string.IsNullOrWhiteSpace(argSuggestion.Description)
                                 ? "回车/点击执行命令"
                                 : argSuggestion.Description,
                             Icon = string.IsNullOrWhiteSpace(argSuggestion.Icon) ? exactCommand.Icon : argSuggestion.Icon,
                             IsSlashCommand = true,
                             SlashCommandName = exactCommand.Name,
-                            SlashCommandArgument = argSuggestion.Name,
+                            SlashCommandArgument = argSuggestion.Value,
                             CanExecuteDirectly = true,
                             ActionType = TokenSuggestionActionType.Execute,
                         });

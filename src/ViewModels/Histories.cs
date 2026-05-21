@@ -411,11 +411,6 @@ namespace SourceGit.ViewModels
             get => _repo.CurrentBranch;
         }
 
-        public Repository Repo
-        {
-            get => _repo;
-        }
-
         public AvaloniaList<Models.IssueTracker> IssueTrackers
         {
             get => _repo.IssueTrackers;
@@ -911,10 +906,10 @@ namespace SourceGit.ViewModels
                         var syntax = cmd switch
                         {
                             "sha" => "/goto sha <SHA>",
-                            "tag" => "/goto tag <标签名>",
-                            "branch" => "/goto branch <分支名>",
+                            "tag" => "/goto tag <tagname>",
+                            "branch" => "/goto branch <name>",
                             "head" => "/goto head",
-                            "commit" => "/goto commit <关键词>",
+                            "commit" => "/goto commit <keyword>",
                             "solo" => "/goto solo <SHA>",
                             _ => "",
                         };
@@ -933,7 +928,9 @@ namespace SourceGit.ViewModels
                     case "branch":
                         var branchNames = (_commits ?? [])
                             .SelectMany(c => c.Decorators)
-                            .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead or Models.DecoratorType.RemoteBranchHead)
+                            .Where(d => d.Type is Models.DecoratorType.LocalBranchHead
+                                    or Models.DecoratorType.CurrentBranchHead
+                                    or Models.DecoratorType.RemoteBranchHead)
                             .Select(d => d.Name)
                             .Where(n => !string.IsNullOrEmpty(n))
                             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -941,7 +938,12 @@ namespace SourceGit.ViewModels
                             .OrderBy(n => n)
                             .Take(20);
                         foreach (var name in branchNames)
-                            yield return new Controls.TokenSuggestion { Name = $"branch {name}", Description = "分支" };
+                            yield return new Controls.TokenSuggestion
+                            {
+                                Name = name,
+                                Value = $"branch {name}",
+                                Description = "branch"
+                            };
                         break;
 
                     case "tag":
@@ -955,17 +957,27 @@ namespace SourceGit.ViewModels
                             .OrderBy(n => n)
                             .Take(20);
                         foreach (var name in tagNames)
-                            yield return new Controls.TokenSuggestion { Name = $"tag {name}", Description = "标签" };
+                            yield return new Controls.TokenSuggestion
+                            {
+                                Name = name,
+                                Value = $"tag {name}",
+                                Description = "tag"
+                            };
                         break;
 
                     case "sha":
                         var shaMatches = (_commits ?? [])
                             .Where(c => !string.IsNullOrWhiteSpace(c?.SHA) && c.SHA.StartsWith(active, StringComparison.OrdinalIgnoreCase))
                             .Take(10)
-                            .Select(c => new Controls.TokenSuggestion
+                            .Select(c =>
                             {
-                                Name = $"sha {c.SHA[..Math.Min(10, c.SHA.Length)]}",
-                                Description = $"[SHA] {c.Subject ?? ""} · {c.Author.Name}",
+                                var sha = c.SHA[..Math.Min(10, c.SHA.Length)];
+                                return new Controls.TokenSuggestion
+                                {
+                                    Name = sha,
+                                    Value = $"sha {sha}",
+                                    Description = $"{c.Subject ?? ""} · {c.Author.Name}",
+                                };
                             });
                         foreach (var s in shaMatches)
                             yield return s;
@@ -978,17 +990,27 @@ namespace SourceGit.ViewModels
                             .Where(s => !string.IsNullOrEmpty(s) && (string.IsNullOrEmpty(active) || s.StartsWith(active, StringComparison.OrdinalIgnoreCase)))
                             .Take(10);
                         foreach (var sha in soloTokens)
-                            yield return new Controls.TokenSuggestion { Name = $"solo {sha}", Description = $"[Solo] {sha}" };
+                            yield return new Controls.TokenSuggestion
+                            {
+                                Name = sha,
+                                Value = $"solo {sha}",
+                                Description = $"[Solo] {sha}"
+                            };
                         break;
 
                     case "commit":
                         var msgMatches = (_commits ?? [])
                             .Where(c => !string.IsNullOrWhiteSpace(c?.SHA) && !string.IsNullOrEmpty(c.Subject) && c.Subject.Contains(active, StringComparison.OrdinalIgnoreCase))
                             .Take(10)
-                            .Select(c => new Controls.TokenSuggestion
+                            .Select(c =>
                             {
-                                Name = $"commit {c.SHA[..Math.Min(10, c.SHA.Length)]}",
-                                Description = $"[提交信息] {c.Subject ?? ""} · {c.Author.Name}",
+                                var sha = c.SHA[..Math.Min(10, c.SHA.Length)];
+                                return new Controls.TokenSuggestion
+                                {
+                                    Name = $"{c.Subject ?? ""} · {c.Author.Name}",
+                                    // Value = $"commit {sha}",
+                                    Description = sha,
+                                };
                             });
                         foreach (var s in msgMatches)
                             yield return s;
