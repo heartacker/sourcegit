@@ -916,6 +916,7 @@
           <ContentControl.DataTemplates>
             <DataTemplate DataType="vm:Histories">
               <v:Histories CurrentBranch="{Binding CurrentBranch, Mode=OneWay}"
+                           Branches="{Binding Repo.Branches, Mode=OneWay}"
                            Bisect="{Binding Bisect, Mode=OneWay}"
                            IssueTrackers="{Binding IssueTrackers, Mode=OneWay}"
                            GraphHighlighting="{Binding GraphHighlighting, Mode=OneWay}">

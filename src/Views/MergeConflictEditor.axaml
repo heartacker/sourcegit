@@ -63,7 +63,7 @@
                   IsEnabled="{Binding UnsolvedCount, Converter={x:Static c:IntConverters.IsGreaterThanZero}, Mode=OneWay}">
             <Path Width="12" Height="12" Margin="0,6,0,0" Data="{StaticResource Icons.Down}"/>
           </Button>
-          
+
           <!-- Info Bar -->
           <TextBlock Text="{Binding UnsolvedCount, Converter={x:Static c:IntConverters.ToUnsolvedDesc}, Mode=OneWay}"
                      VerticalAlignment="Center"/>
@@ -99,6 +99,7 @@
                     <DataTemplate DataType="m:Commit">
                       <StackPanel Orientation="Horizontal">
                         <v:CommitRefsPresenter Foreground="{DynamicResource Brush.FG1}"
+                                               Branches="{Binding $parent[v:MergeConflictEditor].Repository.Branches}"
                                                FontSize="12"
                                                VerticalAlignment="Center"
                                                UseGraphColor="False"/>
@@ -165,6 +166,7 @@
                     <DataTemplate DataType="m:Commit">
                       <StackPanel Orientation="Horizontal">
                         <v:CommitRefsPresenter Foreground="{DynamicResource Brush.FG1}"
+                                               Branches="{Binding $parent[v:MergeConflictEditor].Repository.Branches}"
                                                FontSize="12"
                                                VerticalAlignment="Center"
                                                UseGraphColor="False"/>

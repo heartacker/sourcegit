@@ -15,6 +15,8 @@ namespace SourceGit.ViewModels
             get => _change.ConflictDesc;
         }
 
+        public Repository Repository => _repo;
+
         public object Theirs
         {
             get;
