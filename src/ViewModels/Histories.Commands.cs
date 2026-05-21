@@ -277,6 +277,7 @@ namespace SourceGit.ViewModels
                             return new TokenSuggestion
                             {
                                 Name = $"{c.Subject ?? ""} · {c.Author.Name}",
+                                Value = $"commit {sha}",
                                 Description = sha,
                             };
                         });
