@@ -929,7 +929,7 @@ namespace SourceGit.ViewModels
                     case "branch":
                         var branchNames = (_commits ?? [])
                             .SelectMany(c => c.Decorators)
-                            .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead)
+                            .Where(d => d.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead or Models.DecoratorType.RemoteBranchHead)
                             .Select(d => d.Name)
                             .Where(n => !string.IsNullOrEmpty(n))
                             .Distinct(StringComparer.OrdinalIgnoreCase)
