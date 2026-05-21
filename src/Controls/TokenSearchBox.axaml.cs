@@ -698,7 +698,7 @@ namespace SourceGit.Controls
                 }
 
                 if (!fromActionButton)
-                    CommitSuggestion(suggestion);
+                    CommitSuggestion(suggestion, suggestion.IsSlashCommand);
 
                 e.Handled = true;
             }
@@ -1182,11 +1182,7 @@ namespace SourceGit.Controls
             var arg = suggestion?.SlashCommandArgument?.Trim() ?? string.Empty;
 
             string replacement;
-            if (!string.IsNullOrWhiteSpace(suggestion?.Name) && suggestion.Name.StartsWith("/", StringComparison.Ordinal))
-            {
-                replacement = suggestion.Name;
-            }
-            else if (string.Equals(cmd, "-", StringComparison.Ordinal))
+            if (string.Equals(cmd, "-", StringComparison.Ordinal))
             {
                 replacement = string.IsNullOrWhiteSpace(arg) ? "/-" : $"/-{arg}";
             }
@@ -1327,7 +1323,24 @@ namespace SourceGit.Controls
                     }
 
                     var fullArg = string.Join(" ", _slashCommandArgs.Concat(new[] { arg }).Where(a => a.Length > 0));
-                    ExecuteExternalSlashCommand(cmd, fullArg);
+                    if (!ExecuteExternalSlashCommand(cmd, fullArg))
+                    {
+                        var appendArg = suggestion.SlashCommandArgument?.Trim();
+                        if (!string.IsNullOrWhiteSpace(appendArg))
+                            _slashCommandArgs.Add(appendArg);
+
+                        var replacement = BuildSlashSuggestionReplacementText(suggestion);
+                        SetCurrentValue(TextProperty, replacement);
+                        if (_textBox != null)
+                        {
+                            _textBox.Focus();
+                            _textBox.CaretIndex = _textBox.Text.Length;
+                        }
+
+                        _suggestionList.SelectedItem = null;
+                        _ = UpdateSuggestionsAsync(Text ?? string.Empty);
+                        return;
+                    }
                 }
 
                 SetCurrentValue(TextProperty, string.Empty);
@@ -2271,7 +2284,7 @@ namespace SourceGit.Controls
 
                 if (selectedSlashSuggestion?.IsSlashCommand == true)
                 {
-                    CommitSuggestion(selectedSlashSuggestion);
+                    CommitSuggestion(selectedSlashSuggestion, true);
                 }
                 else if (string.Equals(slashCommandName, "-/", StringComparison.Ordinal))
                 {
@@ -2351,7 +2364,7 @@ namespace SourceGit.Controls
                 {
                     if (_suggestionList.SelectedItem is TokenSuggestion suggestion)
                     {
-                        CommitSuggestion(suggestion);
+                        CommitSuggestion(suggestion, suggestion.IsSlashCommand);
                         e.Handled = true;
                         return;
                     }
