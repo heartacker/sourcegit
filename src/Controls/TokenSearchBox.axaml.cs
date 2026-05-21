@@ -1177,6 +1177,8 @@ namespace SourceGit.Controls
                 var external = GetExternalSlashCommand(cmd);
                 if (string.IsNullOrWhiteSpace(arg))
                     replacement = external?.RequiresArgument == true ? $"/{cmd} " : $"/{cmd}";
+                else if (external?.RequiresArgument == true)
+                    replacement = $"/{cmd} {argsStr} ";
                 else
                     replacement = $"/{cmd} {arg}";
             }
