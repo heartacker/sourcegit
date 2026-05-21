@@ -10,16 +10,62 @@ namespace SourceGit.Views
 {
     public class CommitRefsPresenter : Control
     {
-        public class RenderItem
+        private class DecoratorRenderItem
         {
             public Geometry Icon { get; set; } = null;
             public FormattedText Label { get; set; } = null;
-            public IBrush Brush { get; set; } = null;
-            public bool IsHead { get; set; } = false;
-            public double Width { get; set; } = 0.0;
             public Models.Decorator Decorator { get; set; } = null;
-            public List<FormattedText> Remotes { get; set; } = [];
+            public bool IsHead { get; set; } = false;
+            public bool IsTracked { get; set; } = false;
+            public double Width { get; set; } = 0;
+            public Rect Bounds { get; set; } = new Rect();
         }
+
+        private class Pill
+        {
+            public List<DecoratorRenderItem> Locals { get; set; } = new();
+            public List<DecoratorRenderItem> RemoteGroup { get; set; } = new();
+            public string SharedBranchName { get; set; } = null;
+            public DecoratorRenderItem Other { get; set; } = null;
+            public IBrush Brush { get; set; } = null;
+            public double Width { get; set; } = 0.0;
+            public Rect Bounds { get; set; } = new Rect();
+        }
+
+        // --- Performance Cache ---
+        private static readonly Dictionary<string, StreamGeometry> ICON_CACHE = new();
+        private static void EnsureIcons(Control resourceHost)
+        {
+            if (ICON_CACHE.Count > 0) return;
+            ICON_CACHE["Head"] = resourceHost.FindResource("Icons.Head") as StreamGeometry;
+            ICON_CACHE["Remote"] = resourceHost.FindResource("Icons.Remote") as StreamGeometry;
+            ICON_CACHE["Tag"] = resourceHost.FindResource("Icons.Tag") as StreamGeometry;
+            ICON_CACHE["Branch"] = resourceHost.FindResource("Icons.Branch") as StreamGeometry;
+        }
+
+        private FormattedText _pipeText;
+        private FormattedText _trackText;
+        private FormattedText _colonText;
+        private FormattedText _neqText;
+
+        private List<Models.Branch> _lastBranchesRef = null;
+        private Dictionary<string, Models.Branch> _branchLookup = null;
+        private Dictionary<string, Models.Branch> GetBranchLookup(List<Models.Branch> branches)
+        {
+            if (branches == null) return null;
+            if (ReferenceEquals(branches, _lastBranchesRef)) return _branchLookup;
+
+            var lookup = new Dictionary<string, Models.Branch>(branches.Count, StringComparer.OrdinalIgnoreCase);
+            foreach (var b in branches)
+            {
+                if (b.IsLocal) lookup[b.Name] = b;
+            }
+
+            _lastBranchesRef = branches;
+            _branchLookup = lookup;
+            return lookup;
+        }
+        // -------------------------
 
         public static readonly StyledProperty<FontFamily> FontFamilyProperty =
             TextBlock.FontFamilyProperty.AddOwner<CommitRefsPresenter>();
@@ -93,6 +139,15 @@ namespace SourceGit.Views
             set => SetValue(ShowTagsProperty, value);
         }
 
+        public static readonly StyledProperty<List<Models.Branch>> BranchesProperty =
+            AvaloniaProperty.Register<CommitRefsPresenter, List<Models.Branch>>(nameof(Branches));
+
+        public List<Models.Branch> Branches
+        {
+            get => GetValue(BranchesProperty);
+            set => SetValue(BranchesProperty, value);
+        }
+
         static CommitRefsPresenter()
         {
             AffectsMeasure<CommitRefsPresenter>(
@@ -102,17 +157,33 @@ namespace SourceGit.Views
                 UseGraphColorProperty,
                 UseCompactBranchNamesProperty,
                 BackgroundProperty,
-                ShowTagsProperty);
+                ShowTagsProperty,
+                BranchesProperty);
+
+            AffectsRender<CommitRefsPresenter>(
+                ForegroundProperty,
+                BackgroundProperty,
+                UseGraphColorProperty,
+                UseCompactBranchNamesProperty,
+                BranchesProperty);
         }
 
         public Models.Decorator DecoratorAt(Point point)
         {
-            var x = 0.0;
-            foreach (var item in _items)
+            foreach (var pill in _pills)
             {
-                x += item.Width;
-                if (point.X < x)
-                    return item.Decorator;
+                if (pill.Bounds.Contains(point))
+                {
+                    if (pill.Other != null) return pill.Other.Decorator;
+                    foreach (var l in pill.Locals)
+                    {
+                        if (l.Bounds.Contains(point)) return l.Decorator;
+                    }
+                    foreach (var r in pill.RemoteGroup)
+                    {
+                        if (r.Bounds.Contains(point)) return r.Decorator;
+                    }
+                }
             }
 
             return null;
@@ -120,68 +191,166 @@ namespace SourceGit.Views
 
         public override void Render(DrawingContext context)
         {
-            if (_items.Count == 0)
+            if (_pills.Count == 0)
                 return;
 
-            var useGraphColor = UseGraphColor;
             var fg = Foreground;
             var bg = Background;
-            var allowWrap = AllowWrap;
             var x = 1.5;
             var y = 0.5;
 
             context.FillRectangle(Brushes.Transparent, Bounds);
 
-            foreach (var item in _items)
+            foreach (var pill in _pills)
             {
-                if (allowWrap && x > 1.5 && x + item.Width > Bounds.Width)
+                if (AllowWrap && x > 1.5 && x + pill.Width > Bounds.Width)
                 {
                     x = 1.5;
                     y += 20.0;
                 }
 
-                var entireRect = new RoundedRect(new Rect(x, y, item.Width, 16), new CornerRadius(4));
-                if (item.IsHead)
-                {
-                    if (useGraphColor)
-                    {
-                        if (bg != null)
-                            context.DrawRectangle(bg, null, entireRect);
+                pill.Bounds = new Rect(x, y, pill.Width, 16);
+                var entireRect = new RoundedRect(pill.Bounds, new CornerRadius(4));
 
+                bool isHead = pill.Other != null && pill.Other.IsHead;
+                if (!isHead)
+                {
+                    foreach (var local in pill.Locals)
+                    {
+                        if (local.IsHead)
+                        {
+                            isHead = true;
+                            break;
+                        }
+                    }
+                }
+                if (isHead)
+                {
+                    if (UseGraphColor)
+                    {
+                        if (bg != null) context.DrawRectangle(bg, null, entireRect);
                         using (context.PushOpacity(.6))
-                            context.DrawRectangle(item.Brush, null, entireRect);
+                            context.DrawRectangle(pill.Brush, null, entireRect);
                     }
                 }
                 else
                 {
-                    if (bg != null)
-                        context.DrawRectangle(bg, null, entireRect);
-
-                    var labelRect = new RoundedRect(new Rect(x + 16, y, item.Width - 16, 16), new CornerRadius(4, 0, 0, 4));
+                    if (bg != null) context.DrawRectangle(bg, null, entireRect);
                     using (context.PushOpacity(.2))
-                        context.DrawRectangle(item.Brush, null, labelRect);
+                        context.DrawRectangle(pill.Brush, null, entireRect);
                 }
 
-                context.DrawLine(new Pen(item.Brush), new Point(x + 16, y), new Point(x + 16, y + 16));
-                context.DrawText(item.Label, new Point(x + 20, y + 8.0 - item.Label.Height * 0.5));
+                context.DrawRectangle(null, new Pen(pill.Brush), entireRect);
 
-                if (item.Remotes.Count > 0)
+                var curX = x;
+                if (pill.Other != null)
                 {
-                    var rx = x + 20 + item.Label.WidthIncludingTrailingWhitespace + 4;
-                    foreach (var remote in item.Remotes)
+                    DrawItem(context, pill.Other, ref curX, y, fg);
+                }
+                else if (pill.RemoteGroup.Count > 0 && pill.Locals.Count == 0)
+                {
+                    // Case P3: [ Cloud R1 | Cloud R2 : branch ]
+                    bool first = true;
+                    foreach (var r in pill.RemoteGroup)
                     {
-                        context.DrawLine(new Pen(item.Brush), new Point(rx, y), new Point(rx, y + 16));
-                        context.DrawText(remote, new Point(rx + 4, y + 8.0 - remote.Height * 0.5));
-                        rx += remote.WidthIncludingTrailingWhitespace + 9;
+                        if (!first)
+                        {
+                            context.DrawText(_pipeText, new Point(curX + 4, y + 8.0 - _pipeText.Height * 0.5));
+                            curX += _pipeText.Width + 8;
+                        }
+
+                        DrawItem(context, r, ref curX, y, fg);
+                        first = false;
+                    }
+
+                    if (!string.IsNullOrEmpty(pill.SharedBranchName))
+                    {
+                        context.DrawText(_colonText, new Point(curX + 4, y + 8.0 - _colonText.Height * 0.5));
+                        curX += _colonText.Width + 8;
+
+                        var typeface = new Typeface(FontFamily);
+                        var branchLabel = new FormattedText(pill.SharedBranchName, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, FontSize, fg);
+                        context.DrawText(branchLabel, new Point(curX + 4, y + 8.0 - branchLabel.Height * 0.5));
+                    }
+                }
+                else
+                {
+                    // Case P0/P1/P2: [ Local | Local ⇌ Cloud Tracked | ≠ Cloud Sibling ]
+                    bool first = true;
+                    foreach (var l in pill.Locals)
+                    {
+                        if (!first)
+                        {
+                            context.DrawText(_pipeText, new Point(curX + 4, y + 8.0 - _pipeText.Height * 0.5));
+                            curX += _pipeText.Width + 8;
+                        }
+
+                        DrawItem(context, l, ref curX, y, fg);
+                        first = false;
+                    }
+
+                    if (pill.RemoteGroup.Count > 0)
+                    {
+                        var hasTracked = false;
+                        foreach (var remote in pill.RemoteGroup)
+                        {
+                            if (remote.IsTracked)
+                            {
+                                hasTracked = true;
+                                break;
+                            }
+                        }
+                        if (hasTracked)
+                        {
+                            context.DrawText(_trackText, new Point(curX + 4, y + 8.0 - _trackText.Height * 0.5));
+                            curX += _trackText.Width + 8;
+                        }
+
+                        bool firstR = true;
+                        foreach (var r in pill.RemoteGroup)
+                        {
+                            if (!firstR)
+                            {
+                                context.DrawText(_pipeText, new Point(curX + 4, y + 8.0 - _pipeText.Height * 0.5));
+                                curX += _pipeText.Width + 8;
+                            }
+
+                            if (!r.IsTracked)
+                            {
+                                context.DrawText(_neqText, new Point(curX + 4, y + 8.0 - _neqText.Height * 0.5));
+                                curX += _neqText.Width + 4;
+                                DrawItem(context, r, ref curX, y, fg);
+                            }
+                            else
+                            {
+                                DrawItem(context, r, ref curX, y, fg);
+                            }
+                            firstR = false;
+                        }
                     }
                 }
 
-                context.DrawRectangle(null, new Pen(item.Brush), entireRect);
-                using (context.PushTransform(Matrix.CreateTranslation(x + 3, y + 3)))
-                    context.DrawGeometry(fg, null, item.Icon);
-
-                x += item.Width + 4;
+                x += pill.Width + 4;
             }
+        }
+
+        private void DrawItem(DrawingContext context, DecoratorRenderItem item, ref double x, double y, IBrush fg)
+        {
+            using (context.PushTransform(Matrix.CreateTranslation(x + 3, y + 3)))
+            {
+                var icon = item.Icon;
+                var iconBounds = icon.Bounds;
+                var translation = Matrix.CreateTranslation(-(Vector)iconBounds.Position);
+                var scale = Math.Min(10.0 / iconBounds.Width, 10.0 / iconBounds.Height);
+                var transform = translation * Matrix.CreateScale(scale, scale);
+                using (context.PushTransform(transform))
+                    context.DrawGeometry(fg, null, icon);
+            }
+
+            double labelX = x + (item.IsHead ? 16 : 20);
+            context.DrawText(item.Label, new Point(labelX, y + 8.0 - item.Label.Height * 0.5));
+            item.Bounds = new Rect(x, y, item.Width, 16);
+            x += item.Width;
         }
 
         protected override void OnDataContextChanged(EventArgs e)
@@ -192,159 +361,367 @@ namespace SourceGit.Views
 
         protected override Size MeasureOverride(Size availableSize)
         {
-            _items.Clear();
-
-            if (DataContext is not Models.Commit commit)
-                return new Size(0, 0);
+            _pills.Clear();
+            if (DataContext is not Models.Commit commit) return new Size(0, 0);
 
             var refs = commit.Decorators;
-            var count = refs.Count;
-            if (count == 0)
-            {
-                InvalidateVisual();
-                return new Size(0, 0);
-            }
-
-            var useCompactBranchNames = UseCompactBranchNames;
+            if (refs == null || refs.Count == 0) return new Size(0, 0);
+            EnsureIcons(this);
             var typeface = new Typeface(FontFamily);
-            var typefaceHead = new Typeface(FontFamily, FontStyle.Normal, FontWeight.Bold);
-            var typefaceRemote = new Typeface(FontFamily, FontStyle.Italic, FontWeight.Bold);
+            var typefaceBold = new Typeface(FontFamily, FontStyle.Normal, FontWeight.Bold);
             var fg = Foreground;
             var normalBG = UseGraphColor ? Models.CommitGraph.Pens[commit.Color].Brush : Brushes.Gray;
             var labelSize = FontSize;
             var requiredHeight = 16.0;
-            var x = 0.0;
-            var allowWrap = AllowWrap;
-            var showTags = ShowTags;
-            var skippedIdx = new HashSet<int>();
 
-            for (var i = 0; i < count; i++)
+            if (!UseCompactBranchNames)
             {
-                if (skippedIdx.Contains(i))
-                    continue;
-
-                var decorator = refs[i];
-                if (!showTags && decorator.Type == Models.DecoratorType.Tag)
-                    continue;
-
-                var item = new RenderItem() { Brush = normalBG, Decorator = decorator };
-                var findRemotes = true;
-                _items.Add(item);
-
-                switch (decorator.Type)
+                foreach (var decorator in refs)
                 {
-                    case Models.DecoratorType.CurrentBranchHead:
-                    case Models.DecoratorType.CurrentCommitHead:
-                        item.Icon = LoadIcon("Icons.Head");
-                        item.IsHead = true;
-                        break;
-                    case Models.DecoratorType.RemoteBranchHead:
-                        findRemotes = false;
-                        item.Icon = LoadIcon("Icons.Remote");
-                        break;
-                    case Models.DecoratorType.Tag:
-                        item.Brush = Brushes.Gray;
-                        findRemotes = false;
-                        item.Icon = LoadIcon("Icons.Tag");
-                        break;
-                    default:
-                        item.Icon = LoadIcon("Icons.Branch");
-                        break;
+                    if (!ShowTags && decorator.Type == Models.DecoratorType.Tag)
+                        continue;
+
+                    var pill = new Pill { Brush = normalBG };
+                    if (decorator.Type == Models.DecoratorType.Tag)
+                        pill.Brush = Brushes.Gray;
+
+                    var item = CreateRenderItem(decorator, typeface, typefaceBold, labelSize, fg, false, false);
+                    pill.Other = item;
+                    pill.Width = item.Width;
+                    _pills.Add(pill);
                 }
 
-                if (item.IsHead)
+                var independentWidth = 0.0;
+                var independentX = 0.0;
+                foreach (var pill in _pills)
                 {
-                    item.Label = new FormattedText(
-                        decorator.Name,
-                        CultureInfo.CurrentCulture,
-                        FlowDirection.LeftToRight,
-                        typefaceHead,
-                        labelSize + 1,
-                        fg);
-                }
-                else
-                {
-                    item.Label = new FormattedText(
-                        decorator.Name,
-                        CultureInfo.CurrentCulture,
-                        FlowDirection.LeftToRight,
-                        typeface,
-                        labelSize,
-                        fg);
-                }
-
-                item.Width = item.Label.Width + 24;
-
-                if (findRemotes && useCompactBranchNames)
-                {
-                    for (var j = i + 1; j < count; j++)
-                    {
-                        var test = refs[j];
-                        if (test.Type != Models.DecoratorType.RemoteBranchHead)
-                            continue;
-
-                        var idxOfSlash = test.Name.IndexOf('/');
-                        if (idxOfSlash < 1 || idxOfSlash == test.Name.Length - 1)
-                            continue;
-
-                        var name = test.Name.Substring(idxOfSlash + 1);
-                        if (decorator.Name.Equals(name, StringComparison.Ordinal))
-                        {
-                            var remote = new FormattedText(
-                                test.Name.Substring(0, idxOfSlash),
-                                CultureInfo.CurrentCulture,
-                                FlowDirection.LeftToRight,
-                                typefaceRemote,
-                                labelSize,
-                                fg);
-
-                            item.Remotes.Add(remote);
-                            item.Width += remote.Width + 9;
-                            skippedIdx.Add(j);
-                        }
-                    }
-                }
-
-                x += item.Width + 4;
-                if (allowWrap)
-                {
-                    if (x > availableSize.Width)
+                    if (AllowWrap && independentX + pill.Width > availableSize.Width && independentX > 0)
                     {
                         requiredHeight += 20.0;
-                        x = item.Width;
+                        independentX = 0;
+                    }
+
+                    independentX += pill.Width + 4;
+                    independentWidth = Math.Max(independentWidth, independentX);
+                }
+
+                InvalidateVisual();
+                return new Size(independentWidth, requiredHeight);
+            }
+
+            // --- Zero-allocation Separator Pre-calculation ---
+            _pipeText = new FormattedText("|", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, labelSize, fg);
+            _trackText = new FormattedText("⇌", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, labelSize, fg);
+            _colonText = new FormattedText(":", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, labelSize, fg);
+            _neqText = new FormattedText("≠", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, labelSize, fg);
+
+            var pipeWidth = _pipeText.Width + 8;
+            var trackWidth = _trackText.Width + 8;
+            var colonWidth = _colonText.Width + 8;
+            var neqWidth = _neqText.Width + 4;
+            // -------------------------------------------------
+
+            var branches = Branches;
+            var branchLookup = GetBranchLookup(branches);
+            var processed = new HashSet<Models.Decorator>();
+
+            // Avoid LINQ categorization to reduce heap pressure
+            var allRemotes = new List<Models.Decorator>();
+            var allLocals = new List<Models.Decorator>();
+            foreach (var r in refs)
+            {
+                if (r.Type == Models.DecoratorType.RemoteBranchHead) allRemotes.Add(r);
+                else if (r.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead) allLocals.Add(r);
+            }
+
+            // Pre-calculate tracked leaders with zero-allocation span comparison
+            var trackLeaders = new Dictionary<Models.Decorator, List<Models.Decorator>>();
+            if (branchLookup != null)
+            {
+                foreach (var l in allLocals)
+                {
+                    if (branchLookup.TryGetValue(l.Name, out var b) && !string.IsNullOrEmpty(b.Upstream))
+                    {
+                        var upstream = b.Upstream.AsSpan();
+                        bool isFullRef = upstream.StartsWith("refs/remotes/", StringComparison.OrdinalIgnoreCase);
+                        var upstreamCore = isFullRef ? upstream.Slice(13) : upstream;
+
+                        Models.Decorator r = null;
+                        foreach (var xr in allRemotes)
+                        {
+                            var xrName = xr.Name.AsSpan();
+                            if (upstreamCore.Equals(xrName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                r = xr;
+                                break;
+                            }
+                        }
+
+                        if (r != null)
+                        {
+                            if (!trackLeaders.ContainsKey(r)) trackLeaders[r] = new();
+                            trackLeaders[r].Add(l);
+                        }
                     }
                 }
             }
 
-            double requiredWidth = 0;
-            if (_items.Count > 0)
+            // 1. Process Tracking Groups (Tracking 1st)
+            foreach (var kv in trackLeaders)
             {
-                if (allowWrap && requiredHeight > 16.0)
-                    requiredWidth = double.IsInfinity(availableSize.Width) ? x + 2 : availableSize.Width;
+                var r = kv.Key;
+                var trackers = kv.Value;
+                var pill = new Pill { Brush = normalBG };
+                double w = 0;
+
+                for (int i = 0; i < trackers.Count; i++)
+                {
+                    if (i > 0) w += pipeWidth;
+                    var lItem = CreateRenderItem(trackers[i], typeface, typefaceBold, labelSize, fg);
+                    pill.Locals.Add(lItem);
+                    processed.Add(trackers[i]);
+                    w += lItem.Width;
+                }
+
+                w += trackWidth;
+
+                // P0 Perfect Match logic
+                bool perfect = true;
+                var slashIdx = r.Name.IndexOf('/');
+                if (slashIdx > 0)
+                {
+                    var suffix = r.Name.AsSpan(slashIdx + 1);
+                    foreach (var l in trackers)
+                    {
+                        if (!l.Name.AsSpan().Equals(suffix, StringComparison.OrdinalIgnoreCase))
+                        {
+                            perfect = false;
+                            break;
+                        }
+                    }
+                }
                 else
-                    requiredWidth = x + 2;
+                {
+                    perfect = false;
+                }
+
+                var compactRemoteName = UseCompactBranchNames && perfect;
+                var rItem = CreateRenderItem(r, typeface, typefaceBold, labelSize, fg, true, compactRemoteName);
+                rItem.IsTracked = true;
+                pill.RemoteGroup.Add(rItem);
+                processed.Add(r);
+                w += rItem.Width;
+
+                // Siblings with zero-allocation suffix check
+                foreach (var ar in allRemotes)
+                {
+                    if (processed.Contains(ar) || trackLeaders.ContainsKey(ar)) continue;
+
+                    var arName = ar.Name.AsSpan();
+                    var arSlashIdx = arName.IndexOf('/');
+                    var arSuffix = arSlashIdx >= 0 ? arName.Slice(arSlashIdx + 1) : arName;
+
+                    if (arSuffix.Equals(trackers[0].Name.AsSpan(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        w += pipeWidth + neqWidth;
+                        var sItem = CreateRenderItem(ar, typeface, typefaceBold, labelSize, fg, true, UseCompactBranchNames);
+                        sItem.IsTracked = false;
+                        pill.RemoteGroup.Add(sItem);
+                        processed.Add(ar);
+                        w += sItem.Width;
+                    }
+                }
+
+                pill.Width = w;
+                _pills.Add(pill);
+            }
+
+            // 2. Process Remaining Locals
+            foreach (var l in allLocals)
+            {
+                if (processed.Contains(l)) continue;
+
+                var pill = new Pill { Brush = normalBG };
+                var lItem = CreateRenderItem(l, typeface, typefaceBold, labelSize, fg);
+                pill.Locals.Add(lItem);
+                processed.Add(l);
+                double w = lItem.Width;
+
+                foreach (var ar in allRemotes)
+                {
+                    if (processed.Contains(ar) || trackLeaders.ContainsKey(ar)) continue;
+
+                    var arName = ar.Name.AsSpan();
+                    var arSlashIdx = arName.IndexOf('/');
+                    var arSuffix = arSlashIdx >= 0 ? arName.Slice(arSlashIdx + 1) : arName;
+
+                    if (arSuffix.Equals(l.Name.AsSpan(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        w += pipeWidth + neqWidth;
+                        var sItem = CreateRenderItem(ar, typeface, typefaceBold, labelSize, fg, true, UseCompactBranchNames);
+                        sItem.IsTracked = false;
+                        pill.RemoteGroup.Add(sItem);
+                        processed.Add(ar);
+                        w += sItem.Width;
+                    }
+                }
+
+                pill.Width = w;
+                _pills.Add(pill);
+            }
+
+            // 3. Tags & Common Divisor Merge
+            foreach (var decorator in refs)
+            {
+                if (processed.Contains(decorator)) continue;
+                if (!ShowTags && decorator.Type == Models.DecoratorType.Tag) continue;
+
+                var pill = new Pill { Brush = normalBG };
+                if (decorator.Type == Models.DecoratorType.Tag)
+                {
+                    pill.Brush = Brushes.Gray;
+                    var item = CreateRenderItem(decorator, typeface, typefaceBold, labelSize, fg);
+                    pill.Other = item;
+                    pill.Width = item.Width;
+                    processed.Add(decorator);
+                }
+                else if (decorator.Type == Models.DecoratorType.CurrentCommitHead)
+                {
+                    var item = CreateRenderItem(decorator, typeface, typefaceBold, labelSize, fg);
+                    pill.Other = item;
+                    pill.Width = item.Width;
+                    processed.Add(decorator);
+                }
+                else if (decorator.Type == Models.DecoratorType.RemoteBranchHead)
+                {
+                    var name = decorator.Name.AsSpan();
+                    var slashIdx = name.IndexOf('/');
+                    var suffix = slashIdx >= 0 ? name.Slice(slashIdx + 1) : name;
+
+                    // Group same-named untracked remotes
+                    var group = new List<Models.Decorator>();
+                    foreach (var ur in allRemotes)
+                    {
+                        if (processed.Contains(ur)) continue;
+                        var urName = ur.Name.AsSpan();
+                        var urSlashIdx = urName.IndexOf('/');
+                        var urSuffix = urSlashIdx >= 0 ? urName.Slice(urSlashIdx + 1) : urName;
+
+                        if (urSuffix.Equals(suffix, StringComparison.OrdinalIgnoreCase)) group.Add(ur);
+                    }
+
+                    if (group.Count > 1)
+                    {
+                        double w = 0;
+                        if (UseCompactBranchNames)
+                        {
+                            pill.SharedBranchName = suffix.ToString();
+                            for (int i = 0; i < group.Count; i++)
+                            {
+                                if (i > 0) w += pipeWidth;
+                                var rItem = CreateRenderItem(group[i], typeface, typefaceBold, labelSize, fg, true, true);
+                                pill.RemoteGroup.Add(rItem);
+                                processed.Add(group[i]);
+                                w += rItem.Width;
+                            }
+
+                            var branchLabel = new FormattedText(pill.SharedBranchName, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, labelSize, fg);
+                            w += colonWidth + branchLabel.Width + 8;
+                        }
+                        else
+                        {
+                            for (int i = 0; i < group.Count; i++)
+                            {
+                                if (i > 0) w += pipeWidth;
+                                var rItem = CreateRenderItem(group[i], typeface, typefaceBold, labelSize, fg, true, false);
+                                pill.RemoteGroup.Add(rItem);
+                                processed.Add(group[i]);
+                                w += rItem.Width;
+                            }
+                        }
+
+                        pill.Width = w;
+                    }
+                    else
+                    {
+                        var item = CreateRenderItem(decorator, typeface, typefaceBold, labelSize, fg, false, false);
+                        pill.Other = item;
+                        pill.Width = item.Width;
+                        processed.Add(decorator);
+                    }
+                }
+                else
+                {
+                    var item = CreateRenderItem(decorator, typeface, typefaceBold, labelSize, fg, false, false);
+                    pill.Other = item;
+                    pill.Width = item.Width;
+                    processed.Add(decorator);
+                }
+
+                _pills.Add(pill);
+            }
+
+            double requiredWidth = 0;
+            double curX = 0;
+            foreach (var pill in _pills)
+            {
+                if (AllowWrap && curX + pill.Width > availableSize.Width && curX > 0)
+                {
+                    requiredHeight += 20.0;
+                    curX = 0;
+                }
+                curX += pill.Width + 4;
+                requiredWidth = Math.Max(requiredWidth, curX);
             }
 
             InvalidateVisual();
             return new Size(requiredWidth, requiredHeight);
         }
 
-        private Geometry LoadIcon(string resourceKey)
+        private DecoratorRenderItem CreateRenderItem(Models.Decorator decorator, Typeface typeface, Typeface typefaceBold, double labelSize, IBrush fg, bool forceBold = false, bool stripSuffix = false)
         {
-            var geo = this.FindResource(resourceKey) as StreamGeometry;
-            var drawGeo = geo!.Clone();
-            var iconBounds = drawGeo.Bounds;
-            var translation = Matrix.CreateTranslation(-(Vector)iconBounds.Position);
-            var scale = Math.Min(10.0 / iconBounds.Width, 10.0 / iconBounds.Height);
-            var transform = translation * Matrix.CreateScale(scale, scale);
-            if (drawGeo.Transform == null || drawGeo.Transform.Value == Matrix.Identity)
-                drawGeo.Transform = new MatrixTransform(transform);
-            else
-                drawGeo.Transform = new MatrixTransform(drawGeo.Transform.Value * transform);
+            var isHead = decorator.Type is Models.DecoratorType.CurrentBranchHead or Models.DecoratorType.CurrentCommitHead;
+            var useBold = isHead || forceBold;
 
-            return drawGeo;
+            string displayName = decorator.Name;
+            int slashIdx = displayName.IndexOf('/');
+            if (stripSuffix && slashIdx > 0)
+            {
+                displayName = displayName.Substring(0, slashIdx);
+            }
+
+            var label = new FormattedText(
+                displayName,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                useBold ? typefaceBold : typeface,
+                useBold ? labelSize + 1 : labelSize,
+                fg);
+
+            if (!useBold && decorator.Type == Models.DecoratorType.RemoteBranchHead && slashIdx > 0)
+            {
+                label.SetFontWeight(FontWeight.Bold, 0, slashIdx);
+                label.SetFontSize(labelSize + 1, 0, slashIdx);
+            }
+
+            string iconKey = decorator.Type switch
+            {
+                Models.DecoratorType.CurrentBranchHead or Models.DecoratorType.CurrentCommitHead => "Head",
+                Models.DecoratorType.RemoteBranchHead => "Remote",
+                Models.DecoratorType.Tag => "Tag",
+                _ => "Branch"
+            };
+
+            return new DecoratorRenderItem
+            {
+                Icon = ICON_CACHE[iconKey],
+                Label = label,
+                Decorator = decorator,
+                IsHead = isHead,
+                Width = 16 + (isHead ? 0 : 4) + label.Width + 4
+            };
         }
 
-        private List<RenderItem> _items = new List<RenderItem>();
+        private readonly List<Pill> _pills = new();
     }
 }

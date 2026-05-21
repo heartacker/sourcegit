@@ -119,6 +119,11 @@ namespace SourceGit.ViewModels
             get => _repo.CurrentBranch;
         }
 
+        public Repository Repo
+        {
+            get => _repo;
+        }
+
         public AvaloniaList<Models.IssueTracker> IssueTrackers
         {
             get => _repo.IssueTrackers;

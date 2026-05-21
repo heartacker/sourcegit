@@ -47,6 +47,15 @@ namespace SourceGit.Views
             set => SetValue(WebLinksProperty, value);
         }
 
+        public static readonly StyledProperty<List<Models.Branch>> BranchesProperty =
+            AvaloniaProperty.Register<CommitBaseInfo, List<Models.Branch>>(nameof(Branches));
+
+        public List<Models.Branch> Branches
+        {
+            get => GetValue(BranchesProperty);
+            set => SetValue(BranchesProperty, value);
+        }
+
         public static readonly StyledProperty<List<string>> ChildrenProperty =
             AvaloniaProperty.Register<CommitBaseInfo, List<string>>(nameof(Children));
 
