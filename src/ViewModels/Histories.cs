@@ -1,3 +1,4 @@
+using System.Collections;
 ﻿// Token Filter Logic:
 //   SearchTokens are parsed by QueryParser into groups by prefix.
 //   Each group is either handled in-memory (UpdateDisplayCommits) or
@@ -189,9 +190,16 @@ namespace SourceGit.ViewModels
 
         public void UpdateDisplayCommits()
         {
-            var processed = _rawCommits;
+            var totalCount = _rawCommits.Count;
+            if (totalCount == 0)
+            {
+                SetProperty(ref _commits, new List<Models.Commit>(), nameof(Commits));
+                return;
+            }
 
-            // AST-driven token filter via QueryParser + ExprEvaluator
+            BitArray finalBits = new BitArray(totalCount, true);
+
+            // AST-driven token filter via QueryParser + ExprEvaluator (Bitmap Accelerated)
             if (SearchTokens.Count > 0)
             {
                 var spec = Controls.QueryParser.Parse(SearchTokens, SearchProviders);
@@ -199,19 +207,18 @@ namespace SourceGit.ViewModels
                 if (spec.HasSubGroups)
                 {
                     // Multiple parenthesized groups: each is AND-ed internally, OR-ed across groups
-                    processed = null;
+                    BitArray subGroupsBits = new BitArray(totalCount, false);
                     foreach (var sub in spec.SubGroups)
                     {
-                        var r = ApplyGroupFilters(_rawCommits, sub);
-                        ApplyFallbackTerms(sub, ref r);
-                        processed = processed == null ? r : processed.Union(r).DistinctBy(c => c.SHA).ToList();
+                        var r = EvaluateToBitmap(sub);
+                        subGroupsBits.Or(r);
                     }
+                    finalBits.And(subGroupsBits);
                 }
                 else
                 {
-                    // Single group: existing behavior
-                    processed = ApplyGroupFilters(_rawCommits, spec);
-                    ApplyFallbackTerms(spec, ref processed);
+                    // Single group
+                    finalBits.And(EvaluateToBitmap(spec));
                 }
 
                 _suggestionCache = _cacheManager.Compute(_rawCommits, _commits, spec);
@@ -228,8 +235,16 @@ namespace SourceGit.ViewModels
                 }
             }
 
+            // Convert BitArray back to List once
+            var processed = new List<Models.Commit>();
+            for (int i = 0; i < totalCount; i++)
+            {
+                if (finalBits[i]) processed.Add(_rawCommits[i]);
+            }
+
             processed = FilterCommits(processed, _soloTargets);
             processed = FoldCommits(processed);
+
             if (SetProperty(ref _commits, processed, nameof(Commits)))
             {
                 try
@@ -248,6 +263,51 @@ namespace SourceGit.ViewModels
             {
                 GenerateGraph(_commits);
             }
+        }
+
+        private BitArray EvaluateToBitmap(Controls.QuerySpec spec)
+        {
+            var totalCount = _rawCommits.Count;
+            var bits = new BitArray(totalCount, true);
+
+            // 1. Apply groups (a:, m:, is:, etc.)
+            foreach (var group in spec.Groups)
+            {
+                if (group.ProviderPrefix is "gitlog:" or "sort:" or "b:" or "t:" or "r:")
+                    continue;
+
+                // Solo: special handling
+                if (group.ProviderPrefix == "solo:")
+                {
+                    // For now, solo still uses List-based FilterCommits in the main chain,
+                    // but we could bitmapize it later.
+                    continue;
+                }
+
+                var groupBits = new BitArray(totalCount);
+                for (int i = 0; i < totalCount; i++)
+                {
+                    groupBits[i] = Controls.ExprEvaluator.Evaluate(group.Expr, val => EvalTerm(group.ProviderPrefix, _rawCommits[i], val));
+                }
+                bits.And(groupBits);
+            }
+
+            // 2. Apply fallback terms
+            if (spec.FallbackTerms.Count > 0 || spec.FallbackNotTerms.Count > 0)
+            {
+                var fallbackBits = new BitArray(totalCount);
+                for (int i = 0; i < totalCount; i++)
+                {
+                    var msg = _rawCommits[i].Subject ?? string.Empty;
+                    var include = spec.FallbackTerms.Count == 0 ||
+                                  spec.FallbackTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
+                    var exclude = spec.FallbackNotTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
+                    fallbackBits[i] = include && !exclude;
+                }
+                bits.And(fallbackBits);
+            }
+
+            return bits;
         }
 
         public Models.CommitGraph Graph
@@ -1743,63 +1803,6 @@ namespace SourceGit.ViewModels
             "is:" => MatchesState(val.ToLowerInvariant(), c),
             _ => true,
         };
-
-        private List<Models.Commit> ApplyGroupFilters(List<Models.Commit> source, Controls.QuerySpec spec)
-        {
-            var processed = source;
-
-            static IEnumerable<string> PositiveLeaves(Controls.ExprNode node)
-            {
-                if (node == null)
-                    yield break;
-                if (node.Op == Controls.ExprOp.Term)
-                { yield return node.Value; yield break; }
-                if (node.Op == Controls.ExprOp.Not)
-                    yield break;
-                if (node.Children != null)
-                    foreach (var child in node.Children)
-                        if (child.Op != Controls.ExprOp.Not)
-                            foreach (var v in PositiveLeaves(child))
-                                yield return v;
-            }
-
-            foreach (var group in spec.Groups)
-            {
-                if (group.ProviderPrefix is "gitlog:" or "sort:" or "b:" or "t:" or "r:")
-                    continue;
-
-                if (group.ProviderPrefix == "solo:")
-                {
-                    var soloVals = PositiveLeaves(group.Expr).ToList();
-                    if (soloVals.Count > 0)
-                        processed = FilterCommits(processed, soloVals);
-                    continue;
-                }
-
-                var prefix = group.ProviderPrefix;
-                var expr = group.Expr;
-                processed = processed
-                    .Where(c => Controls.ExprEvaluator.Evaluate(expr, val => EvalTerm(prefix, c, val)))
-                    .ToList();
-            }
-
-            return processed;
-        }
-
-        private static void ApplyFallbackTerms(Controls.QuerySpec spec, ref List<Models.Commit> processed)
-        {
-            if (spec.FallbackTerms.Count > 0 || spec.FallbackNotTerms.Count > 0)
-            {
-                processed = processed.Where(c =>
-                {
-                    var msg = c.Subject ?? string.Empty;
-                    var include = spec.FallbackTerms.Count == 0 ||
-                                  spec.FallbackTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
-                    var exclude = spec.FallbackNotTerms.Any(f => msg.Contains(f, StringComparison.OrdinalIgnoreCase));
-                    return include && !exclude;
-                }).ToList();
-            }
-        }
 
         private Repository _repo = null;
         private List<string> _soloTargets = [];
