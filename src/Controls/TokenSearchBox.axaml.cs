@@ -2205,10 +2205,25 @@ namespace SourceGit.Controls
                                              (external.RequiresArgument == false || !string.IsNullOrWhiteSpace(normalizedArg));
                     if (canExecuteDirectly)
                     {
-                        ExecuteExternalSlashCommand(slashCommandName, slashArgument);
-                        SetCurrentValue(TextProperty, string.Empty);
-                        if (_popup != null)
-                            _popup.IsOpen = false;
+                        if (ExecuteExternalSlashCommand(slashCommandName, slashArgument))
+                        {
+                            SetCurrentValue(TextProperty, string.Empty);
+                            if (_popup != null)
+                                _popup.IsOpen = false;
+                        }
+                        else
+                        {
+                            // Execution failed (e.g. /goto branch needs a branch name).
+                            // Use selected suggestion's argument to auto-complete partial input.
+                            var autoCompletedArg = selectedSlashSuggestion?.SlashCommandArgument ?? normalizedArg;
+                            SetCurrentValue(TextProperty, $"/{slashCommandName} {autoCompletedArg} ");
+                            _ = UpdateSuggestionsAsync(Text ?? string.Empty);
+                            if (_textBox != null)
+                            {
+                                _textBox.Focus();
+                                _textBox.CaretIndex = _textBox.Text.Length;
+                            }
+                        }
                         e.Handled = true;
                         return;
                     }
@@ -2262,8 +2277,21 @@ namespace SourceGit.Controls
                         return;
                     }
 
-                    ExecuteExternalSlashCommand(slashCommandName, slashArgument);
-                    SetCurrentValue(TextProperty, string.Empty);
+                    if (ExecuteExternalSlashCommand(slashCommandName, slashArgument))
+                    {
+                        SetCurrentValue(TextProperty, string.Empty);
+                    }
+                    else
+                    {
+                        var autoCompletedArg = selectedSlashSuggestion?.SlashCommandArgument ?? arg;
+                        SetCurrentValue(TextProperty, $"/{slashCommandName} {autoCompletedArg} ");
+                        _ = UpdateSuggestionsAsync(Text ?? string.Empty);
+                        if (_textBox != null)
+                        {
+                            _textBox.Focus();
+                            _textBox.CaretIndex = _textBox.Text.Length;
+                        }
+                    }
                     if (_popup != null)
                         _popup.IsOpen = false;
                 }
