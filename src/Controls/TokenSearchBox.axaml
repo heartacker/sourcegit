@@ -221,7 +221,7 @@
                          PlaceholderText="{TemplateBinding PlaceholderText}"
                          BorderThickness="0"
                          Background="Transparent"
-                         MinWidth="120"
+                         MinWidth="30"
                          Margin="0"
                          Padding="4,4"
                          VerticalAlignment="Center"
@@ -276,7 +276,7 @@
                       Margin="0,4,0,0"
                       MinWidth="320"
                       MaxWidth="600"
-                      MaxHeight="260"
+                      MaxHeight="960"
                       Effect="drop-shadow(0 0 8 #40000000)">
                 <ListBox Name="PART_SuggestionsList"
                          Background="Transparent"
