@@ -70,14 +70,16 @@ namespace SourceGit.Controls
     {
         public string Id { get; set; }
         public string Name { get; set; }
+        public int Priority { get; set; }
 
-        public TokenSuggestionGroup(string id, string name)
+        public TokenSuggestionGroup(string id, string name, int priority = 0)
         {
             Id = id;
             Name = name;
+            Priority = priority;
         }
 
-        public override bool Equals(object obj) => obj is TokenSuggestionGroup other && Id == obj.ToString();
+        public override bool Equals(object obj) => obj is TokenSuggestionGroup other && Id == other.Id;
         public override int GetHashCode() => Id?.GetHashCode() ?? 0;
         public override string ToString() => Id;
     }

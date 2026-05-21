@@ -2102,6 +2102,7 @@ namespace SourceGit.Controls
                 .Where(p => string.IsNullOrEmpty(pattern) || MatchesPattern(p, pattern))
                 .GroupBy(p => p.Group)
                 .OrderByDescending(g => g.Key != null)
+                .ThenBy(g => g.Key?.Priority)
                 .ThenBy(g => g.Key?.Id);
 
             foreach (var g in groups)

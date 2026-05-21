@@ -712,10 +712,10 @@ namespace SourceGit.ViewModels
             var implementedIcon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5";
 
 
-            var groupFilters = new Controls.TokenSuggestionGroup("filters", "常规过滤");
-            var groupAdvanced = new Controls.TokenSuggestionGroup("advanced", "高级检索");
-            var groupView = new Controls.TokenSuggestionGroup("view", "视图控制");
-            var groupGit = new Controls.TokenSuggestionGroup("git", "Git 选项");
+            var groupGit = new Controls.TokenSuggestionGroup("git", "Git 选项", 0);
+            var groupFilters = new Controls.TokenSuggestionGroup("filters", "常规过滤", 1);
+            var groupView = new Controls.TokenSuggestionGroup("view", "视图控制", 2);
+            var groupAdvanced = new Controls.TokenSuggestionGroup("advanced", "高级检索", 3);
 
             var isProv = new[] {
                 "merged", "unmerged", "tag",
