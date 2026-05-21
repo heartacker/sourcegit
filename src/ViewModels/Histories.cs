@@ -1,5 +1,5 @@
-using System.Collections;
-﻿// Token Filter Logic:
+﻿using System.Collections;
+// Token Filter Logic:
 //   SearchTokens are parsed by QueryParser into groups by prefix.
 //   Each group is either handled in-memory (UpdateDisplayCommits) or
 //   triggers git log re-execution via HistoryFilters (BuildHistoryParams).
@@ -239,7 +239,8 @@ namespace SourceGit.ViewModels
             var processed = new List<Models.Commit>();
             for (int i = 0; i < totalCount; i++)
             {
-                if (finalBits[i]) processed.Add(_rawCommits[i]);
+                if (finalBits[i])
+                    processed.Add(_rawCommits[i]);
             }
 
             processed = FilterCommits(processed, _soloTargets);
@@ -733,7 +734,7 @@ namespace SourceGit.ViewModels
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("r:", "远程分支", groupFilters, suggester: remoteSuggester, alias: new[] { "remote:" }, icon: implementedIcon, isPersistent: true, priority: 0));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("f:", "文件路径", groupFilters, alias: new[] { "file:" }, priority: 41));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("p:", "路径", groupFilters, alias: new[] { "path:" }, priority: 41));
-            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("s:", "哈希", groupFilters, alias: new[] { "sha:" }, icon: implementedIcon, priority: 41));
+            SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("sha:", "哈希", groupFilters, icon: implementedIcon, priority: 41));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("since:", "起始时间", groupFilters, alias: new[] { "after:" }, icon: implementedIcon, priority: 51));
             SearchProviders.Add(new Controls.StaticTokenSuggestionProvider("until:", "结束时间", groupFilters, alias: new[] { "before:" }, icon: implementedIcon, priority: 51));
 
