@@ -1,5 +1,4 @@
-﻿using System.Collections;
-// Token Filter Logic:
+﻿// Token Filter Logic:
 //   SearchTokens are parsed by QueryParser into groups by prefix.
 //   Each group is either handled in-memory (UpdateDisplayCommits) or
 //   triggers git log re-execution via HistoryFilters (BuildHistoryParams).
@@ -93,13 +92,13 @@
 //     - 持久前缀(b:/t:/r:)：缓存 = _rawCommits，完全不受内存过滤器影响
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Threading;

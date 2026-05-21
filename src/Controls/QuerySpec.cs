@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace SourceGit.Controls
@@ -20,8 +19,10 @@ namespace SourceGit.Controls
 
         public override string ToString()
         {
-            if (Op == ExprOp.Term) return string.IsNullOrEmpty(Prefix) ? Value : $"{Prefix}:{Value}";
-            if (Op == ExprOp.Not) return $"-( {Children?[0]} )";
+            if (Op == ExprOp.Term)
+                return string.IsNullOrEmpty(Prefix) ? Value : $"{Prefix}:{Value}";
+            if (Op == ExprOp.Not)
+                return $"-( {Children?[0]} )";
             var joiner = Op == ExprOp.And ? " AND " : " OR ";
             return $"( {string.Join(joiner, Children ?? [])} )";
         }

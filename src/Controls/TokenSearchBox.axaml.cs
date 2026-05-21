@@ -1698,8 +1698,10 @@ namespace SourceGit.Controls
             for (int i = 0; i < text.Length - 1; i++)
             {
                 string foundOp = null;
-                if (text[i] == '|' && text[i + 1] == '|') foundOp = "||";
-                else if (text[i] == '&' && text[i + 1] == '&') foundOp = "&&";
+                if (text[i] == '|' && text[i + 1] == '|')
+                    foundOp = "||";
+                else if (text[i] == '&' && text[i + 1] == '&')
+                    foundOp = "&&";
 
                 if (foundOp != null)
                 {
@@ -1762,9 +1764,11 @@ namespace SourceGit.Controls
             // 3. Add tokens with parens, skipping redundant operators for same-prefix defaults
             for (int i = 0; i < segments.Count; i++)
             {
-                if (needParens[i]) AddToken("(");
+                if (needParens[i])
+                    AddToken("(");
                 AddToken(segments[i]);
-                if (needParens[i]) AddToken(")");
+                if (needParens[i])
+                    AddToken(")");
 
                 if (i < operators.Count)
                 {

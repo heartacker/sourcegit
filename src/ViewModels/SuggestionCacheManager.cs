@@ -49,7 +49,8 @@ namespace SourceGit.ViewModels
 
         private BitArray EvaluateExpr(Controls.ExprNode node, string prefix, List<Models.Commit> rawCommits)
         {
-            if (node == null) return new BitArray(rawCommits.Count, true);
+            if (node == null)
+                return new BitArray(rawCommits.Count, true);
 
             switch (node.Op)
             {
@@ -57,24 +58,30 @@ namespace SourceGit.ViewModels
                     return GetAtomBitmap(prefix, node.Value, rawCommits);
 
                 case Controls.ExprOp.And:
-                    if (node.Children == null || node.Children.Count == 0) return new BitArray(rawCommits.Count, true);
+                    if (node.Children == null || node.Children.Count == 0)
+                        return new BitArray(rawCommits.Count, true);
                     BitArray andRes = null;
                     foreach (var child in node.Children)
                     {
                         var res = EvaluateExpr(child, prefix, rawCommits);
-                        if (andRes == null) andRes = new BitArray(res);
-                        else andRes.And(res);
+                        if (andRes == null)
+                            andRes = new BitArray(res);
+                        else
+                            andRes.And(res);
                     }
                     return andRes;
 
                 case Controls.ExprOp.Or:
-                    if (node.Children == null || node.Children.Count == 0) return new BitArray(rawCommits.Count, true);
+                    if (node.Children == null || node.Children.Count == 0)
+                        return new BitArray(rawCommits.Count, true);
                     BitArray orRes = null;
                     foreach (var child in node.Children)
                     {
                         var res = EvaluateExpr(child, prefix, rawCommits);
-                        if (orRes == null) orRes = new BitArray(res);
-                        else orRes.Or(res);
+                        if (orRes == null)
+                            orRes = new BitArray(res);
+                        else
+                            orRes.Or(res);
                     }
                     return orRes;
 
@@ -115,7 +122,8 @@ namespace SourceGit.ViewModels
             // 1. Pre-evaluate each group's bitmap
             foreach (var group in spec.Groups)
             {
-                if (persistentPrefixes.Contains(group.ProviderPrefix)) continue;
+                if (persistentPrefixes.Contains(group.ProviderPrefix))
+                    continue;
                 groupBitmaps[group.ProviderPrefix] = EvaluateExpr(group.Expr, group.ProviderPrefix, rawCommits);
             }
 
@@ -135,7 +143,8 @@ namespace SourceGit.ViewModels
                 foreach (var kvp in groupBitmaps)
                 {
                     var otherPrefix = kvp.Key;
-                    if (otherPrefix == prefix) continue;
+                    if (otherPrefix == prefix)
+                        continue;
 
                     int otherPriority = GetProviderPriority(otherPrefix);
                     if (otherPriority < targetPriority)
@@ -148,7 +157,8 @@ namespace SourceGit.ViewModels
                 var resultList = new List<Models.Commit>();
                 for (int i = 0; i < rawCommits.Count; i++)
                 {
-                    if (finalBits[i]) resultList.Add(rawCommits[i]);
+                    if (finalBits[i])
+                        resultList.Add(rawCommits[i]);
                 }
                 cache[prefix] = resultList;
             }

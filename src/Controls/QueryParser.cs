@@ -123,7 +123,8 @@ namespace SourceGit.Controls
 
             foreach (var token in tokens)
             {
-                if (string.IsNullOrWhiteSpace(token)) continue;
+                if (string.IsNullOrWhiteSpace(token))
+                    continue;
 
                 if (token == "(")
                 {
@@ -172,8 +173,10 @@ namespace SourceGit.Controls
                 var spec = new QuerySpec();
                 foreach (var groupTokens in subGroups)
                 {
-                    if (groupTokens.Count == 0) continue;
-                    if (groupTokens.Count == 1 && (groupTokens[0] is "||" or "&&" or "|" or "&")) continue;
+                    if (groupTokens.Count == 0)
+                        continue;
+                    if (groupTokens.Count == 1 && (groupTokens[0] is "||" or "&&" or "|" or "&"))
+                        continue;
                     spec.SubGroups.Add(ParseGroup(groupTokens, providersList));
                 }
                 return spec;
@@ -186,7 +189,8 @@ namespace SourceGit.Controls
                 var spec = new QuerySpec();
                 foreach (var groupTokens in orSubGroups)
                 {
-                    if (groupTokens.Count == 0) continue;
+                    if (groupTokens.Count == 0)
+                        continue;
                     spec.SubGroups.Add(ParseGroup(groupTokens, providersList));
                 }
                 return spec;
@@ -284,7 +288,8 @@ namespace SourceGit.Controls
 
             foreach (var token in tokens)
             {
-                if (string.IsNullOrWhiteSpace(token)) continue;
+                if (string.IsNullOrWhiteSpace(token))
+                    continue;
 
                 if (token is "||" or "&&" or "|" or "&")
                 {
@@ -323,13 +328,15 @@ namespace SourceGit.Controls
                             }
                         }
                     }
-                    if (matchedProvider != null) break;
+                    if (matchedProvider != null)
+                        break;
                 }
 
                 if (matchedProvider != null)
                 {
                     var val = testToken.Substring(matchedPrefix.Length).Trim();
-                    if (string.IsNullOrWhiteSpace(val)) continue;
+                    if (string.IsNullOrWhiteSpace(val))
+                        continue;
 
                     var inlineExpr = new ExprNode { Op = ExprOp.Term, Value = val };
 

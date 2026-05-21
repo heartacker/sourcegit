@@ -19,7 +19,8 @@ namespace SourceGit.Models
         {
             get
             {
-                if (_targets.Count == 0) return string.Empty;
+                if (_targets.Count == 0)
+                    return string.Empty;
                 var list = _targets.Select(x => x.Length > 7 ? x.Substring(0, 7) : x);
                 var prefix = Method == CommitLineageSearchMethod.FirstParentLineage ? "Solo(1st): " : "Solo: ";
                 return prefix + string.Join(", ", list);
@@ -59,7 +60,8 @@ namespace SourceGit.Models
                 if (target.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
                 {
                     var head = commits.Find(x => x.IsCurrentHead);
-                    if (head != null) sha = head.SHA;
+                    if (head != null)
+                        sha = head.SHA;
                 }
 
                 if (map.TryGetValue(sha, out var commit) && commit.Index < commits.Count)
@@ -79,7 +81,7 @@ namespace SourceGit.Models
                 if (active[i])
                 {
                     var c = commits[i].Clone();
-                    c.IsCommitFilterHead = _targets.Any(t => t.Equals(c.SHA, StringComparison.OrdinalIgnoreCase) || 
+                    c.IsCommitFilterHead = _targets.Any(t => t.Equals(c.SHA, StringComparison.OrdinalIgnoreCase) ||
                                                            (t.Equals("HEAD", StringComparison.OrdinalIgnoreCase) && c.IsCurrentHead));
                     result.Add(c);
                 }
