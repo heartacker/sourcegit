@@ -332,6 +332,9 @@ namespace SourceGit.Controls
         private Border _rootBorder;
         private Button _clearButton;
         private CancellationTokenSource _cts;
+
+        private string _slashCommandName;
+        private readonly List<string> _slashCommandArgs = new();
         private readonly HashSet<string> _persistentTokenSet = new(StringComparer.OrdinalIgnoreCase);
 
         protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
@@ -859,6 +862,25 @@ namespace SourceGit.Controls
                 .ToList();
         }
 
+        private void SyncSlashCommandState(string commandName, string argument)
+        {
+            _slashCommandName = commandName ?? string.Empty;
+
+            var raw = argument ?? string.Empty;
+            var args = SplitSlashArguments(raw);
+            var endsWithWhitespace = raw.EndsWith(' ');
+
+            _slashCommandArgs.Clear();
+            if (endsWithWhitespace)
+            {
+                _slashCommandArgs.AddRange(args);
+            }
+            else if (args.Count > 0)
+            {
+                _slashCommandArgs.AddRange(args.Take(args.Count - 1));
+            }
+        }
+
         private TokenSlashSuggestionContext BuildSlashSuggestionContext(string commandName, string rawArgument)
         {
             var raw = rawArgument ?? string.Empty;
@@ -1174,13 +1196,14 @@ namespace SourceGit.Controls
             }
             else
             {
+                var argsStr = string.Join(" ", _slashCommandArgs);
                 var external = GetExternalSlashCommand(cmd);
-                if (string.IsNullOrWhiteSpace(arg))
+                if (string.IsNullOrWhiteSpace(argsStr))
                     replacement = external?.RequiresArgument == true ? $"/{cmd} " : $"/{cmd}";
                 else if (external?.RequiresArgument == true)
                     replacement = $"/{cmd} {argsStr} ";
                 else
-                    replacement = $"/{cmd} {arg}";
+                    replacement = $"/{cmd} {argsStr}";
             }
 
             return BuildTextWithCurrentSegmentReplaced(Text ?? string.Empty, replacement);
@@ -1195,6 +1218,10 @@ namespace SourceGit.Controls
             {
                 if (!requestExecute || !suggestion.CanExecuteDirectly)
                 {
+                    var appendArg = suggestion.SlashCommandArgument?.Trim();
+                    if (!string.IsNullOrWhiteSpace(appendArg))
+                        _slashCommandArgs.Add(appendArg);
+
                     var replacement = BuildSlashSuggestionReplacementText(suggestion);
                     SetCurrentValue(TextProperty, replacement);
                     if (_textBox != null)
@@ -1299,7 +1326,8 @@ namespace SourceGit.Controls
                         return;
                     }
 
-                    ExecuteExternalSlashCommand(cmd, suggestion.SlashCommandArgument);
+                    var fullArg = string.Join(" ", _slashCommandArgs.Concat(new[] { arg }).Where(a => a.Length > 0));
+                    ExecuteExternalSlashCommand(cmd, fullArg);
                 }
 
                 SetCurrentValue(TextProperty, string.Empty);
@@ -1568,21 +1596,25 @@ namespace SourceGit.Controls
                         new TokenSuggestionHeader { Name = $"命令参数 (/{exactCommand.Name})" }
                     };
 
+                    var contextPrefix = string.Join(" ", context.ArgumentTokens.Take(context.ActiveTokenIndex));
+
                     foreach (var argSuggestion in argSuggestions)
                     {
                         if (string.IsNullOrWhiteSpace(argSuggestion?.Name))
                             continue;
 
+                        var argValue = string.IsNullOrWhiteSpace(argSuggestion.Value) ? argSuggestion.Name : argSuggestion.Value;
+                        var displayArg = string.IsNullOrWhiteSpace(contextPrefix) ? argValue : $"{contextPrefix} {argValue}";
                         argList.Add(new TokenSuggestion
                         {
-                            Name = $"/{exactCommand.Name} {argSuggestion.Value}",
+                            Name = $"/{exactCommand.Name} {displayArg}",
                             Description = string.IsNullOrWhiteSpace(argSuggestion.Description)
                                 ? "回车/点击执行命令"
                                 : argSuggestion.Description,
                             Icon = string.IsNullOrWhiteSpace(argSuggestion.Icon) ? exactCommand.Icon : argSuggestion.Icon,
                             IsSlashCommand = true,
                             SlashCommandName = exactCommand.Name,
-                            SlashCommandArgument = argSuggestion.Value,
+                            SlashCommandArgument = argValue,
                             CanExecuteDirectly = true,
                             ActionType = TokenSuggestionActionType.Execute,
                         });
@@ -2003,6 +2035,7 @@ namespace SourceGit.Controls
 
             if (TryParseSlashCommandSegment(text, out var slashCommandName, out var slashArgument))
             {
+                SyncSlashCommandState(slashCommandName, slashArgument);
                 ShowSlashCommandSuggestions(slashCommandName, slashArgument);
                 return;
             }

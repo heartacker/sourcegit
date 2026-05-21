@@ -114,9 +114,9 @@ namespace SourceGit.ViewModels
             {
                 var values = new[]
                 {
-                    new TokenSuggestion { Name = $"{field} true", Value = $"{field} true", Description = "显式开启" },
-                    new TokenSuggestion { Name = $"{field} false", Value = $"{field} false", Description = "显式关闭" },
-                    new TokenSuggestion { Name = $"{field} toggle", Value = $"{field} toggle", Description = "切换" },
+                    new TokenSuggestion { Name = $"{field} true", Value = "true", Description = "显式开启" },
+                    new TokenSuggestion { Name = $"{field} false", Value = "false", Description = "显式关闭" },
+                    new TokenSuggestion { Name = $"{field} toggle", Value = "toggle", Description = "切换" },
                 };
 
                 if (string.IsNullOrWhiteSpace(pattern))
@@ -210,7 +210,7 @@ namespace SourceGit.ViewModels
                         yield return new TokenSuggestion
                         {
                             Name = name,
-                            Value = $"branch {name}",
+                            Value = name,
                             Description = "branch"
                         };
                     break;
@@ -229,7 +229,7 @@ namespace SourceGit.ViewModels
                         yield return new TokenSuggestion
                         {
                             Name = name,
-                            Value = $"tag {name}",
+                            Value = name,
                             Description = "tag"
                         };
                     break;
@@ -244,7 +244,7 @@ namespace SourceGit.ViewModels
                             return new TokenSuggestion
                             {
                                 Name = sha,
-                                Value = $"sha {sha}",
+                                Value = sha,
                                 Description = $"{c.Subject ?? ""} · {c.Author.Name}",
                             };
                         });
@@ -262,7 +262,7 @@ namespace SourceGit.ViewModels
                         yield return new TokenSuggestion
                         {
                             Name = sha,
-                            Value = $"solo {sha}",
+                            Value = sha,
                             Description = $"[Solo] {sha}"
                         };
                     break;
@@ -277,7 +277,7 @@ namespace SourceGit.ViewModels
                             return new TokenSuggestion
                             {
                                 Name = $"{c.Subject ?? ""} · {c.Author.Name}",
-                                Value = $"commit {sha}",
+                                Value = sha,
                                 Description = sha,
                             };
                         });
