@@ -1,0 +1,226 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:SourceGit.ViewModels"
+             xmlns:v="using:SourceGit.Views"
+             xmlns:m="using:SourceGit.Models"
+             xmlns:c="using:SourceGit.Converters"
+             xmlns:terminal="clr-namespace:SvcSystems.UI.Terminal;assembly=SvcSystems.UI.Terminal"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="SourceGit.Views.TerminalManagerView"
+             x:DataType="vm:TerminalViewModel"
+             x:Name="TerminalManagerRoot">
+  <UserControl.Styles>
+    <Style Selector="SplitButton.terminal_new">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid ColumnDefinitions="Auto,Auto">
+            <!-- Left part: Instant New Default -->
+            <Button Grid.Column="0"
+                    Classes="icon_button"
+                    Width="28" Height="28"
+                    Click="OnNewTerminal"
+                    ToolTip.Tip="New Default Terminal">
+              <Path Width="12" Height="12" Data="{StaticResource Icons.Plus}"/>
+            </Button>
+
+            <!-- Right part: Dropdown for Selection -->
+            <Button Grid.Column="1"
+                    Classes="icon_button"
+                    Width="16" Height="28"
+                    Padding="0"
+                    HotKey="{OnPlatform Ctrl+Shift+Oem3, macOS=⌘+Shift+Oem3}"
+                    ToolTip.Tip="Select Terminal (Ctrl+Shift+`)">
+              <Path Width="8" Height="8" Data="{StaticResource Icons.Down}"/>
+              <Button.Flyout>
+                <MenuFlyout ItemsSource="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).AvailableShells}">
+                  <MenuFlyout.ItemTemplate>
+                    <DataTemplate DataType="m:ShellOrTerminal">
+                      <MenuItem Header="{Binding Name}"
+                                Command="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).NewSession}"
+                                CommandParameter="{Binding}">
+                        <MenuItem.Icon>
+                          <ContentControl Content="{Binding Icon}">
+                            <ContentControl.DataTemplates>
+                              <DataTemplate DataType="IBitmap">
+                                <Image Width="16" Height="16" Source="{Binding}"/>
+                              </DataTemplate>
+                              <DataTemplate DataType="Geometry">
+                                <Path Width="12" Height="12" Data="{Binding}" Fill="{DynamicResource Brush.FG2}"/>
+                              </DataTemplate>
+                            </ContentControl.DataTemplates>
+                          </ContentControl>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                    </DataTemplate>
+                  </MenuFlyout.ItemTemplate>
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="32,*">
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Background="{DynamicResource Brush.DataGridHeaderBG}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <!-- Left: New Session SplitButton -->
+        <SplitButton Classes="terminal_new" Margin="4,0"/>
+
+        <!-- Center: Current Title -->
+        <TextBlock Grid.Column="1" Text="{Binding SelectedInstance.Title, FallbackValue=''}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource Brush.FG2}" FontSize="11" Opacity="0.8"/>
+
+        <!-- Right: Actions -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="4,0">
+          <Button Classes="icon_button" Width="28" Height="28" Command="{Binding GotoPrevSession}" ToolTip.Tip="Previous Terminal">
+            <Path Width="10" Height="10" Data="{StaticResource Icons.Up}"/>
+          </Button>
+          <Button Classes="icon_button" Width="28" Height="28" Command="{Binding GotoNextSession}" ToolTip.Tip="Next Terminal">
+            <Path Width="10" Height="10" Data="{StaticResource Icons.Down}"/>
+          </Button>
+          <Border Width="1" Height="16" Margin="4,0" Background="{DynamicResource Brush.Border0}"/>
+          <Button Classes="icon_button" Width="28" Height="28" Click="OnCopy" ToolTip.Tip="Copy Selected">
+            <Path Width="12" Height="12" Data="{StaticResource Icons.Copy}"/>
+          </Button>
+          <Button Classes="icon_button" Width="28" Height="28" Click="OnPaste" ToolTip.Tip="Paste">
+            <Path Width="12" Height="12" Data="{StaticResource Icons.Paste}"/>
+          </Button>
+          <Button Classes="icon_button" Width="28" Height="28" Command="{Binding ClearCurrentSession}" ToolTip.Tip="Clear Buffer">
+            <Path Width="12" Height="12" Data="{StaticResource Icons.Clear}"/>
+          </Button>
+          <Button Classes="icon_button" Width="28" Height="28" Command="{Binding CloseSession}" CommandParameter="{Binding SelectedInstance}" ToolTip.Tip="Close Terminal">
+            <Path Width="10" Height="10" Data="{StaticResource Icons.Close}"/>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Main Content -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto">
+      <!-- Terminal View Area -->
+      <Grid Grid.Column="0">
+        <!-- Empty State -->
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="24" IsVisible="{Binding Instances.Count, Converter={x:Static c:IntConverters.IsZero}}">
+          <Path Width="80" Height="80" Data="{StaticResource Icons.Terminal}" Fill="{DynamicResource Brush.FG2}" Opacity="0.15"/>
+
+          <SplitButton x:Name="PART_EmptyNewBtn" Classes="terminal_new" Height="36" Command="{Binding NewSession}">
+            <SplitButton.Template>
+              <ControlTemplate>
+                <Grid ColumnDefinitions="*,Auto">
+                  <Button Grid.Column="0" Classes="flat primary" Height="36" Padding="16,0"
+                          Command="{TemplateBinding Command}"
+                          CommandParameter="{TemplateBinding CommandParameter}"
+                          CornerRadius="3,0,0,3">
+                    <StackPanel Orientation="Horizontal">
+                      <Path Width="14" Height="14" Data="{StaticResource Icons.Plus}" Fill="White"/>
+                      <TextBlock Margin="8,0" Text="New Terminal" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Grid.Column="1" Classes="flat primary" Width="32" Height="36" Padding="0"
+                          CornerRadius="0,3,3,0">
+                    <Path Width="8" Height="8" Data="{StaticResource Icons.Down}" Fill="White" Opacity="0.8" Margin="0,4,0,0"/>
+                    <Button.Flyout>
+                      <MenuFlyout ItemsSource="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).AvailableShells}">
+                        <MenuFlyout.ItemTemplate>
+                          <DataTemplate DataType="m:ShellOrTerminal">
+                            <MenuItem Header="{Binding Name}"
+                                      Command="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).NewSession}"
+                                      CommandParameter="{Binding}">
+                              <MenuItem.Icon>
+                                <ContentControl Content="{Binding Icon}">
+                                  <ContentControl.DataTemplates>
+                                    <DataTemplate DataType="IBitmap">
+                                      <Image Width="16" Height="16" Source="{Binding}"/>
+                                    </DataTemplate>
+                                    <DataTemplate DataType="Geometry">
+                                      <Path Width="12" Height="12" Data="{Binding}" Fill="{DynamicResource Brush.FG2}"/>
+                                    </DataTemplate>
+                                  </ContentControl.DataTemplates>
+                                </ContentControl>
+                              </MenuItem.Icon>
+                            </MenuItem>
+                          </DataTemplate>
+                        </MenuFlyout.ItemTemplate>
+                      </MenuFlyout>
+                    </Button.Flyout>
+                  </Button>
+                </Grid>
+              </ControlTemplate>
+            </SplitButton.Template>
+          </SplitButton>
+        </StackPanel>
+
+        <!-- Terminal Control -->
+        <terminal:TerminalControl IsVisible="{Binding SelectedInstance, Converter={x:Static c:ObjectConverters.IsNotNull}}"
+                                  Model="{Binding SelectedInstance.Model, FallbackValue={x:Null}}"
+                                  FontSize="{Binding Source={x:Static vm:Preferences.Instance}, Path=EditorFontSize}"
+                                  FontFamily="{Binding Source={x:Static vm:Preferences.Instance}, Path=MonospaceFontFamily, Converter={x:Static c:StringConverters.ToMonospaceFontName}}"
+                                  UseLayoutRounding="True"/>
+      </Grid>
+
+      <GridSplitter Grid.Column="1" Width="10"
+                    HorizontalAlignment="Stretch"
+                    Background="Transparent"
+                    ResizeBehavior="PreviousAndNext"
+                    ResizeDirection="Columns"
+                    Cursor="SizeWestEast"/>
+
+      <!-- Sidebar Area -->
+      <ListBox Grid.Column="2"
+               MinWidth="150"
+               Background="{DynamicResource Brush.DataGridHeaderBG}"
+               BorderThickness="1,0,0,0" BorderBrush="{DynamicResource Brush.Border0}"
+               ItemsSource="{Binding Instances}"
+               SelectedItem="{Binding SelectedInstance, Mode=TwoWay}"
+               Padding="0">
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Height" Value="32"/>
+          </Style>
+        </ListBox.Styles>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="vm:TerminalInstance">
+            <Grid ColumnDefinitions="3,Auto,*,Auto"
+                  Height="32"
+                  Background="Transparent">
+              <Border Grid.Column="0" Width="3"
+                      Background="{DynamicResource Brush.Accent}"
+                      IsVisible="{Binding $parent[ListBoxItem].IsSelected}"/>
+              <Image Grid.Column="1" Width="14" Height="14" Margin="8,0"
+                     Source="{Binding Shell.Icon}"/>
+              <TextBlock Grid.Column="2" Text="{Binding Title}"
+                         VerticalAlignment="Center"
+                         FontSize="11"
+                         TextTrimming="CharacterEllipsis"/>
+
+              <!-- Quick Actions on Hover -->
+              <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="0,0,4,0"
+                          IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
+                <Button Classes="icon_button" Width="22" Height="22" Padding="0"
+                        Command="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).ClearSession}"
+                        CommandParameter="{Binding}"
+                        ToolTip.Tip="Clear Buffer">
+                  <Path Width="10" Height="10" Data="{StaticResource Icons.Clear}"/>
+                </Button>
+                <Button Classes="icon_button" Width="22" Height="22" Padding="0"
+                        Command="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).CloseSession}"
+                        CommandParameter="{Binding}"
+                        ToolTip.Tip="Close">
+                  <Path Width="8" Height="8" Data="{StaticResource Icons.Close}"/>
+                </Button>
+              </StackPanel>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
+  </Grid>
+</UserControl>

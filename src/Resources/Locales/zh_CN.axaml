@@ -188,6 +188,7 @@
   <x:String x:Key="Text.CommitDetail.CollapseToBottom" xml:space="preserve">折叠详细面板</x:String>
   <x:String x:Key="Text.CommitDetail.Maximize" xml:space="preserve">最大化详细面板</x:String>
   <x:String x:Key="Text.CommitDetail.Files" xml:space="preserve">文件列表</x:String>
+  <x:String x:Key="Text.CommitDetail.Terminal" xml:space="preserve">终端</x:String>
   <x:String x:Key="Text.CommitDetail.Files.LFS" xml:space="preserve">LFS文件</x:String>
   <x:String x:Key="Text.CommitDetail.Files.Search" xml:space="preserve">查找文件...</x:String>
   <x:String x:Key="Text.CommitDetail.Files.Submodule" xml:space="preserve">子模块</x:String>

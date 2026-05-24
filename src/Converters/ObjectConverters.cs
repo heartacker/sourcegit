@@ -23,5 +23,11 @@ namespace SourceGit.Converters
         }
 
         public static readonly IsTypeOfConverter IsTypeOf = new IsTypeOfConverter();
+
+        public static readonly FuncValueConverter<object, bool> IsNotNull =
+            new(x => x != null);
+
+        public static readonly FuncValueConverter<object, bool> IsNull =
+            new(x => x == null);
     }
 }

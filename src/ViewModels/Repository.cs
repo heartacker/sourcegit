@@ -81,6 +81,16 @@ namespace SourceGit.ViewModels
             get => _workingCopy;
         }
 
+        public TerminalViewModel Terminal
+        {
+            get
+            {
+                if (_terminal == null)
+                    _terminal = new TerminalViewModel(FullPath);
+                return _terminal;
+            }
+        }
+
         public StashesPage StashesPage
         {
             get => _stashesPage;
@@ -518,6 +528,7 @@ namespace SourceGit.ViewModels
                 File.WriteAllText(Path.Combine(GitDir, "MERGE_MSG"), commitMessage);
 
             _uiStates.LastCommitMessage = commitMessage;
+            _terminal?.Dispose();
             _uiStates.Save();
 
             if (_cancellationRefreshBranches is { IsCancellationRequested: false })
@@ -2341,6 +2352,7 @@ namespace SourceGit.ViewModels
         private Models.Watcher _watcher = null;
         private Histories _histories = null;
         private WorkingCopy _workingCopy = null;
+        private TerminalViewModel _terminal = null;
         private StashesPage _stashesPage = null;
         private int _selectedViewIndex = 0;
 
