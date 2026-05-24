@@ -69,7 +69,8 @@
 
   <Grid RowDefinitions="Auto,Auto,*">
     <!-- Toolbar -->
-    <Border Grid.Row="0" Background="{DynamicResource Brush.DataGridHeaderBG}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}">
+    <Border Grid.Row="0" Background="{DynamicResource Brush.DataGridHeaderBG}"
+            BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <!-- Left: New Session SplitButton -->
         <SplitButton Classes="terminal_new" Margin="4,0"/>
@@ -108,7 +109,9 @@
 
             <ListBox.ItemTemplate>
               <DataTemplate DataType="vm:TerminalInstance">
-                <Border Height="32" Padding="8,0" Background="Transparent" BorderThickness="0,0,0,2"
+                <Border Height="32" Padding="8,0"
+                        Background="Transparent"
+                        BorderThickness="0,0,0,2"
                         BorderBrush="{Binding $parent[ListBoxItem].IsSelected, Converter={x:Static c:BoolConverters.IsWarningToBrush}, ConverterParameter={DynamicResource Brush.Accent}}">
                   <Border.ContextMenu>
                     <ContextMenu x:DataType="vm:TerminalInstance">
@@ -134,7 +137,8 @@
                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Width="12" Height="12" Source="{Binding Shell.Icon}"/>
                     <TextBlock Margin="6,0" Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource Brush.FG1}"/>
-                    <Button Classes="icon_button" Width="16" Height="16" Padding="0" Click="OnCloseSession" IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
+                    <Button Classes="icon_button" Width="16" Height="16" Padding="0"
+                            Click="OnCloseSession" IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
                       <Path Width="6" Height="6" Data="{StaticResource Icons.Close}"/>
                     </Button>
                   </StackPanel>
@@ -189,7 +193,13 @@
     </Border>
 
     <!-- Search Panel -->
-    <Border Grid.Row="1" Height="32" Padding="8,0" Background="{DynamicResource Brush.DataGridHeaderBG}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}" IsVisible="{Binding IsSearchVisible}">
+    <Border Grid.Row="1"
+            Height="32"
+            Padding="8,0"
+            Background="{DynamicResource Brush.DataGridHeaderBG}"
+            BorderThickness="0,0,0,1"
+            BorderBrush="{DynamicResource Brush.Border0}"
+            IsVisible="{Binding IsSearchVisible}">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
         <TextBox Grid.Column="0"
                  x:Name="PART_SearchBox"
@@ -208,13 +218,16 @@
                    Foreground="{DynamicResource Brush.FG2}"
                    Text="{Binding SearchResultCount, StringFormat='\{0\} matches'}"/>
 
-        <Button Grid.Column="2" Classes="icon_button" Width="24" Height="24" Command="{Binding SearchPrev}" ToolTip.Tip="Previous Match">
+        <Button Grid.Column="2" Classes="icon_button" Width="24" Height="24"
+                Command="{Binding SearchPrev}" ToolTip.Tip="Previous Match">
           <Path Width="10" Height="10" Data="{StaticResource Icons.Up}"/>
         </Button>
-        <Button Grid.Column="3" Classes="icon_button" Width="24" Height="24" Command="{Binding SearchNext}" ToolTip.Tip="Next Match">
+        <Button Grid.Column="3" Classes="icon_button" Width="24" Height="24"
+                Command="{Binding SearchNext}" ToolTip.Tip="Next Match">
           <Path Width="10" Height="10" Data="{StaticResource Icons.Down}"/>
         </Button>
-        <Button Grid.Column="4" Classes="icon_button" Width="24" Height="24" Command="{Binding CloseSearch}" ToolTip.Tip="Close Search">
+        <Button Grid.Column="4" Classes="icon_button" Width="24" Height="24"
+                Command="{Binding CloseSearch}" ToolTip.Tip="Close Search">
           <Path Width="10" Height="10" Data="{StaticResource Icons.Close}"/>
         </Button>
       </Grid>
@@ -225,10 +238,18 @@
       <!-- Terminal View Area -->
       <Grid Grid.Column="0">
         <!-- Empty State -->
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="24" IsVisible="{Binding Instances.Count, Converter={x:Static c:IntConverters.IsZero}}">
-          <Path Width="80" Height="80" Data="{StaticResource Icons.Terminal}" Fill="{DynamicResource Brush.FG2}" Opacity="0.15"/>
+        <StackPanel VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Spacing="24"
+                    IsVisible="{Binding Instances.Count, Converter={x:Static c:IntConverters.IsZero}}">
+          <Path Width="80"
+                Height="80"
+                Data="{StaticResource Icons.Terminal}"
+                Fill="{DynamicResource Brush.FG2}" Opacity="0.15"/>
 
-          <SplitButton x:Name="PART_EmptyNewBtn" Classes="terminal_new" Height="36" Command="{Binding NewSession}">
+          <SplitButton x:Name="PART_EmptyNewBtn"
+                       HorizontalAlignment="Center"
+                       Classes="terminal_new" Height="36" Command="{Binding NewSession}">
             <SplitButton.Template>
               <ControlTemplate>
                 <Grid ColumnDefinitions="*,Auto">
@@ -238,7 +259,7 @@
                           CornerRadius="3,0,0,3">
                     <StackPanel Orientation="Horizontal">
                       <Path Width="14" Height="14" Data="{StaticResource Icons.Plus}" Fill="White"/>
-                      <TextBlock Margin="8,0" Text="New Terminal" VerticalAlignment="Center"/>
+                      <TextBlock Margin="8,0" Text="{DynamicResource Text.Terminal.New}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                   <Button Grid.Column="1" Classes="flat primary" Width="32" Height="36" Padding="0"
@@ -273,6 +294,27 @@
               </ControlTemplate>
             </SplitButton.Template>
           </SplitButton>
+
+
+          <StackPanel HorizontalAlignment="Center"
+                      Margin="0,8" Orientation="Vertical"
+                      VerticalAlignment="Bottom">
+            <StackPanel Orientation="Horizontal"  Spacing="4" VerticalAlignment="Top">
+              <Path Width="12" Height="12" VerticalAlignment="Center"
+                    Data="{StaticResource Icons.Info}" Fill="{DynamicResource Brush.FG2}"/>
+
+              <TextBlock Margin="4,0"
+                         Text="{DynamicResource Text.Histories.Tips.Prefix}"
+                         FontWeight="Bold" Foreground="{DynamicResource Brush.FG2}"/>
+              <StackPanel Orientation="Vertical" Margin="0,4,0,0" Spacing="2">
+                <TextBlock Text="{DynamicResource  Text.Terminal.Hint}"
+                           Foreground="{DynamicResource Brush.FG2}"/>
+                <TextBlock Text="{DynamicResource  Text.Terminal.Hint.Suggest}"
+                           Foreground="{DynamicResource Brush.FG2}"/>
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+
         </StackPanel>
 
         <!-- Terminal Control -->

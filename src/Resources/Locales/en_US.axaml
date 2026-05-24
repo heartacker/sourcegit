@@ -976,6 +976,9 @@
   <x:String x:Key="Text.Welcome.Move" xml:space="preserve">Move to Another Group</x:String>
   <x:String x:Key="Text.Welcome.OpenAllInNode" xml:space="preserve">Open All Repositories</x:String>
   <x:String x:Key="Text.Welcome.OpenOrInit" xml:space="preserve">Open Repository</x:String>
+  <x:String x:Key="Text.Terminal.New" xml:space="preserve">New Terminal</x:String>
+  <x:String x:Key="Text.Terminal.Hint" xml:space="preserve">Integrated terminal is recommended for simple command operations like git, cd, etc.</x:String>
+  <x:String x:Key="Text.Terminal.Hint.Suggest" xml:space="preserve">For full terminal experience, please open an external terminal.</x:String>
   <x:String x:Key="Text.Welcome.OpenTerminal" xml:space="preserve">Open Terminal</x:String>
   <x:String x:Key="Text.Welcome.ScanDefaultCloneDir" xml:space="preserve">Rescan Repositories in Default Clone Dir</x:String>
   <x:String x:Key="Text.Welcome.Search" xml:space="preserve">Search Repositories...</x:String>

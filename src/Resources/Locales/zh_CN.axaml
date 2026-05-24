@@ -980,6 +980,9 @@
   <x:String x:Key="Text.Welcome.Move" xml:space="preserve">调整分组</x:String>
   <x:String x:Key="Text.Welcome.OpenAllInNode" xml:space="preserve">打开所有包含仓库</x:String>
   <x:String x:Key="Text.Welcome.OpenOrInit" xml:space="preserve">打开本地仓库</x:String>
+  <x:String x:Key="Text.Terminal.New" xml:space="preserve">新建终端</x:String>
+  <x:String x:Key="Text.Terminal.Hint" xml:space="preserve">内置终端建议用于简单命令操作，如 git、cd 等。</x:String>
+  <x:String x:Key="Text.Terminal.Hint.Suggest" xml:space="preserve">如需完整终端体验，请打开外部终端。</x:String>
   <x:String x:Key="Text.Welcome.OpenTerminal" xml:space="preserve">打开终端</x:String>
   <x:String x:Key="Text.Welcome.ScanDefaultCloneDir" xml:space="preserve">重新扫描默认克隆路径下的仓库</x:String>
   <x:String x:Key="Text.Welcome.Search" xml:space="preserve">快速查找仓库...</x:String>
