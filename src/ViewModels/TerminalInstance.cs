@@ -13,14 +13,21 @@ namespace SourceGit.ViewModels
     public class TerminalInstance : ObservableObject, IDisposable
     {
         public TerminalControlModel Model { get; }
-        public string Title { get; }
         public Models.ShellOrTerminal Shell { get; }
+        public string WorkingDirectory { get; }
         public Action OnExit { get; set; }
+
+        public string Title
+        {
+            get => _title;
+            set => SetProperty(ref _title, value);
+        }
 
         public TerminalInstance(string workingDirectory, Models.ShellOrTerminal shell)
         {
-            Title = Path.GetFileName(workingDirectory);
+            _title = Path.GetFileName(workingDirectory);
             Shell = shell;
+            WorkingDirectory = workingDirectory;
             _workingDirectory = workingDirectory;
             _shellConfig = shell;
             Model = new TerminalControlModel(new TerminalOptions
@@ -46,7 +53,7 @@ namespace SourceGit.ViewModels
             Model.SizeChanged -= OnInitialSizeChanged;
             _initialCols = e.Cols;
             _initialRows = e.Rows;
-            _ = StartPtyAsync(_workingDirectory, _shellConfig, _cts.Token);
+            _ = StartPtyAsync(WorkingDirectory, _shellConfig, _cts.Token);
         }
 
         private async Task StartPtyAsync(string workingDirectory, Models.ShellOrTerminal shellConfig, CancellationToken token)
@@ -254,5 +261,6 @@ namespace SourceGit.ViewModels
         private readonly object _outputLock = new object();
         private readonly MemoryStream _outputBuffer = new MemoryStream();
         private bool _isFlushPending = false;
+        private string _title;
     }
 }

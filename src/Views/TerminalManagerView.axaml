@@ -245,6 +245,27 @@
             <Grid ColumnDefinitions="3,Auto,*"
                   Height="32"
                   Background="Transparent">
+              <Grid.ContextMenu>
+                <ContextMenu x:DataType="vm:TerminalInstance">
+                  <MenuItem Header="Rename" Click="OnRenameSession">
+                    <MenuItem.Icon><Path Data="{StaticResource Icons.Rename}" Width="12" Height="12"/></MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="Duplicate" Click="OnDuplicateSession">
+                    <MenuItem.Icon><Path Data="{StaticResource Icons.Copy}" Width="12" Height="12"/></MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="Copy Path" Click="OnCopySessionPath">
+                    <MenuItem.Icon><Path Data="{StaticResource Icons.Folder}" Width="12" Height="12"/></MenuItem.Icon>
+                  </MenuItem>
+                  <Separator/>
+                  <MenuItem Header="Clear Buffer" Click="OnClearSession">
+                    <MenuItem.Icon><Path Data="{StaticResource Icons.Clear}" Width="12" Height="12"/></MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="Close" Click="OnCloseSession">
+                    <MenuItem.Icon><Path Data="{StaticResource Icons.Close}" Width="12" Height="12"/></MenuItem.Icon>
+                  </MenuItem>
+                </ContextMenu>
+              </Grid.ContextMenu>
+
               <Border Grid.Column="0" Width="3"
                       Background="{DynamicResource Brush.Accent}"
                       IsVisible="{Binding $parent[ListBoxItem].IsSelected}"/>
@@ -261,14 +282,12 @@
                           Orientation="Horizontal" Margin="0,0,4,0"
                           IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
                 <Button Classes="icon_button" Width="22" Height="22" Padding="0"
-                        Command="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).ClearSession}"
-                        CommandParameter="{Binding}"
+                        Click="OnClearSession"
                         ToolTip.Tip="Clear Buffer">
                   <Path Width="10" Height="10" Data="{StaticResource Icons.Clear}"/>
                 </Button>
                 <Button Classes="icon_button" Width="22" Height="22" Padding="0"
-                        Command="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).CloseSession}"
-                        CommandParameter="{Binding}"
+                        Click="OnCloseSession"
                         ToolTip.Tip="Close">
                   <Path Width="8" Height="8" Data="{StaticResource Icons.Close}"/>
                 </Button>

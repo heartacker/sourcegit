@@ -282,6 +282,62 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private void OnRenameSession(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem { DataContext: ViewModels.TerminalInstance instance })
+            {
+                var repo = this.FindAncestorOfType<Repository>();
+                if (repo?.DataContext is ViewModels.Repository vm)
+                {
+                    vm.ShowPopup(new ViewModels.RenameTerminal(instance));
+                }
+            }
+            e.Handled = true;
+        }
+
+        private void OnDuplicateSession(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem { DataContext: ViewModels.TerminalInstance instance } &&
+                DataContext is ViewModels.TerminalViewModel vm)
+            {
+                vm.DuplicateSession(instance);
+            }
+            e.Handled = true;
+        }
+
+        private async void OnCopySessionPath(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem { DataContext: ViewModels.TerminalInstance instance })
+            {
+                await this.CopyTextAsync(instance.WorkingDirectory);
+            }
+            e.Handled = true;
+        }
+
+        private void OnClearSession(object sender, RoutedEventArgs e)
+        {
+            var instance = (sender as MenuItem)?.DataContext as ViewModels.TerminalInstance;
+            if (instance == null && sender is Button btn) instance = btn.DataContext as ViewModels.TerminalInstance;
+
+            if (instance != null && DataContext is ViewModels.TerminalViewModel vm)
+            {
+                vm.ClearSession(instance);
+            }
+            e.Handled = true;
+        }
+
+        private void OnCloseSession(object sender, RoutedEventArgs e)
+        {
+            var instance = (sender as MenuItem)?.DataContext as ViewModels.TerminalInstance;
+            if (instance == null && sender is Button btn) instance = btn.DataContext as ViewModels.TerminalInstance;
+
+            if (instance != null && DataContext is ViewModels.TerminalViewModel vm)
+            {
+                vm.CloseSession(instance);
+            }
+            e.Handled = true;
+        }
+
         private ViewModels.TerminalViewModel _oldVm;
     }
 }
