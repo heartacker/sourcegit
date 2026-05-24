@@ -79,7 +79,7 @@ namespace SourceGit.Views
         }
     }
 
-    public class HistoriesCommitList : DataGrid
+    public partial class HistoriesCommitList : DataGrid
     {
         public static readonly StyledProperty<int> TotalCommitsProperty =
             AvaloniaProperty.Register<HistoriesCommitList, int>(nameof(TotalCommits), 0);

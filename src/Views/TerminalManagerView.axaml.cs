@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
@@ -113,12 +114,14 @@ namespace SourceGit.Views
         private void OnTerminalPointerPressed(object sender, PointerPressedEventArgs e)
         {
             var terminal = sender as TerminalControl;
-            if (terminal == null || terminal.Model == null) return;
+            if (terminal == null || terminal.Model == null)
+                return;
 
             // Feature 3: Smart Mouse Mode
             // If the terminal application (like vim/htop) is capturing the mouse, 
             // don't perform custom overrides.
-            if (terminal.IsMouseModeActive) return;
+            if (terminal.IsMouseModeActive)
+                return;
 
             // Handle Ctrl + LeftClick for Links
             if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.GetCurrentPoint(terminal).Properties.IsLeftButtonPressed)
@@ -146,7 +149,7 @@ namespace SourceGit.Views
                         // Select the word at this position
                         terminal.Model.SelectWordOrExpression(row, col);
                         var word = terminal.Model.SelectedText;
-                        
+
                         // Check if it's a URL
                         var match = UrlRegex.Match(word);
                         if (match.Success)
@@ -196,7 +199,7 @@ namespace SourceGit.Views
 
         private void OnTerminalDragOver(object sender, DragEventArgs e)
         {
-            if (e.Data.Contains(DataFormats.Files) || e.Data.Contains(DataFormats.Text))
+            if (e.DataTransfer.Contains(DataFormat.File) || e.DataTransfer.Contains(DataFormat.Text))
             {
                 e.DragEffects = DragDropEffects.Copy;
             }
@@ -211,38 +214,35 @@ namespace SourceGit.Views
         {
             if (DataContext is ViewModels.TerminalViewModel { SelectedInstance: { } instance })
             {
-                if (e.Data.Contains(DataFormats.Files))
+                var data = e.DataTransfer;
+                if (data.TryGetValue(DataFormat.File) is IEnumerable<IStorageItem> files)
                 {
-                    var files = e.Data.GetFiles();
-                    if (files != null)
+                    var builder = new StringBuilder();
+                    foreach (var file in files)
                     {
-                        var builder = new StringBuilder();
-                        foreach (var file in files)
-                        {
-                            if (builder.Length > 0) builder.Append(' ');
-
-                            var path = file.Path.LocalPath;
-                            if (path.Contains(' '))
-                            {
-                                builder.Append('"');
-                                builder.Append(path);
-                                builder.Append('"');
-                            }
-                            else
-                            {
-                                builder.Append(path);
-                            }
-                        }
-
                         if (builder.Length > 0)
+                            builder.Append(' ');
+
+                        var path = file.Path.LocalPath;
+                        if (path.Contains(' '))
                         {
-                            instance.Paste(builder.ToString());
+                            builder.Append('"');
+                            builder.Append(path);
+                            builder.Append('"');
+                        }
+                        else
+                        {
+                            builder.Append(path);
                         }
                     }
+
+                    if (builder.Length > 0)
+                    {
+                        instance.Paste(builder.ToString());
+                    }
                 }
-                else if (e.Data.Contains(DataFormats.Text))
+                else if (data.TryGetValue(DataFormat.Text) is string text)
                 {
-                    var text = await e.Data.GetTextAsync();
                     if (!string.IsNullOrEmpty(text))
                     {
                         instance.Paste(text);

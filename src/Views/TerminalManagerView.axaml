@@ -215,8 +215,8 @@
                                   PointerPressed="OnTerminalPointerPressed"
                                   Loaded="OnTerminalLoaded"
                                   DragDrop.AllowDrop="True"
-                                  DragOver="OnTerminalDragOver"
-                                  Drop="OnTerminalDrop"/>
+                                  DragDrop.DragOver="OnTerminalDragOver"
+                                  DragDrop.Drop="OnTerminalDrop"/>
       </Grid>
 
       <GridSplitter Grid.Column="1" Width="10"
