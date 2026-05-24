@@ -175,6 +175,7 @@
                                   FontSize="{Binding Source={x:Static vm:Preferences.Instance}, Path=EditorFontSize}"
                                   FontFamily="{Binding Source={x:Static vm:Preferences.Instance}, Path=MonospaceFontFamily, Converter={x:Static c:StringConverters.ToMonospaceFontName}}"
                                   UseLayoutRounding="True"
+                                  RightClickAction="CopyOrPaste"
                                   PointerPressed="OnTerminalPointerPressed"/>
       </Grid>
 

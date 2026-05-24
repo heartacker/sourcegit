@@ -1,7 +1,10 @@
 using System;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -14,6 +17,8 @@ namespace SourceGit.Views
 {
     public partial class TerminalManagerView : UserControl
     {
+        private static readonly Regex UrlRegex = new Regex(@"https?://[^\s""'<>]+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         public TerminalManagerView()
         {
             InitializeComponent();
@@ -90,21 +95,48 @@ namespace SourceGit.Views
 
         private void OnTerminalPointerPressed(object sender, PointerPressedEventArgs e)
         {
-            if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+            var terminal = sender as TerminalControl;
+            if (terminal == null || terminal.Model == null) return;
+
+            // Handle Ctrl + LeftClick for Links
+            if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.GetCurrentPoint(terminal).Properties.IsLeftButtonPressed)
             {
-                if (DataContext is ViewModels.TerminalViewModel { SelectedInstance: { } instance })
+                // Access internal _consoleTextSize and _surface to calculate cell
+                var type = typeof(TerminalControl);
+                var sizeField = type.GetField("_consoleTextSize", BindingFlags.NonPublic | BindingFlags.Instance);
+                var surfaceField = type.GetField("_surface", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (sizeField != null && surfaceField != null)
                 {
-                    var selected = instance.Model.SelectedText;
-                    if (!string.IsNullOrEmpty(selected))
+                    var cellSize = (Size)sizeField.GetValue(terminal);
+                    var surface = (Control)surfaceField.GetValue(terminal);
+
+                    if (cellSize.Width > 0 && cellSize.Height > 0 && surface != null)
                     {
-                        OnCopy(sender, e);
-                    }
-                    else
-                    {
-                        OnPaste(sender, e);
+                        var pos = e.GetPosition(surface);
+                        var col = (int)Math.Floor(pos.X / cellSize.Width);
+                        var row = (int)Math.Floor(pos.Y / cellSize.Height);
+
+                        // Clamp to valid range
+                        col = Math.Clamp(col, 0, terminal.Model.Terminal.Cols - 1);
+                        row = Math.Clamp(row, 0, terminal.Model.Terminal.Rows - 1);
+
+                        // Select the word at this position
+                        terminal.Model.SelectWordOrExpression(row, col);
+                        var word = terminal.Model.SelectedText;
+                        
+                        // Check if it's a URL
+                        var match = UrlRegex.Match(word);
+                        if (match.Success)
+                        {
+                            Native.OS.OpenBrowser(match.Value);
+                            e.Handled = true;
+                        }
+
+                        // Clear selection to not disturb user
+                        terminal.Model.ClearSelection();
                     }
                 }
-                e.Handled = true;
             }
         }
 
