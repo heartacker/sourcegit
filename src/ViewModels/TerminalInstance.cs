@@ -91,6 +91,17 @@ namespace SourceGit.ViewModels
             env["TERM_PROGRAM_VERSION"] = "1.0";
             env["COLUMNS"] = _initialCols.ToString();
             env["LINES"] = _initialRows.ToString();
+            env["SOURCEGIT_TERMINAL"] = "1";
+
+            // Inject GIT_EDITOR to use SourceGit's built-in GUI editor
+            var processPath = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(processPath))
+            {
+                // Note: We use --core-editor which opens CommitMessageEditor in standalone mode.
+                // We wrap path in quotes if it contains spaces.
+                var editorPath = processPath.Contains(' ') ? $"\"{processPath}\"" : processPath;
+                env["GIT_EDITOR"] = $"{editorPath} --core-editor";
+            }
 
             if (!env.ContainsKey("LANG"))
                 env["LANG"] = "en_US.UTF-8";
