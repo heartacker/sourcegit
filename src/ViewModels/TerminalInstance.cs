@@ -160,7 +160,9 @@ namespace SourceGit.ViewModels
             {
                 try
                 {
-                    var data = System.Text.Encoding.UTF8.GetBytes(text);
+                    // Normalize newlines for PTY: typically PTY expects \r for Enter
+                    var normalized = text.Replace("\r\n", "\r").Replace("\n", "\r");
+                    var data = System.Text.Encoding.UTF8.GetBytes(normalized);
                     _connection.WriterStream.Write(data);
                     _connection.WriterStream.Flush();
                 }

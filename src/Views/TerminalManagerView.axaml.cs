@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -85,6 +86,26 @@ namespace SourceGit.Views
             if (DataContext is ViewModels.TerminalViewModel vm)
                 vm.NewSession();
             e.Handled = true;
+        }
+
+        private void OnTerminalPointerPressed(object sender, PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+            {
+                if (DataContext is ViewModels.TerminalViewModel { SelectedInstance: { } instance })
+                {
+                    var selected = instance.Model.SelectedText;
+                    if (!string.IsNullOrEmpty(selected))
+                    {
+                        OnCopy(sender, e);
+                    }
+                    else
+                    {
+                        OnPaste(sender, e);
+                    }
+                }
+                e.Handled = true;
+            }
         }
 
         private async void OnCopy(object sender, RoutedEventArgs e)
