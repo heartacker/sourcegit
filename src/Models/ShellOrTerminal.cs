@@ -49,16 +49,17 @@ namespace SourceGit.Models
 
             if (OperatingSystem.IsWindows())
             {
-                AddIfExeExists("cmd", "Command Prompt", "cmd.exe", null, true);
-                AddIfExeExists("pwsh", "PowerShell 7", "pwsh.exe", "-NoLogo", true);
-                AddIfExeExists("powershell", "Windows PowerShell", "powershell.exe", "-NoLogo", true);
+                // AddIfExeExists("cmd", "Command Prompt", "cmd.exe", null, true);
                 AddIfExeExists("git-bash", "Git Bash", "bash.exe", null, true);
+                AddIfExeExists("pwsh", "PowerShell 7", "pwsh.exe", "-NoLogo", true);
+                AddIfExeExists("wsl", "WSL", "wsl.exe", "", true);
+                AddIfExeExists("powershell", "Windows PowerShell", "powershell.exe", "-NoLogo", true);
                 AddIfExeExists("wt", "Windows Terminal", "wt.exe", "-d .");
             }
             else if (OperatingSystem.IsMacOS())
             {
-                AddIfExeExists("zsh", "Zsh", "/bin/zsh", "-i", true);
                 AddIfExeExists("bash", "Bash", "/bin/bash", "-i", true);
+                AddIfExeExists("zsh", "Zsh", "/bin/zsh", "-i", true);
                 AddIfExeExists("sh", "Sh", "/bin/sh", "-i", true);
                 AddIfExeExists("mac-terminal", "Terminal", "Terminal");
                 AddIfExeExists("iterm2", "iTerm", "iTerm");
