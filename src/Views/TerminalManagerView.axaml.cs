@@ -20,7 +20,8 @@ namespace SourceGit.Views
 {
     public partial class TerminalManagerView : UserControl
     {
-        private static readonly Regex UrlRegex = new Regex(@"https?://[^\s""'<>]+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex UrlRegex =
+            new Regex(@"https?://[^\s""'<>]+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public TerminalManagerView()
         {
@@ -46,13 +47,12 @@ namespace SourceGit.Views
 
         private void OnViewModelPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(ViewModels.TerminalViewModel.SelectedInstance) ||
-                e.PropertyName == "Instances")
+            if (e.PropertyName == nameof(ViewModels.TerminalViewModel.SelectedInstance) || e.PropertyName == "Instances")
             {
                 // Use a lower priority for empty state to avoid catching Enter key from exit command
                 var priority = (DataContext is ViewModels.TerminalViewModel vm && vm.Instances.Count == 0)
-                    ? DispatcherPriority.ApplicationIdle
-                    : DispatcherPriority.Background;
+                                   ? DispatcherPriority.ApplicationIdle
+                                   : DispatcherPriority.Background;
 
                 Dispatcher.UIThread.Post(FocusProperControl, priority);
             }
@@ -66,20 +66,20 @@ namespace SourceGit.Views
             if (vm.Instances.Count == 0)
             {
                 // Small delay to ensure any pending keyboard events (like Enter for 'exit') are processed
-                await Task.Delay(100);
+                // await Task.Delay(100);
 
-                // Focus the empty state SplitButton
-                var emptyBtn = this.FindControl<SplitButton>("PART_EmptyNewBtn");
-                if (emptyBtn != null)
-                {
-                    emptyBtn.Focus();
-                }
-                else
-                {
-                    // Fallback search if Name binding fails in Template
-                    var btn = this.GetVisualDescendants().OfType<SplitButton>().FirstOrDefault(x => x.IsVisible);
-                    btn?.Focus();
-                }
+                // // Focus the empty state SplitButton
+                // var emptyBtn = this.FindControl<SplitButton>("PART_EmptyNewBtn");
+                // if (emptyBtn != null)
+                // {
+                //     emptyBtn.Focus();
+                // }
+                // else
+                // {
+                //     // Fallback search if Name binding fails in Template
+                //     var btn = this.GetVisualDescendants().OfType<SplitButton>().FirstOrDefault(x => x.IsVisible);
+                //     btn?.Focus();
+                // }
             }
             else if (vm.SelectedInstance != null)
             {
@@ -125,7 +125,7 @@ namespace SourceGit.Views
                 return;
 
             // Feature 3: Smart Mouse Mode
-            // If the terminal application (like vim/htop) is capturing the mouse, 
+            // If the terminal application (like vim/htop) is capturing the mouse,
             // don't perform custom overrides.
             if (terminal.IsMouseModeActive)
                 return;
@@ -183,7 +183,8 @@ namespace SourceGit.Views
             // Feature 5: Paste Interception
             // Normalize clipboard content before it reaches the terminal buffer
             // Since ClipboardTextReaderOverride is internal, we use reflection to set it.
-            var prop = typeof(TerminalControl).GetProperty("ClipboardTextReaderOverride", BindingFlags.NonPublic | BindingFlags.Instance);
+            var prop = typeof(TerminalControl)
+                           .GetProperty("ClipboardTextReaderOverride", BindingFlags.NonPublic | BindingFlags.Instance);
             if (prop != null)
             {
                 Func<Task<string>> reader = async () =>
