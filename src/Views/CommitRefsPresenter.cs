@@ -36,7 +36,8 @@ namespace SourceGit.Views
         private static readonly Dictionary<string, StreamGeometry> ICON_CACHE = new();
         private static void EnsureIcons(Control resourceHost)
         {
-            if (ICON_CACHE.Count > 0) return;
+            if (ICON_CACHE.Count > 0)
+                return;
             ICON_CACHE["Head"] = resourceHost.FindResource("Icons.Head") as StreamGeometry;
             ICON_CACHE["Remote"] = resourceHost.FindResource("Icons.Remote") as StreamGeometry;
             ICON_CACHE["Tag"] = resourceHost.FindResource("Icons.Tag") as StreamGeometry;
@@ -52,13 +53,16 @@ namespace SourceGit.Views
         private Dictionary<string, Models.Branch> _branchLookup = null;
         private Dictionary<string, Models.Branch> GetBranchLookup(List<Models.Branch> branches)
         {
-            if (branches == null) return null;
-            if (ReferenceEquals(branches, _lastBranchesRef)) return _branchLookup;
+            if (branches == null)
+                return null;
+            if (ReferenceEquals(branches, _lastBranchesRef))
+                return _branchLookup;
 
             var lookup = new Dictionary<string, Models.Branch>(branches.Count, StringComparer.OrdinalIgnoreCase);
             foreach (var b in branches)
             {
-                if (b.IsLocal) lookup[b.Name] = b;
+                if (b.IsLocal)
+                    lookup[b.Name] = b;
             }
 
             _lastBranchesRef = branches;
@@ -174,14 +178,17 @@ namespace SourceGit.Views
             {
                 if (pill.Bounds.Contains(point))
                 {
-                    if (pill.Other != null) return pill.Other.Decorator;
+                    if (pill.Other != null)
+                        return pill.Other.Decorator;
                     foreach (var l in pill.Locals)
                     {
-                        if (l.Bounds.Contains(point)) return l.Decorator;
+                        if (l.Bounds.Contains(point))
+                            return l.Decorator;
                     }
                     foreach (var r in pill.RemoteGroup)
                     {
-                        if (r.Bounds.Contains(point)) return r.Decorator;
+                        if (r.Bounds.Contains(point))
+                            return r.Decorator;
                     }
                 }
             }
@@ -228,14 +235,16 @@ namespace SourceGit.Views
                 {
                     if (UseGraphColor)
                     {
-                        if (bg != null) context.DrawRectangle(bg, null, entireRect);
+                        if (bg != null)
+                            context.DrawRectangle(bg, null, entireRect);
                         using (context.PushOpacity(.6))
                             context.DrawRectangle(pill.Brush, null, entireRect);
                     }
                 }
                 else
                 {
-                    if (bg != null) context.DrawRectangle(bg, null, entireRect);
+                    if (bg != null)
+                        context.DrawRectangle(bg, null, entireRect);
                     using (context.PushOpacity(.2))
                         context.DrawRectangle(pill.Brush, null, entireRect);
                 }
@@ -362,10 +371,12 @@ namespace SourceGit.Views
         protected override Size MeasureOverride(Size availableSize)
         {
             _pills.Clear();
-            if (DataContext is not Models.Commit commit) return new Size(0, 0);
+            if (DataContext is not Models.Commit commit)
+                return new Size(0, 0);
 
             var refs = commit.Decorators;
-            if (refs == null || refs.Count == 0) return new Size(0, 0);
+            if (refs == null || refs.Count == 0)
+                return new Size(0, 0);
             EnsureIcons(this);
             var typeface = new Typeface(FontFamily);
             var typefaceBold = new Typeface(FontFamily, FontStyle.Normal, FontWeight.Bold);
@@ -430,8 +441,10 @@ namespace SourceGit.Views
             var allLocals = new List<Models.Decorator>();
             foreach (var r in refs)
             {
-                if (r.Type == Models.DecoratorType.RemoteBranchHead) allRemotes.Add(r);
-                else if (r.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead) allLocals.Add(r);
+                if (r.Type == Models.DecoratorType.RemoteBranchHead)
+                    allRemotes.Add(r);
+                else if (r.Type is Models.DecoratorType.LocalBranchHead or Models.DecoratorType.CurrentBranchHead)
+                    allLocals.Add(r);
             }
 
             // Pre-calculate tracked leaders with zero-allocation span comparison
@@ -459,7 +472,8 @@ namespace SourceGit.Views
 
                         if (r != null)
                         {
-                            if (!trackLeaders.ContainsKey(r)) trackLeaders[r] = new();
+                            if (!trackLeaders.ContainsKey(r))
+                                trackLeaders[r] = new();
                             trackLeaders[r].Add(l);
                         }
                     }
@@ -476,7 +490,8 @@ namespace SourceGit.Views
 
                 for (int i = 0; i < trackers.Count; i++)
                 {
-                    if (i > 0) w += pipeWidth;
+                    if (i > 0)
+                        w += pipeWidth;
                     var lItem = CreateRenderItem(trackers[i], typeface, typefaceBold, labelSize, fg);
                     pill.Locals.Add(lItem);
                     processed.Add(trackers[i]);
@@ -515,7 +530,8 @@ namespace SourceGit.Views
                 // Siblings with zero-allocation suffix check
                 foreach (var ar in allRemotes)
                 {
-                    if (processed.Contains(ar) || trackLeaders.ContainsKey(ar)) continue;
+                    if (processed.Contains(ar) || trackLeaders.ContainsKey(ar))
+                        continue;
 
                     var arName = ar.Name.AsSpan();
                     var arSlashIdx = arName.IndexOf('/');
@@ -539,7 +555,8 @@ namespace SourceGit.Views
             // 2. Process Remaining Locals
             foreach (var l in allLocals)
             {
-                if (processed.Contains(l)) continue;
+                if (processed.Contains(l))
+                    continue;
 
                 var pill = new Pill { Brush = normalBG };
                 var lItem = CreateRenderItem(l, typeface, typefaceBold, labelSize, fg);
@@ -549,7 +566,8 @@ namespace SourceGit.Views
 
                 foreach (var ar in allRemotes)
                 {
-                    if (processed.Contains(ar) || trackLeaders.ContainsKey(ar)) continue;
+                    if (processed.Contains(ar) || trackLeaders.ContainsKey(ar))
+                        continue;
 
                     var arName = ar.Name.AsSpan();
                     var arSlashIdx = arName.IndexOf('/');
@@ -573,8 +591,10 @@ namespace SourceGit.Views
             // 3. Tags & Common Divisor Merge
             foreach (var decorator in refs)
             {
-                if (processed.Contains(decorator)) continue;
-                if (!ShowTags && decorator.Type == Models.DecoratorType.Tag) continue;
+                if (processed.Contains(decorator))
+                    continue;
+                if (!ShowTags && decorator.Type == Models.DecoratorType.Tag)
+                    continue;
 
                 var pill = new Pill { Brush = normalBG };
                 if (decorator.Type == Models.DecoratorType.Tag)
@@ -602,12 +622,14 @@ namespace SourceGit.Views
                     var group = new List<Models.Decorator>();
                     foreach (var ur in allRemotes)
                     {
-                        if (processed.Contains(ur)) continue;
+                        if (processed.Contains(ur))
+                            continue;
                         var urName = ur.Name.AsSpan();
                         var urSlashIdx = urName.IndexOf('/');
                         var urSuffix = urSlashIdx >= 0 ? urName.Slice(urSlashIdx + 1) : urName;
 
-                        if (urSuffix.Equals(suffix, StringComparison.OrdinalIgnoreCase)) group.Add(ur);
+                        if (urSuffix.Equals(suffix, StringComparison.OrdinalIgnoreCase))
+                            group.Add(ur);
                     }
 
                     if (group.Count > 1)
@@ -618,7 +640,8 @@ namespace SourceGit.Views
                             pill.SharedBranchName = suffix.ToString();
                             for (int i = 0; i < group.Count; i++)
                             {
-                                if (i > 0) w += pipeWidth;
+                                if (i > 0)
+                                    w += pipeWidth;
                                 var rItem = CreateRenderItem(group[i], typeface, typefaceBold, labelSize, fg, true, true);
                                 pill.RemoteGroup.Add(rItem);
                                 processed.Add(group[i]);
@@ -632,7 +655,8 @@ namespace SourceGit.Views
                         {
                             for (int i = 0; i < group.Count; i++)
                             {
-                                if (i > 0) w += pipeWidth;
+                                if (i > 0)
+                                    w += pipeWidth;
                                 var rItem = CreateRenderItem(group[i], typeface, typefaceBold, labelSize, fg, true, false);
                                 pill.RemoteGroup.Add(rItem);
                                 processed.Add(group[i]);
