@@ -23,13 +23,14 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _title, value);
         }
 
-        public TerminalInstance(string workingDirectory, Models.ShellOrTerminal shell)
+        public TerminalInstance(string workingDirectory, Models.ShellOrTerminal shell, string initialCommand = "")
         {
             _title = Path.GetFileName(workingDirectory);
             Shell = shell;
             WorkingDirectory = workingDirectory;
             _workingDirectory = workingDirectory;
             _shellConfig = shell;
+            _initialCommand = initialCommand;
             Model = new TerminalControlModel(new TerminalOptions
             {
                 Cols = 80,
@@ -141,6 +142,13 @@ namespace SourceGit.ViewModels
                     // Start reading loop
                     _readTask = Task.Run(async () =>
                     {
+                        // If we have an initial command, feed it once PTY is started
+                        if (!string.IsNullOrEmpty(_initialCommand))
+                        {
+                            await Task.Delay(100, token);
+                            Paste(_initialCommand + "\r");
+                        }
+
                         var buffer = new byte[16384];
                         try
                         {
@@ -267,6 +275,7 @@ namespace SourceGit.ViewModels
         private int _pendingRows = 0;
         private string _workingDirectory;
         private Models.ShellOrTerminal _shellConfig;
+        private string _initialCommand;
         private int _initialCols = 80;
         private int _initialRows = 24;
         private readonly object _outputLock = new object();

@@ -828,7 +828,13 @@
                       </TextBox.InnerRightContent>
                     </TextBox>
 
-                    <CheckBox Margin="0,8,0,0" Content="{DynamicResource Text.Configure.CustomAction.WaitForExit}" IsChecked="{Binding WaitForExit, Mode=TwoWay}"/>
+                    <CheckBox Margin="0,8,0,0" 
+                              Content="{DynamicResource Text.Configure.CustomAction.UseTerminal}" 
+                              IsChecked="{Binding UseTerminal, Mode=TwoWay}"/>
+                    <CheckBox Margin="0,8,0,0" 
+                              Content="{DynamicResource Text.Configure.CustomAction.WaitForExit}" 
+                              IsChecked="{Binding WaitForExit, Mode=TwoWay}"
+                              IsVisible="{Binding UseTerminal, Converter={x:Static c:BoolConverters.Not}}"/>
                   </StackPanel>
                 </DataTemplate>
               </ContentControl.DataTemplates>

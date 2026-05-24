@@ -94,6 +94,20 @@ namespace SourceGit.ViewModels
             SelectedInstance = instance;
         }
 
+        public void NewSessionWithCommand(string command, string title = "")
+        {
+            var shell = AvailableShells.Find(x => x.IsInternal);
+            if (shell == null)
+                return;
+
+            var instance = new TerminalInstance(_workingDirectory, shell, command);
+            if (!string.IsNullOrEmpty(title))
+                instance.Title = title;
+            instance.OnExit = () => CloseSession(instance);
+            Instances.Add(instance);
+            SelectedInstance = instance;
+        }
+
         public void CloseSession(TerminalInstance instance)
         {
             if (instance == null)
@@ -122,7 +136,8 @@ namespace SourceGit.ViewModels
 
         public void DuplicateSession(TerminalInstance instance)
         {
-            if (instance == null) return;
+            if (instance == null)
+                return;
             var newInstance = new TerminalInstance(instance.WorkingDirectory, instance.Shell);
             newInstance.OnExit = () => CloseSession(newInstance);
             newInstance.Title = instance.Title;

@@ -317,7 +317,8 @@ namespace SourceGit.Views
         private void OnClearSession(object sender, RoutedEventArgs e)
         {
             var instance = (sender as MenuItem)?.DataContext as ViewModels.TerminalInstance;
-            if (instance == null && sender is Button btn) instance = btn.DataContext as ViewModels.TerminalInstance;
+            if (instance == null && sender is Button btn)
+                instance = btn.DataContext as ViewModels.TerminalInstance;
 
             if (instance != null && DataContext is ViewModels.TerminalViewModel vm)
             {
@@ -329,7 +330,8 @@ namespace SourceGit.Views
         private void OnCloseSession(object sender, RoutedEventArgs e)
         {
             var instance = (sender as MenuItem)?.DataContext as ViewModels.TerminalInstance;
-            if (instance == null && sender is Button btn) instance = btn.DataContext as ViewModels.TerminalInstance;
+            if (instance == null && sender is Button btn)
+                instance = btn.DataContext as ViewModels.TerminalInstance;
 
             if (instance != null && DataContext is ViewModels.TerminalViewModel vm)
             {
