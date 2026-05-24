@@ -74,11 +74,81 @@
         <!-- Left: New Session SplitButton -->
         <SplitButton Classes="terminal_new" Margin="4,0"/>
 
-        <!-- Center: Current Title -->
-        <TextBlock Grid.Column="1" Text="{Binding SelectedInstance.Title, FallbackValue=''}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource Brush.FG2}" FontSize="11" Opacity="0.8"/>
+        <!-- Center: Current Title or Tab Bar -->
+        <Panel Grid.Column="1">
+          <TextBlock Text="{Binding SelectedInstance.Title, FallbackValue=''}"
+                     VerticalAlignment="Center" HorizontalAlignment="Center"
+                     Foreground="{DynamicResource Brush.FG2}" FontSize="11" Opacity="0.8"
+                     IsVisible="{Binding UseSideBarLayout}"/>
+
+          <ListBox ItemsSource="{Binding Instances}"
+                   SelectedItem="{Binding SelectedInstance, Mode=TwoWay}"
+                   Background="Transparent"
+                   Padding="4,0"
+                   IsVisible="{Binding UseSideBarLayout, Converter={x:Static c:BoolConverters.Not}}"
+                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                   ScrollViewer.VerticalScrollBarVisibility="Disabled">
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal"/>
+              </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="MinHeight" Value="0"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Background" Value="Transparent"/>
+              </Style>
+              <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                <Setter Property="Background" Value="Transparent"/>
+              </Style>
+            </ListBox.Styles>
+
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:TerminalInstance">
+                <Border Height="32" Padding="8,0" Background="Transparent" BorderThickness="0,0,0,2"
+                        BorderBrush="{Binding $parent[ListBoxItem].IsSelected, Converter={x:Static c:BoolConverters.IsWarningToBrush}, ConverterParameter={DynamicResource Brush.Accent}}">
+                  <Border.ContextMenu>
+                    <ContextMenu x:DataType="vm:TerminalInstance">
+                      <MenuItem Header="Rename" Click="OnRenameSession">
+                        <MenuItem.Icon><Path Data="{StaticResource Icons.Rename}" Width="12" Height="12"/></MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem Header="Duplicate" Click="OnDuplicateSession">
+                        <MenuItem.Icon><Path Data="{StaticResource Icons.Copy}" Width="12" Height="12"/></MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem Header="Copy Path" Click="OnCopySessionPath">
+                        <MenuItem.Icon><Path Data="{StaticResource Icons.Folder}" Width="12" Height="12"/></MenuItem.Icon>
+                      </MenuItem>
+                      <Separator/>
+                      <MenuItem Header="Clear Buffer" Click="OnClearSession">
+                        <MenuItem.Icon><Path Data="{StaticResource Icons.Clear}" Width="12" Height="12"/></MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem Header="Close" Click="OnCloseSession">
+                        <MenuItem.Icon><Path Data="{StaticResource Icons.Close}" Width="12" Height="12"/></MenuItem.Icon>
+                      </MenuItem>
+                    </ContextMenu>
+                  </Border.ContextMenu>
+
+                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Width="12" Height="12" Source="{Binding Shell.Icon}"/>
+                    <TextBlock Margin="6,0" Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource Brush.FG1}"/>
+                    <Button Classes="icon_button" Width="16" Height="16" Padding="0" Click="OnCloseSession" IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
+                      <Path Width="6" Height="6" Data="{StaticResource Icons.Close}"/>
+                    </Button>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Panel>
 
         <!-- Right: Actions -->
         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="4,0">
+          <Button Classes="icon_button" Width="28" Height="28" Click="OnToggleLayout" ToolTip.Tip="Toggle Layout">
+            <Path Width="14" Height="14" Data="{StaticResource Icons.Layout}"/>
+          </Button>
           <Button Classes="icon_button" Width="28" Height="28" Click="OnOpenSearch" ToolTip.Tip="Find (Ctrl+F)" HotKey="Ctrl+F">
             <Path Width="14" Height="14" Data="{StaticResource Icons.Search}"/>
           </Button>
@@ -130,11 +200,11 @@
                  Text="{Binding SearchText, Mode=TwoWay}"
                  BorderThickness="1"
                  Background="{DynamicResource Brush.Contents}"/>
-        
-        <TextBlock Grid.Column="1" 
-                   Margin="8,0" 
-                   VerticalAlignment="Center" 
-                   FontSize="11" 
+
+        <TextBlock Grid.Column="1"
+                   Margin="8,0"
+                   VerticalAlignment="Center"
+                   FontSize="11"
                    Foreground="{DynamicResource Brush.FG2}"
                    Text="{Binding SearchResultCount, StringFormat='\{0\} matches'}"/>
 
@@ -224,7 +294,8 @@
                     Background="Transparent"
                     ResizeBehavior="PreviousAndNext"
                     ResizeDirection="Columns"
-                    Cursor="SizeWestEast"/>
+                    Cursor="SizeWestEast"
+                    IsVisible="{Binding UseSideBarLayout}"/>
 
       <!-- Sidebar Area -->
       <ListBox Grid.Column="2"
@@ -233,7 +304,8 @@
                BorderThickness="1,0,0,0" BorderBrush="{DynamicResource Brush.Border0}"
                ItemsSource="{Binding Instances}"
                SelectedItem="{Binding SelectedInstance, Mode=TwoWay}"
-               Padding="0">
+               Padding="0"
+               IsVisible="{Binding UseSideBarLayout}">
         <ListBox.Styles>
           <Style Selector="ListBoxItem">
             <Setter Property="Padding" Value="0"/>

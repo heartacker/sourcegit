@@ -37,6 +37,12 @@ namespace SourceGit.ViewModels
             private set => SetProperty(ref _searchResultCount, value);
         }
 
+        public bool UseSideBarLayout
+        {
+            get => _useSideBarLayout;
+            set => SetProperty(ref _useSideBarLayout, value);
+        }
+
         public List<Models.ShellOrTerminal> AvailableShells
         {
             get
@@ -220,5 +226,6 @@ namespace SourceGit.ViewModels
         private bool _isSearchVisible;
         private string _searchText = string.Empty;
         private int _searchResultCount;
+        private bool _useSideBarLayout = true;
     }
 }

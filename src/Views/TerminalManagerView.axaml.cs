@@ -111,6 +111,13 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private void OnToggleLayout(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.TerminalViewModel vm)
+                vm.UseSideBarLayout = !vm.UseSideBarLayout;
+            e.Handled = true;
+        }
+
         private void OnTerminalPointerPressed(object sender, PointerPressedEventArgs e)
         {
             var terminal = sender as TerminalControl;
