@@ -473,12 +473,14 @@
         <ToggleButton Classes="line_path"
                       Width="28" Height="28"
                       Padding="0"
+                      HotKey="{OnPlatform Ctrl+Shift+J, macOS=⌘+Shift+J}"
                       IsChecked="{Binding IsMaximizeDetails, Mode=TwoWay}"
                       IsVisible="{Binding Source={x:Static vm:Preferences.Instance}, Path=UseTwoColumnsLayoutInHistories, Mode=OneWay, Converter={x:Static BoolConverters.Not}}">
           <ToolTip.Tip>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
               <TextBlock Text="{DynamicResource Text.CommitDetail.Maximize}" VerticalAlignment="Center"/>
               <TextBlock Margin="16,0,0,0"
+                         Text="{OnPlatform Ctrl+Shift+J, macOS=⌘+Shift+J}"
                          Foreground="{DynamicResource MenuFlyoutItemKeyboardAcceleratorTextForeground}"
                          FontSize="11"
                          VerticalAlignment="Center"/>
