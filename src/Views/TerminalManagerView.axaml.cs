@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia;
@@ -9,6 +10,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using SvcSystems.UI.Terminal;
@@ -190,6 +192,64 @@ namespace SourceGit.Views
                 };
                 prop.SetValue(terminal, reader);
             }
+        }
+
+        private void OnTerminalDragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.Contains(DataFormats.Files) || e.Data.Contains(DataFormats.Text))
+            {
+                e.DragEffects = DragDropEffects.Copy;
+            }
+            else
+            {
+                e.DragEffects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        private async void OnTerminalDrop(object sender, DragEventArgs e)
+        {
+            if (DataContext is ViewModels.TerminalViewModel { SelectedInstance: { } instance })
+            {
+                if (e.Data.Contains(DataFormats.Files))
+                {
+                    var files = e.Data.GetFiles();
+                    if (files != null)
+                    {
+                        var builder = new StringBuilder();
+                        foreach (var file in files)
+                        {
+                            if (builder.Length > 0) builder.Append(' ');
+
+                            var path = file.Path.LocalPath;
+                            if (path.Contains(' '))
+                            {
+                                builder.Append('"');
+                                builder.Append(path);
+                                builder.Append('"');
+                            }
+                            else
+                            {
+                                builder.Append(path);
+                            }
+                        }
+
+                        if (builder.Length > 0)
+                        {
+                            instance.Paste(builder.ToString());
+                        }
+                    }
+                }
+                else if (e.Data.Contains(DataFormats.Text))
+                {
+                    var text = await e.Data.GetTextAsync();
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        instance.Paste(text);
+                    }
+                }
+            }
+            e.Handled = true;
         }
 
         private async void OnCopy(object sender, RoutedEventArgs e)

@@ -213,7 +213,10 @@
                                   UseLayoutRounding="True"
                                   RightClickAction="CopyOrPaste"
                                   PointerPressed="OnTerminalPointerPressed"
-                                  Loaded="OnTerminalLoaded"/>
+                                  Loaded="OnTerminalLoaded"
+                                  DragDrop.AllowDrop="True"
+                                  DragOver="OnTerminalDragOver"
+                                  Drop="OnTerminalDrop"/>
       </Grid>
 
       <GridSplitter Grid.Column="1" Width="10"
