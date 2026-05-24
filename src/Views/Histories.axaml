@@ -45,13 +45,13 @@
                                Providers="{Binding SearchProviders}"
                                SlashCommands="{Binding SearchSlashCommands}"/>
 
-            <!-- Invisible Button to handle search hotkey pressed -->
-            <Button Grid.Column="1"
-              Width="0" Height="0"
-              Margin="0" Padding="0"
-              HorizontalAlignment="Right"
-              Click="OnTokenFilterHotKey"
-              HotKey="{OnPlatform Ctrl+F, macOS=⌘+F}"/>
+          <!-- Invisible Button to handle search hotkey pressed -->
+          <Button Grid.Column="1"
+                  Width="0" Height="0"
+                  Margin="0" Padding="0"
+                  HorizontalAlignment="Right"
+                  Click="OnTokenFilterHotKey"
+                  HotKey="{OnPlatform Ctrl+F, macOS=⌘+F}"/>
         </Grid>
       </Border>
 
