@@ -123,7 +123,7 @@ namespace SourceGit.ViewModels
                     // Start reading loop
                     _readTask = Task.Run(async () =>
                     {
-                        var buffer = new byte[8192];
+                        var buffer = new byte[16384];
                         try
                         {
                             while (!token.IsCancellationRequested)
@@ -132,9 +132,15 @@ namespace SourceGit.ViewModels
                                 if (read <= 0)
                                     break;
 
-                                var data = new byte[read];
-                                Array.Copy(buffer, data, read);
-                                Avalonia.Threading.Dispatcher.UIThread.Post(() => Model.Feed(data, read));
+                                lock (_outputLock)
+                                {
+                                    _outputBuffer.Write(buffer, 0, read);
+                                    if (!_isFlushPending)
+                                    {
+                                        _isFlushPending = true;
+                                        Avalonia.Threading.Dispatcher.UIThread.Post(FlushOutputBuffer, Avalonia.Threading.DispatcherPriority.Background);
+                                    }
+                                }
                             }
                         }
                         catch (OperationCanceledException) { }
@@ -151,6 +157,22 @@ namespace SourceGit.ViewModels
             catch (Exception ex)
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => Model.Feed($"Failed to spawn PTY: {ex.Message}\r\n"));
+            }
+        }
+
+        private void FlushOutputBuffer()
+        {
+            byte[] data;
+            lock (_outputLock)
+            {
+                data = _outputBuffer.ToArray();
+                _outputBuffer.SetLength(0);
+                _isFlushPending = false;
+            }
+
+            if (data.Length > 0 && Interlocked.CompareExchange(ref _disposed, 0, 0) == 0)
+            {
+                Model.Feed(data, data.Length);
             }
         }
 
@@ -210,6 +232,12 @@ namespace SourceGit.ViewModels
                 _connection.Dispose();
                 _connection = null;
             }
+
+            lock (_outputLock)
+            {
+                _outputBuffer.Dispose();
+            }
+
             _cts.Dispose();
         }
 
@@ -223,5 +251,8 @@ namespace SourceGit.ViewModels
         private Models.ShellOrTerminal _shellConfig;
         private int _initialCols = 80;
         private int _initialRows = 24;
+        private readonly object _outputLock = new object();
+        private readonly MemoryStream _outputBuffer = new MemoryStream();
+        private bool _isFlushPending = false;
     }
 }
