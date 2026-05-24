@@ -15,6 +15,28 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _selectedInstance, value);
         }
 
+        public bool IsSearchVisible
+        {
+            get => _isSearchVisible;
+            set => SetProperty(ref _isSearchVisible, value);
+        }
+
+        public string SearchText
+        {
+            get => _searchText;
+            set
+            {
+                if (SetProperty(ref _searchText, value))
+                    OnSearchTextChanged();
+            }
+        }
+
+        public int SearchResultCount
+        {
+            get => _searchResultCount;
+            private set => SetProperty(ref _searchResultCount, value);
+        }
+
         public List<Models.ShellOrTerminal> AvailableShells
         {
             get
@@ -135,6 +157,31 @@ namespace SourceGit.ViewModels
             NewSession();
         }
 
+        public void SearchNext()
+        {
+            SelectedInstance?.Model?.SelectNextSearchResult();
+        }
+
+        public void SearchPrev()
+        {
+            SelectedInstance?.Model?.SelectPreviousSearchResult();
+        }
+
+        public void CloseSearch()
+        {
+            IsSearchVisible = false;
+            SearchText = string.Empty;
+            SelectedInstance?.Model?.ClearSelection();
+        }
+
+        private void OnSearchTextChanged()
+        {
+            if (SelectedInstance != null)
+            {
+                SearchResultCount = SelectedInstance.Model.Search(_searchText);
+            }
+        }
+
         public void Dispose()
         {
             foreach (var instance in Instances)
@@ -145,5 +192,8 @@ namespace SourceGit.ViewModels
 
         private string _workingDirectory;
         private TerminalInstance _selectedInstance;
+        private bool _isSearchVisible;
+        private string _searchText = string.Empty;
+        private int _searchResultCount;
     }
 }

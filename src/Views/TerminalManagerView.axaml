@@ -67,7 +67,7 @@
     </Style>
   </UserControl.Styles>
 
-  <Grid RowDefinitions="32,*">
+  <Grid RowDefinitions="Auto,Auto,*">
     <!-- Toolbar -->
     <Border Grid.Row="0" Background="{DynamicResource Brush.DataGridHeaderBG}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}">
       <Grid ColumnDefinitions="Auto,*,Auto">
@@ -79,6 +79,10 @@
 
         <!-- Right: Actions -->
         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="4,0">
+          <Button Classes="icon_button" Width="28" Height="28" Click="OnOpenSearch" ToolTip.Tip="Find (Ctrl+F)" HotKey="Ctrl+F">
+            <Path Width="14" Height="14" Data="{StaticResource Icons.Search}"/>
+          </Button>
+          <Border Width="1" Height="16" Margin="4,0" Background="{DynamicResource Brush.Border0}"/>
           <Button Classes="icon_button" Width="28" Height="28" Command="{Binding GotoPrevSession}" ToolTip.Tip="Previous Terminal">
             <Path Width="10" Height="10" Data="{StaticResource Icons.Up}"/>
           </Button>
@@ -114,8 +118,40 @@
       </Grid>
     </Border>
 
+    <!-- Search Panel -->
+    <Border Grid.Row="1" Height="32" Padding="8,0" Background="{DynamicResource Brush.DataGridHeaderBG}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}" IsVisible="{Binding IsSearchVisible}">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+        <TextBox Grid.Column="0"
+                 x:Name="PART_SearchBox"
+                 Height="24"
+                 Padding="4,2"
+                 FontSize="12"
+                 PlaceholderText="Find..."
+                 Text="{Binding SearchText, Mode=TwoWay}"
+                 BorderThickness="1"
+                 Background="{DynamicResource Brush.Contents}"/>
+        
+        <TextBlock Grid.Column="1" 
+                   Margin="8,0" 
+                   VerticalAlignment="Center" 
+                   FontSize="11" 
+                   Foreground="{DynamicResource Brush.FG2}"
+                   Text="{Binding SearchResultCount, StringFormat='\{0\} matches'}"/>
+
+        <Button Grid.Column="2" Classes="icon_button" Width="24" Height="24" Command="{Binding SearchPrev}" ToolTip.Tip="Previous Match">
+          <Path Width="10" Height="10" Data="{StaticResource Icons.Up}"/>
+        </Button>
+        <Button Grid.Column="3" Classes="icon_button" Width="24" Height="24" Command="{Binding SearchNext}" ToolTip.Tip="Next Match">
+          <Path Width="10" Height="10" Data="{StaticResource Icons.Down}"/>
+        </Button>
+        <Button Grid.Column="4" Classes="icon_button" Width="24" Height="24" Command="{Binding CloseSearch}" ToolTip.Tip="Close Search">
+          <Path Width="10" Height="10" Data="{StaticResource Icons.Close}"/>
+        </Button>
+      </Grid>
+    </Border>
+
     <!-- Main Content -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto">
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto">
       <!-- Terminal View Area -->
       <Grid Grid.Column="0">
         <!-- Empty State -->
@@ -176,7 +212,8 @@
                                   FontFamily="{Binding Source={x:Static vm:Preferences.Instance}, Path=MonospaceFontFamily, Converter={x:Static c:StringConverters.ToMonospaceFontName}}"
                                   UseLayoutRounding="True"
                                   RightClickAction="CopyOrPaste"
-                                  PointerPressed="OnTerminalPointerPressed"/>
+                                  PointerPressed="OnTerminalPointerPressed"
+                                  Loaded="OnTerminalLoaded"/>
       </Grid>
 
       <GridSplitter Grid.Column="1" Width="10"
