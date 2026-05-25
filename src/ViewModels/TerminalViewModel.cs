@@ -176,21 +176,30 @@ namespace SourceGit.ViewModels
         {
             if (instance == null)
                 return;
+
+            if (_renamingInstance != null)
+                _renamingInstance.IsRenaming = false;
+
             NewTitle = instance.Title;
             RenamingInstance = instance;
+            instance.IsRenaming = true;
         }
 
         public void ConfirmRename()
         {
-            if (_renamingInstance != null && !string.IsNullOrWhiteSpace(_newTitle))
+            if (_renamingInstance != null)
             {
-                _renamingInstance.Title = _newTitle;
+                if (!string.IsNullOrWhiteSpace(_newTitle))
+                    _renamingInstance.Title = _newTitle;
+                _renamingInstance.IsRenaming = false;
             }
             RenamingInstance = null;
         }
 
         public void CancelRename()
         {
+            if (_renamingInstance != null)
+                _renamingInstance.IsRenaming = false;
             RenamingInstance = null;
         }
 
