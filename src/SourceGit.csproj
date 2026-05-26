@@ -16,7 +16,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/sourcegit-scm/sourcegit.git</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sourcegit-scm/sourcegit.git</RepositoryUrl>
-    <RepositoryType>Public</RepositoryType>
+    <PackageType>Public</PackageType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(DisableAOT)' != 'true'">
@@ -25,7 +26,16 @@
     <TrimMode>link</TrimMode>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows')) or '$(RuntimeIdentifier.StartsWith(&quot;win&quot;))' == 'true'">
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) or '$(RuntimeIdentifier.StartsWith(&quot;linux&quot;))' == 'true'">
+    <DefineConstants>$(DefineConstants);LINUX</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX')) or '$(RuntimeIdentifier.StartsWith(&quot;osx&quot;))' == 'true'">
+    <DefineConstants>$(DefineConstants);OSX</DefineConstants>
     <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
@@ -35,6 +45,10 @@
 
   <ItemGroup>
     <AssemblyMetadata Include="BuildDate" Value="$([System.DateTime]::Now.ToString('o'))" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <AdditionalFiles Include="NativeMethods.txt" Visible="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -60,6 +74,10 @@
     <PackageReference Include="OpenAI" Version="2.10.0" />
     <PackageReference Include="Pfim" Version="0.11.4" />
     <PackageReference Include="Porta.Pty" Version="1.0.7" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.106" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="StbImageSharp" Version="2.30.15" />
     <PackageReference Include="SvcSystems.UI.Terminal" Version="1.0.1" />
     <PackageReference Include="XTerm.NET" Version="1.0.14" />
