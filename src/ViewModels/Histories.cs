@@ -368,12 +368,19 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public Repository Repo => _repo;
+        public bool IsTerminalView
+        {
+            get => _isTerminalView;
+            set => SetProperty(ref _isTerminalView, value);
+        }
+
+        public TerminalViewModel TerminalViewModel { get; }
 
         public Histories(Repository repo)
         {
             _repo = repo;
             _commitDetailSharedData = new CommitDetailSharedData();
+            TerminalViewModel = new TerminalViewModel(repo.FullPath);
 
             _repo.UIStates.HistoryFilters.CollectionChanged += (_, e) =>
             {
@@ -1061,6 +1068,7 @@ namespace SourceGit.ViewModels
         private GridLength _bottomArea = new(1, GridUnitType.Star);
         private bool _isMaximizeDetails = false;
         private bool _isCollapseDetails = false;
+        private bool _isTerminalView = false;
         private HashSet<int> _selectedLineagePaths = null;
 
         private bool[] _selectedLineageCommits = null;

@@ -183,6 +183,7 @@
   <x:String x:Key="Text.CommitDetail.CollapseToBottom" xml:space="preserve">Collapse details</x:String>
   <x:String x:Key="Text.CommitDetail.Maximize" xml:space="preserve">Maximize details</x:String>
   <x:String x:Key="Text.CommitDetail.Files" xml:space="preserve">FILES</x:String>
+  <x:String x:Key="Text.CommitDetail.Terminal" xml:space="preserve">TERMINAL</x:String>
   <x:String x:Key="Text.CommitDetail.Files.LFS" xml:space="preserve">LFS File</x:String>
   <x:String x:Key="Text.CommitDetail.Files.Search" xml:space="preserve">Search Files...</x:String>
   <x:String x:Key="Text.CommitDetail.Files.Submodule" xml:space="preserve">Submodule</x:String>
@@ -249,6 +250,7 @@
   <x:String x:Key="Text.Configure.CustomAction.Scope.Repository" xml:space="preserve">Repository</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Scope.Tag" xml:space="preserve">Tag</x:String>
   <x:String x:Key="Text.Configure.CustomAction.WaitForExit" xml:space="preserve">Wait for action exit</x:String>
+  <x:String x:Key="Text.Configure.CustomAction.UseTerminal" xml:space="preserve">Run in integrated terminal</x:String>
   <x:String x:Key="Text.Configure.Email" xml:space="preserve">Email Address</x:String>
   <x:String x:Key="Text.Configure.Email.Placeholder" xml:space="preserve">Email address</x:String>
   <x:String x:Key="Text.Configure.Git" xml:space="preserve">GIT</x:String>
@@ -980,6 +982,9 @@
   <x:String x:Key="Text.Welcome.Move" xml:space="preserve">Move to Another Group</x:String>
   <x:String x:Key="Text.Welcome.OpenAllInNode" xml:space="preserve">Open All Repositories</x:String>
   <x:String x:Key="Text.Welcome.OpenOrInit" xml:space="preserve">Open Repository</x:String>
+  <x:String x:Key="Text.Terminal.New" xml:space="preserve">New Terminal</x:String>
+  <x:String x:Key="Text.Terminal.Hint" xml:space="preserve">Integrated terminal is recommended for simple command operations like git, cd, etc.</x:String>
+  <x:String x:Key="Text.Terminal.Hint.Suggest" xml:space="preserve">For full terminal experience, please open an external terminal.</x:String>
   <x:String x:Key="Text.Welcome.OpenTerminal" xml:space="preserve">Open Terminal</x:String>
   <x:String x:Key="Text.Welcome.ScanDefaultCloneDir" xml:space="preserve">Rescan Repositories in Default Clone Dir</x:String>
   <x:String x:Key="Text.Welcome.Search" xml:space="preserve">Search Repositories...</x:String>

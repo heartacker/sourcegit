@@ -187,6 +187,7 @@
   <x:String x:Key="Text.CommitDetail.CollapseToBottom" xml:space="preserve">折叠详细面板</x:String>
   <x:String x:Key="Text.CommitDetail.Maximize" xml:space="preserve">最大化详细面板</x:String>
   <x:String x:Key="Text.CommitDetail.Files" xml:space="preserve">文件列表</x:String>
+  <x:String x:Key="Text.CommitDetail.Terminal" xml:space="preserve">终端</x:String>
   <x:String x:Key="Text.CommitDetail.Files.LFS" xml:space="preserve">LFS文件</x:String>
   <x:String x:Key="Text.CommitDetail.Files.Search" xml:space="preserve">查找文件...</x:String>
   <x:String x:Key="Text.CommitDetail.Files.Submodule" xml:space="preserve">子模块</x:String>
@@ -252,7 +253,8 @@
   <x:String x:Key="Text.Configure.CustomAction.Scope.Remote" xml:space="preserve">远程仓库</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Scope.Repository" xml:space="preserve">仓库</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Scope.Tag" xml:space="preserve">选中的标签</x:String>
-  <x:String x:Key="Text.Configure.CustomAction.WaitForExit" xml:space="preserve">等待操作执行完成</x:String>
+  <x:String x:Key="Text.Configure.CustomAction.WaitForExit" xml:space="preserve">等待执行结束</x:String>
+  <x:String x:Key="Text.Configure.CustomAction.UseTerminal" xml:space="preserve">在集成终端中运行</x:String>
   <x:String x:Key="Text.Configure.Email" xml:space="preserve">电子邮箱</x:String>
   <x:String x:Key="Text.Configure.Email.Placeholder" xml:space="preserve">邮箱地址</x:String>
   <x:String x:Key="Text.Configure.Git" xml:space="preserve">GIT配置</x:String>
@@ -984,6 +986,9 @@
   <x:String x:Key="Text.Welcome.Move" xml:space="preserve">调整分组</x:String>
   <x:String x:Key="Text.Welcome.OpenAllInNode" xml:space="preserve">打开所有包含仓库</x:String>
   <x:String x:Key="Text.Welcome.OpenOrInit" xml:space="preserve">打开本地仓库</x:String>
+  <x:String x:Key="Text.Terminal.New" xml:space="preserve">新建终端</x:String>
+  <x:String x:Key="Text.Terminal.Hint" xml:space="preserve">内置终端建议用于简单命令操作，如 git、cd 等。</x:String>
+  <x:String x:Key="Text.Terminal.Hint.Suggest" xml:space="preserve">如需完整终端体验，请打开外部终端。</x:String>
   <x:String x:Key="Text.Welcome.OpenTerminal" xml:space="preserve">打开终端</x:String>
   <x:String x:Key="Text.Welcome.ScanDefaultCloneDir" xml:space="preserve">重新扫描默认克隆路径下的仓库</x:String>
   <x:String x:Key="Text.Welcome.Search" xml:space="preserve">快速查找仓库...</x:String>

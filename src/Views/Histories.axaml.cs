@@ -79,7 +79,7 @@ namespace SourceGit.Views
         }
     }
 
-    public class HistoriesCommitList : DataGrid
+    public partial class HistoriesCommitList : DataGrid
     {
         public static readonly StyledProperty<int> TotalCommitsProperty =
             AvaloniaProperty.Register<HistoriesCommitList, int>(nameof(TotalCommits), 0);
@@ -347,6 +347,24 @@ namespace SourceGit.Views
             set => SetValue(IsDetailsPanelExpandedProperty, value);
         }
 
+        public static readonly StyledProperty<bool> IsTerminalViewProperty =
+            AvaloniaProperty.Register<Histories, bool>(nameof(IsTerminalView), false);
+
+        public bool IsTerminalView
+        {
+            get => GetValue(IsTerminalViewProperty);
+            set => SetValue(IsTerminalViewProperty, value);
+        }
+
+        public static readonly StyledProperty<ViewModels.TerminalViewModel> TerminalViewModelProperty =
+            AvaloniaProperty.Register<Histories, ViewModels.TerminalViewModel>(nameof(TerminalViewModel));
+
+        public ViewModels.TerminalViewModel TerminalViewModel
+        {
+            get => GetValue(TerminalViewModelProperty);
+            set => SetValue(TerminalViewModelProperty, value);
+        }
+
         public static readonly StyledProperty<Models.CommitGraphHighlighting> GraphHighlightingProperty =
             AvaloniaProperty.Register<Histories, Models.CommitGraphHighlighting>(nameof(GraphHighlighting), Models.CommitGraphHighlighting.All);
 
@@ -359,6 +377,8 @@ namespace SourceGit.Views
         public Histories()
         {
             InitializeComponent();
+            _terminalTabControl = this.FindControl<TabControl>("TerminalTabControl");
+            _terminalManagerView = this.FindControl<TerminalManagerView>("TerminalManagerView");
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -374,6 +394,15 @@ namespace SourceGit.Views
             {
                 if (IsDetailsPanelExpanded)
                     IsDetailsPanelExpanded = false;
+            }
+            else if (change.Property == IsTerminalViewProperty)
+            {
+                if (_terminalTabControl != null)
+                {
+                    _terminalTabControl.SelectedIndex = 3;
+                    if (IsTerminalView)
+                        _terminalTabControl.Focus();
+                }
             }
         }
 
@@ -764,6 +793,10 @@ namespace SourceGit.Views
 
             if (vm.IsCollapseDetails)
                 vm.IsCollapseDetails = false;
+
+            // Clicking Info/Changes/Files hides terminal, returns to commit detail
+            _terminalTabControl.SelectedIndex = 3;
+            vm.IsTerminalView = false;
         }
 
         private void OnOpenDetailsAsStandalone(object sender, RoutedEventArgs e)
@@ -1907,6 +1940,8 @@ namespace SourceGit.Views
         }
 
         private bool _resizingAuthorColumn = false;
+        private TabControl _terminalTabControl;
+        private TerminalManagerView _terminalManagerView;
         private Cursor _resizingCursor = new Cursor(StandardCursorType.SizeWestEast);
     }
 }

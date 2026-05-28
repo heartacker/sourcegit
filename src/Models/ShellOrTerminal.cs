@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-
+using System.IO;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 
@@ -12,13 +12,43 @@ namespace SourceGit.Models
         public string Name { get; set; }
         public string Exec { get; set; }
         public string Args { get; set; }
+        public bool IsInternal { get; set; }
 
         public Bitmap Icon
         {
             get
             {
-                var icon = AssetLoader.Open(new Uri($"avares://SourceGit/Resources/Images/ShellIcons/{Type}.png", UriKind.RelativeOrAbsolute));
-                return new Bitmap(icon);
+                var iconType = Type;
+                if (IsInternal)
+                {
+                    if (OperatingSystem.IsWindows())
+                    {
+                        if (Type == "git-bash")
+                            iconType = "git-bash";
+                        else if (Type == "pwsh" || Type == "powershell")
+                            iconType = "pwsh";
+                        else if (Type == "wsl")
+                            iconType = "custom";
+                        else
+                            iconType = "cmd"; // cmd and powershell
+                    }
+                    else if (OperatingSystem.IsMacOS())
+                        iconType = "mac-terminal";
+                    else
+                        iconType = "custom"; // Linux
+                }
+
+                try
+                {
+                    var icon = AssetLoader.Open(
+                        new Uri($"avares://SourceGit/Resources/Images/ShellIcons/{iconType}.png",
+                        UriKind.RelativeOrAbsolute));
+                    return new Bitmap(icon);
+                }
+                catch
+                {
+                    return null;
+                }
             }
         }
 
@@ -26,44 +56,88 @@ namespace SourceGit.Models
 
         static ShellOrTerminal()
         {
+            Supported = new List<ShellOrTerminal>();
+
             if (OperatingSystem.IsWindows())
             {
-                Supported = new List<ShellOrTerminal>()
+                var gitExe = Native.OS.FindGitExecutable();
+                if (!string.IsNullOrEmpty(gitExe))
                 {
-                    new ShellOrTerminal("git-bash", "Git Bash", "bash.exe"),
-                    new ShellOrTerminal("pwsh", "PowerShell", "pwsh.exe|powershell.exe"),
-                    new ShellOrTerminal("cmd", "Command Prompt", "cmd.exe"),
-                    new ShellOrTerminal("wt", "Windows Terminal", "wt.exe", "-d .")
-                };
+                    var gitRoot = Path.GetDirectoryName(Path.GetDirectoryName(gitExe));
+                    var gitBash = Path.Combine(gitRoot, "bin", "bash.exe");
+                    if (!File.Exists(gitBash))
+                        gitBash = Path.Combine(gitRoot, "usr", "bin", "bash.exe");
+
+                    if (File.Exists(gitBash))
+                        Supported.Add(new ShellOrTerminal("git-bash", "Git Bash", gitBash, "--login -i") { IsInternal = true });
+                }
+
+                // AddIfExeExists("cmd", "Command Prompt", "cmd.exe", null, true);
+                AddIfExeExists("pwsh", "pwsh 7", "pwsh.exe", "-NoLogo", true);
+                AddIfExeExists("wsl", "WSL", "wsl.exe", "", true);
+                AddIfExeExists("powershell", "PowerShell", "powershell.exe", "-NoLogo", true);
+                AddIfExeExists("wt", "Windows Terminal", "wt.exe", "-d .");
             }
             else if (OperatingSystem.IsMacOS())
             {
-                Supported = new List<ShellOrTerminal>()
-                {
-                    new ShellOrTerminal("mac-terminal", "Terminal", "Terminal"),
-                    new ShellOrTerminal("iterm2", "iTerm", "iTerm"),
-                    new ShellOrTerminal("warp", "Warp", "Warp"),
-                    new ShellOrTerminal("ghostty", "Ghostty", "Ghostty"),
-                    new ShellOrTerminal("kitty", "kitty", "kitty")
-                };
+                AddIfExeExists("zsh", "Zsh", "/bin/zsh", "-i", true);
+                AddIfExeExists("bash", "Bash", "/bin/bash", "-i", true);
+                AddIfExeExists("sh", "Sh", "/bin/sh", "-i", true);
+                AddIfExeExists("mac-terminal", "Terminal", "Terminal");
+                AddIfExeExists("iterm2", "iTerm", "iTerm");
+                AddIfExeExists("warp", "Warp", "Warp");
+                AddIfExeExists("ghostty", "Ghostty", "Ghostty");
+                AddIfExeExists("kitty", "kitty", "kitty");
             }
             else
             {
-                Supported = new List<ShellOrTerminal>()
+                AddIfExeExists("bash", "Bash", "/bin/bash", "-i", true);
+                AddIfExeExists("bash", "Bash", "/usr/bin/bash", "-i", true);
+                AddIfExeExists("zsh", "Zsh", "/bin/zsh", "-i", true);
+                AddIfExeExists("zsh", "Zsh", "/usr/bin/zsh", "-i", true);
+                AddIfExeExists("fish", "Fish", "/usr/bin/fish", "-i", true);
+                AddIfExeExists("sh", "Sh", "/bin/sh", "-i", true);
+                AddIfExeExists("gnome-terminal", "Gnome Terminal", "gnome-terminal");
+                AddIfExeExists("konsole", "Konsole", "konsole");
+                AddIfExeExists("xfce4-terminal", "Xfce4 Terminal", "xfce4-terminal");
+                AddIfExeExists("wezterm", "WezTerm", "wezterm", "start --cwd .");
+                AddIfExeExists("ghostty", "Ghostty", "ghostty");
+                AddIfExeExists("kitty", "kitty", "kitty");
+            }
+
+            Supported.Add(new ShellOrTerminal("custom", "Custom", ""));
+        }
+
+        private static void AddIfExeExists(string type, string name, string exec, string args = null, bool isInternal = false)
+        {
+            bool exists = false;
+            if (Path.IsPathRooted(exec))
+            {
+                exists = File.Exists(exec);
+            }
+            else
+            {
+                var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator);
+                if (paths != null)
                 {
-                    new ShellOrTerminal("gnome-terminal", "Gnome Terminal", "gnome-terminal"),
-                    new ShellOrTerminal("konsole", "Konsole", "konsole"),
-                    new ShellOrTerminal("xfce4-terminal", "Xfce4 Terminal", "xfce4-terminal"),
-                    new ShellOrTerminal("lxterminal", "LXTerminal", "lxterminal"),
-                    new ShellOrTerminal("deepin-terminal", "Deepin Terminal", "deepin-terminal"),
-                    new ShellOrTerminal("mate-terminal", "MATE Terminal", "mate-terminal"),
-                    new ShellOrTerminal("foot", "Foot", "foot"),
-                    new ShellOrTerminal("wezterm", "WezTerm", "wezterm", "start --cwd ."),
-                    new ShellOrTerminal("ptyxis", "Ptyxis", "ptyxis", "--new-window --working-directory=."),
-                    new ShellOrTerminal("ghostty", "Ghostty", "ghostty"),
-                    new ShellOrTerminal("kitty", "kitty", "kitty"),
-                    new ShellOrTerminal("custom", "Custom", ""),
-                };
+                    foreach (var path in paths)
+                    {
+                        if (File.Exists(Path.Combine(path, exec)))
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (exists)
+            {
+                // Avoid duplicates (e.g. bash in multiple paths)
+                if (!Supported.Exists(x => x.Name == name || (x.Exec == exec && x.Args == args)))
+                {
+                    Supported.Add(new ShellOrTerminal(type, name, exec, args) { IsInternal = isInternal });
+                }
             }
         }
 
