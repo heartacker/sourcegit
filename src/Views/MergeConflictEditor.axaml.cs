@@ -635,6 +635,8 @@ namespace SourceGit.Views
 
     public partial class MergeConflictEditor : ChromelessWindow
     {
+        public ViewModels.Repository Repository => (DataContext as ViewModels.MergeConflictEditor)?.Repository;
+
         public MergeConflictEditor()
         {
             InitializeComponent();

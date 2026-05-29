@@ -292,6 +292,15 @@ namespace SourceGit.Views
             set => SetValue(CurrentBranchProperty, value);
         }
 
+        public static readonly StyledProperty<List<Models.Branch>> BranchesProperty =
+            AvaloniaProperty.Register<Histories, List<Models.Branch>>(nameof(Branches));
+
+        public List<Models.Branch> Branches
+        {
+            get => GetValue(BranchesProperty);
+            set => SetValue(BranchesProperty, value);
+        }
+
         public static readonly StyledProperty<Models.Bisect> BisectProperty =
             AvaloniaProperty.Register<Histories, Models.Bisect>(nameof(Bisect));
 

@@ -909,6 +909,7 @@
         <Border IsVisible="{Binding IsHistoriesVisible, Mode=OneWay}" PropertyChanged="OnRightPagePropertyChanged">
           <v:Histories DataContext="{Binding Histories, Mode=OneWay}"
                        CurrentBranch="{Binding CurrentBranch, Mode=OneWay}"
+                       Branches="{Binding Repo.Branches, Mode=OneWay}"
                        Bisect="{Binding Bisect, Mode=OneWay}"
                        IssueTrackers="{Binding IssueTrackers, Mode=OneWay}">
             <v:Histories.IsDetailsPanelExpanded>
