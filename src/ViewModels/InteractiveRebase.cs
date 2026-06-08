@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace SourceGit.ViewModels
 {
     public record InteractiveRebasePrefill(string SHA, Models.InteractiveRebaseAction Action);
     public record InteractiveRebaseReorderItem(string Key, InteractiveRebaseItem Item);
+    public record InteractiveRebaseAutoInsert(string AnchorSHA, List<string> MovingSHAs);
 
     public class InteractiveRebaseItem : ObservableObject
     {
@@ -84,6 +86,12 @@ namespace SourceGit.ViewModels
         }
 
         public bool IsMessageUserEdited
+        {
+            get;
+            set;
+        } = false;
+
+        public bool IsFromExternalBranch
         {
             get;
             set;
@@ -164,7 +172,8 @@ namespace SourceGit.ViewModels
             private set => SetProperty(ref _detail, value);
         }
 
-        public InteractiveRebase(Repository repo, Models.Commit on, InteractiveRebasePrefill prefill = null)
+        public InteractiveRebase(Repository repo, Models.Commit on, InteractiveRebasePrefill prefill = null,
+                                InteractiveRebaseAutoInsert autoInsert = null)
         {
             _repo = repo;
             _commitDetail = new CommitDetail(repo, null);
@@ -270,6 +279,10 @@ namespace SourceGit.ViewModels
                         selected = item;
                     }
                 }
+
+                // Apply auto-insert if provided (commits from other branches need to be fetched)
+                if (autoInsert != null)
+                    await ApplyAutoInsertAsync(list, autoInsert);
 
                 Dispatcher.UIThread.Post(() =>
                 {
@@ -396,6 +409,56 @@ namespace SourceGit.ViewModels
 
             log.Complete();
             return succ;
+        }
+
+        private async Task ApplyAutoInsertAsync(List<InteractiveRebaseItem> list,
+                                                InteractiveRebaseAutoInsert autoInsert)
+        {
+            if (autoInsert?.MovingSHAs is not { Count: > 0 })
+                return;
+
+            var moveSet = new HashSet<string>(autoInsert.MovingSHAs);
+            moveSet.Remove(autoInsert.AnchorSHA);
+            if (moveSet.Count == 0)
+                return;
+
+            // Build lookup of items already in the rebase range
+            var existingIndex = list.ToDictionary(x => x.Commit.SHA);
+
+            // Remove any existing moving items from list now
+            list.RemoveAll(x => moveSet.Contains(x.Commit.SHA));
+
+            // Build the moving list in MovingSHAs order;
+            // commits outside the rebase range (from other branches) are fetched on demand
+            var moving = new List<InteractiveRebaseItem>();
+            foreach (var sha in autoInsert.MovingSHAs)
+            {
+                if (!moveSet.Contains(sha))
+                    continue;
+
+                if (existingIndex.TryGetValue(sha, out var existed))
+                {
+                    moving.Add(existed);
+                    continue;
+                }
+
+                // Commit is not in rebase range (came from another branch), fetch it
+                var commit = await new Commands.QuerySingleCommit(_repo.FullPath, sha).GetResultAsync();
+                if (commit == null)
+                    continue;
+
+                var message = await new Commands.QueryCommitFullMessage(_repo.FullPath, sha).GetResultAsync();
+                moving.Add(new InteractiveRebaseItem(0, commit, string.IsNullOrEmpty(message) ? commit.Subject : message)
+                {
+                    IsFromExternalBranch = true,
+                });
+            }
+
+            if (moving.Count == 0)
+                return;
+
+            var anchorIndex = list.FindIndex(x => x.Commit.SHA.Equals(autoInsert.AnchorSHA, StringComparison.Ordinal));
+            list.InsertRange(anchorIndex >= 0 ? anchorIndex + 1 : list.Count, moving);
         }
 
         private void UpdateItems()
