@@ -366,6 +366,18 @@ namespace SourceGit.Views
             set => SetAndRaise(IsScrollToTopVisibleProperty, ref _isScrollToTopVisible, value);
         }
 
+        public static readonly DirectProperty<Histories, bool> IsDetailsPanelMaximizeProperty =
+            AvaloniaProperty.RegisterDirect<Histories, bool>(
+                nameof(IsDetailsPanelMaximize),
+                o => o.IsDetailsPanelMaximize,
+                (o, v) => o.IsDetailsPanelMaximize = v);
+
+        public bool IsDetailsPanelMaximize
+        {
+            get => _isDetailsPanelMaximize;
+            set => SetAndRaise(IsDetailsPanelMaximizeProperty, ref _isDetailsPanelMaximize, value);
+        }
+
         public static readonly DirectProperty<Histories, bool> IsDetailsPanelExpandedProperty =
             AvaloniaProperty.RegisterDirect<Histories, bool>(
                 nameof(IsDetailsPanelExpanded),
@@ -390,6 +402,22 @@ namespace SourceGit.Views
         public Histories()
         {
             InitializeComponent();
+        }
+
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+
+            if (change.Property == IsDetailsPanelExpandedProperty && IsDetailsPanelExpanded)
+            {
+                if (IsDetailsPanelMaximize)
+                    IsDetailsPanelMaximize = false;
+            }
+            else if (change.Property == IsDetailsPanelMaximizeProperty && IsDetailsPanelMaximize)
+            {
+                if (IsDetailsPanelExpanded)
+                    IsDetailsPanelExpanded = false;
+            }
         }
 
         public async Task GotoParent()
@@ -753,6 +781,32 @@ namespace SourceGit.Views
         {
             // Force-update the graph layout to ensure the graph is correctly rendered when it's loaded.
             OnCommitListLayoutUpdated(sender, e);
+        }
+
+        private void OnDetailsTitleBarDoubleTapped(object sender, TappedEventArgs e)
+        {
+            if (ViewModels.Preferences.Instance.UseTwoColumnsLayoutInHistories)
+                return;
+
+            if (DataContext is not ViewModels.Histories vm || sender is not Grid grid)
+                return;
+
+            // 只响应按钮栏高度范围内的双击
+            if (e.GetPosition(grid).Y > DetailsButtonBar.Bounds.Height)
+                return;
+
+            // 排除按钮内部触发
+            if (e.Source is Visual source &&
+                (source.FindAncestorOfType<Button>() != null
+                 || source.FindAncestorOfType<ToggleButton>() != null))
+                return;
+
+            if (vm.IsCollapseDetails || vm.IsMaximizeDetails)
+                vm.IsCollapseDetails = vm.IsMaximizeDetails = false;
+            else
+                vm.IsMaximizeDetails = true;
+
+            e.Handled = true;
         }
 
         private void OnTabHeaderPointerPressed(object sender, PointerPressedEventArgs e)
@@ -1814,6 +1868,7 @@ namespace SourceGit.Views
         private bool _hasSingleRemote = false;
         private AvaloniaList<Models.IssueTracker> _issueTrackers = null;
         private bool _isScrollToTopVisible = false;
+        private bool _isDetailsPanelMaximize = false;
         private bool _isDetailsPanelExpanded = true;
         private bool _resizingAuthorColumn = false;
         private Cursor _resizingCursor = new(StandardCursorType.SizeWestEast);
