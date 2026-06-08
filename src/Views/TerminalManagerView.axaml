@@ -87,22 +87,22 @@
 
         <!-- Center: Current Title or Tab Bar -->
         <Panel Grid.Column="1">
-          <TextBlock Text="{Binding SelectedInstance.Title, FallbackValue=''}"
+          <TextBlock Text="{Binding SelectedGroup.TabTitle, FallbackValue=''}"
                      VerticalAlignment="Center" HorizontalAlignment="Center"
                      Foreground="{DynamicResource Brush.FG2}" FontSize="11" Opacity="0.8"
                      IsVisible="{Binding UseSideBarLayout}"/>
 
-          <ListBox ItemsSource="{Binding Instances}"
-                   SelectedItem="{Binding SelectedInstance, Mode=TwoWay}"
+          <ListBox ItemsSource="{Binding Groups}"
+                   SelectedItem="{Binding SelectedGroup, Mode=OneWay}"
                    Background="Transparent"
                    Padding="4,0"
                    IsVisible="{Binding UseSideBarLayout, Converter={x:Static c:BoolConverters.Not}}"
                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
                    ScrollViewer.VerticalScrollBarVisibility="Disabled">
             <ListBox.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal"/>
-              </ItemsPanelTemplate>
+               <ItemsPanelTemplate>
+                 <StackPanel Orientation="Horizontal"/>
+               </ItemsPanelTemplate>
             </ListBox.ItemsPanel>
 
             <ListBox.Styles>
@@ -118,19 +118,25 @@
             </ListBox.Styles>
 
             <ListBox.ItemTemplate>
-              <DataTemplate DataType="vm:TerminalInstance">
+              <DataTemplate DataType="vm:TerminalGroup">
                 <Border Height="32" Padding="8,0"
                         Background="Transparent"
                         BorderThickness="0,0,0,2"
                         PointerPressed="OnSessionPointerPressed"
                         BorderBrush="{Binding $parent[ListBoxItem].IsSelected, Converter={x:Static c:BoolConverters.IsWarningToBrush}, ConverterParameter={DynamicResource Brush.Accent}}">
                   <Border.ContextMenu>
-                    <ContextMenu x:DataType="vm:TerminalInstance">
+                    <ContextMenu x:DataType="vm:TerminalGroup">
                       <MenuItem Header="Rename" Click="OnRenameSession">
                         <MenuItem.Icon><Path Data="{StaticResource Icons.Rename}" Width="12" Height="12"/></MenuItem.Icon>
                       </MenuItem>
                       <MenuItem Header="Duplicate" Click="OnDuplicateSession">
                         <MenuItem.Icon><Path Data="{StaticResource Icons.Copy}" Width="12" Height="12"/></MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem Header="Split Right" Click="OnSplitSession" IsEnabled="{Binding !IsSplit}">
+                        <MenuItem.Icon><Path Data="{StaticResource Icons.Layout}" Width="12" Height="12"/></MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem Header="{DynamicResource Text.HistoriesDetailsStandalone}" Click="OnOpenAsStandalone">
+                        <MenuItem.Icon><Path Data="{StaticResource Icons.OpenAsStandalone}" Width="12" Height="12"/></MenuItem.Icon>
                       </MenuItem>
                       <MenuItem Header="Copy Path" Click="OnCopySessionPath">
                         <MenuItem.Icon><Path Data="{StaticResource Icons.Folder}" Width="12" Height="12"/></MenuItem.Icon>
@@ -148,10 +154,10 @@
                     </ContextMenu>
                   </Border.ContextMenu>
 
-                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Image Width="12" Height="12" Source="{Binding Shell.Icon}" IsVisible="{Binding !IsRenaming}"/>
-                    <Panel VerticalAlignment="Center">
-                      <TextBlock Margin="6,0" Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource Brush.FG1}" IsVisible="{Binding !IsRenaming}"/>
+                  <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                    <Image Grid.Column="0" Width="12" Height="12" Source="{Binding FirstPane.Shell.Icon}" IsVisible="{Binding !IsRenaming}" VerticalAlignment="Center"/>
+                    <Panel Grid.Column="1" VerticalAlignment="Center">
+                      <TextBlock Margin="6,0,16,0" Text="{Binding TabTitle}" FontSize="11" Foreground="{DynamicResource Brush.FG1}" IsVisible="{Binding !IsRenaming}" TextTrimming="CharacterEllipsis"/>
                       <TextBox Height="24"
                                Margin="4,0"
                                Padding="4,2"
@@ -162,17 +168,20 @@
                                KeyDown="OnRenameTextBoxKeyDown"
                                Loaded="OnRenameTextBoxLoaded"
                                LostFocus="OnRenameTextBoxLostFocus"/>
+
+                      <Button Classes="icon_button" Width="16" Height="16" Padding="0"
+                              HorizontalAlignment="Right" Margin="0,0,2,0"
+                              Click="OnCloseSession">
+                        <Button.IsVisible>
+                          <MultiBinding Converter="{x:Static c:BoolConverters.And}">
+                            <Binding Path="$parent[ListBoxItem].IsPointerOver"/>
+                            <Binding Path="!IsRenaming"/>
+                          </MultiBinding>
+                        </Button.IsVisible>
+                        <Path Width="6" Height="6" Data="{StaticResource Icons.Close}"/>
+                      </Button>
                     </Panel>
-                    <Button Classes="icon_button" Width="16" Height="16" Padding="0" Click="OnCloseSession">
-                      <Button.IsVisible>
-                        <MultiBinding Converter="{x:Static c:BoolConverters.And}">
-                          <Binding Path="$parent[ListBoxItem].IsPointerOver"/>
-                          <Binding Path="!IsRenaming"/>
-                        </MultiBinding>
-                      </Button.IsVisible>
-                      <Path Width="6" Height="6" Data="{StaticResource Icons.Close}"/>
-                    </Button>
-                  </StackPanel>
+                  </Grid>
                 </Border>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -213,10 +222,13 @@
             </ToolTip.Tip>
             <Path Width="12" Height="12" Data="{StaticResource Icons.Paste}"/>
           </Button>
+          <Button Classes="icon_button" Width="28" Height="28" Click="OnOpenAsStandalone" ToolTip.Tip="{DynamicResource Text.HistoriesDetailsStandalone}">
+            <Path Width="14" Height="14" Data="{StaticResource Icons.OpenAsStandalone}"/>
+          </Button>
           <Button Classes="icon_button" Width="28" Height="28" Command="{Binding ClearCurrentSession}" ToolTip.Tip="Clear Buffer">
             <Path Width="12" Height="12" Data="{StaticResource Icons.Clear}"/>
           </Button>
-          <Button Classes="icon_button" Width="28" Height="28" Command="{Binding CloseSession}" CommandParameter="{Binding SelectedInstance}" ToolTip.Tip="Close Terminal">
+          <Button Classes="icon_button" Width="28" Height="28" Command="{Binding CloseGroup}" CommandParameter="{Binding SelectedGroup}" ToolTip.Tip="Close Terminal">
             <Path Width="10" Height="10" Data="{StaticResource Icons.Close}"/>
           </Button>
         </StackPanel>
@@ -265,7 +277,7 @@
     </Border>
 
     <!-- Main Content -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto">
+    <Grid Grid.Row="2" x:Name="MainContentGrid" ColumnDefinitions="*,Auto,Auto">
       <!-- Terminal View Area -->
       <Panel Grid.Column="0">
         <Grid>
@@ -273,7 +285,7 @@
           <StackPanel VerticalAlignment="Center"
                       HorizontalAlignment="Center"
                       Spacing="24"
-                      IsVisible="{Binding Instances.Count, Converter={x:Static c:IntConverters.IsZero}}">
+                      IsVisible="{Binding Groups.Count, Converter={x:Static c:IntConverters.IsZero}}">
             <Path Width="80"
                   Height="80"
                   Data="{StaticResource Icons.Terminal}"
@@ -357,18 +369,59 @@
               </StackPanel>
             </StackPanel>
           </StackPanel>
-          <!-- Terminal Control -->
-          <terminal:TerminalControl IsVisible="{Binding SelectedInstance, Converter={x:Static c:ObjectConverters.IsNotNull}}"
-                                    Model="{Binding SelectedInstance.Model, FallbackValue={x:Null}}"
-                                    FontSize="{Binding Source={x:Static vm:Preferences.Instance}, Path=EditorFontSize}"
-                                    FontFamily="{Binding Source={x:Static vm:Preferences.Instance}, Path=MonospaceFontFamily, Converter={x:Static c:StringConverters.ToMonospaceFontName}}"
-                                    UseLayoutRounding="True"
-                                    RightClickAction="CopyOrPaste"
-                                    PointerPressed="OnTerminalPointerPressed"
-                                    Loaded="OnTerminalLoaded"
-                                    DragDrop.AllowDrop="True"
-                                    DragDrop.DragOver="OnTerminalDragOver"
-                                    DragDrop.Drop="OnTerminalDrop"/>
+          <!-- Terminal Control with Split Layout Support -->
+          <!-- Terminal Control with Split Layout Support -->
+          <Grid x:Name="TerminalSplitGrid" ColumnDefinitions="*,0,0" IsVisible="{Binding SelectedGroup, Converter={x:Static c:ObjectConverters.IsNotNull}}">
+            <!-- Left Terminal Pane Wrap -->
+            <Panel Grid.Column="0" x:Name="LeftPane" Background="Transparent">
+              <terminal:TerminalControl Model="{Binding SelectedGroup.FirstPane.Model, FallbackValue={x:Null}}"
+                                        FontSize="{Binding Source={x:Static vm:Preferences.Instance}, Path=EditorFontSize}"
+                                        FontFamily="{Binding Source={x:Static vm:Preferences.Instance}, Path=MonospaceFontFamily, Converter={x:Static c:StringConverters.ToMonospaceFontName}}"
+                                        UseLayoutRounding="True"
+                                        RightClickAction="CopyOrPaste"
+                                        PointerPressed="OnTerminalPointerPressed"
+                                        Loaded="OnTerminalLoaded"
+                                        DragDrop.AllowDrop="True"
+                                        DragDrop.DragOver="OnTerminalDragOver"
+                                        DragDrop.Drop="OnTerminalDrop"/>
+
+              <!-- Floating Close Button for Left Pane -->
+              <Button Classes="icon_button" Width="20" Height="20" Padding="0"
+                      HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6"
+                      DataContext="{Binding SelectedGroup.FirstPane}"
+                      Click="OnCloseActivePane"
+                      ToolTip.Tip="Close Pane"
+                      IsVisible="{Binding #LeftPane.IsPointerOver}">
+                <Path Width="8" Height="8" Data="{StaticResource Icons.Close}"/>
+              </Button>
+            </Panel>
+
+            <!-- Split Divider -->
+            <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource Brush.Border0}" ResizeBehavior="PreviousAndNext" ResizeDirection="Columns" IsVisible="{Binding SelectedGroup.IsSplit}"/>
+
+            <!-- Right Terminal Pane Wrap -->
+            <Panel Grid.Column="2" x:Name="RightPane" Background="Transparent" IsVisible="{Binding SelectedGroup.IsSplit}">
+              <terminal:TerminalControl Model="{Binding SelectedGroup.SecondPane.Model, FallbackValue={x:Null}}"
+                                        FontSize="{Binding Source={x:Static vm:Preferences.Instance}, Path=EditorFontSize}"
+                                        FontFamily="{Binding Source={x:Static vm:Preferences.Instance}, Path=MonospaceFontFamily, Converter={x:Static c:StringConverters.ToMonospaceFontName}}"
+                                        UseLayoutRounding="True"
+                                        RightClickAction="CopyOrPaste"
+                                        PointerPressed="OnTerminalPointerPressed"
+                                        DragDrop.AllowDrop="True"
+                                        DragDrop.DragOver="OnTerminalDragOver"
+                                        DragDrop.Drop="OnTerminalDrop"/>
+
+              <!-- Floating Close Button for Right Pane -->
+              <Button Classes="icon_button" Width="20" Height="20" Padding="0"
+                      HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6"
+                      DataContext="{Binding SelectedGroup.SecondPane}"
+                      Click="OnCloseActivePane"
+                      ToolTip.Tip="Close Pane"
+                      IsVisible="{Binding #RightPane.IsPointerOver}">
+                <Path Width="8" Height="8" Data="{StaticResource Icons.Close}"/>
+              </Button>
+            </Panel>
+          </Grid>
         </Grid>
       </Panel>
 
@@ -380,13 +433,12 @@
                     Cursor="SizeWestEast"
                     IsVisible="{Binding UseSideBarLayout}"/>
 
-      <!-- Sidebar Area -->
       <ListBox Grid.Column="2"
                MinWidth="150"
                Background="{DynamicResource Brush.DataGridHeaderBG}"
                BorderThickness="1,0,0,0" BorderBrush="{DynamicResource Brush.Border0}"
-               ItemsSource="{Binding Instances}"
-               SelectedItem="{Binding SelectedInstance, Mode=TwoWay}"
+               ItemsSource="{Binding Groups}"
+               SelectedItem="{Binding SelectedGroup, Mode=OneWay}"
                Padding="0"
                IsVisible="{Binding UseSideBarLayout}">
         <ListBox.Styles>
@@ -394,20 +446,29 @@
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Height" Value="32"/>
           </Style>
+          <Style Selector="ListBoxItem:pointerover TextBlock">
+            <Setter Property="Opacity" Value="0.25"/>
+          </Style>
         </ListBox.Styles>
         <ListBox.ItemTemplate>
-          <DataTemplate DataType="vm:TerminalInstance">
+          <DataTemplate DataType="vm:TerminalGroup">
             <Grid ColumnDefinitions="3,Auto,*"
                   Height="32"
                   Background="Transparent"
                   PointerPressed="OnSessionPointerPressed">
               <Grid.ContextMenu>
-                <ContextMenu x:DataType="vm:TerminalInstance">
+                <ContextMenu x:DataType="vm:TerminalGroup">
                   <MenuItem Header="Rename" Click="OnRenameSession">
                     <MenuItem.Icon><Path Data="{StaticResource Icons.Rename}" Width="12" Height="12"/></MenuItem.Icon>
                   </MenuItem>
                   <MenuItem Header="Duplicate" Click="OnDuplicateSession">
                     <MenuItem.Icon><Path Data="{StaticResource Icons.Copy}" Width="12" Height="12"/></MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="Split Right" Click="OnSplitSession" IsEnabled="{Binding !IsSplit}">
+                    <MenuItem.Icon><Path Data="{StaticResource Icons.Layout}" Width="12" Height="12"/></MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="{DynamicResource Text.HistoriesDetailsStandalone}" Click="OnOpenAsStandalone">
+                    <MenuItem.Icon><Path Data="{StaticResource Icons.OpenAsStandalone}" Width="12" Height="12"/></MenuItem.Icon>
                   </MenuItem>
                   <MenuItem Header="Copy Path" Click="OnCopySessionPath">
                     <MenuItem.Icon><Path Data="{StaticResource Icons.Folder}" Width="12" Height="12"/></MenuItem.Icon>
@@ -429,10 +490,10 @@
                       Background="{DynamicResource Brush.Accent}"
                       IsVisible="{Binding $parent[ListBoxItem].IsSelected}"/>
               <Image Grid.Column="1" Width="14" Height="14" Margin="8,0"
-                     Source="{Binding Shell.Icon}"
+                     Source="{Binding FirstPane.Shell.Icon}"
                      IsVisible="{Binding !IsRenaming}"/>
               <Panel Grid.Column="2" VerticalAlignment="Center">
-                <TextBlock Text="{Binding Title}"
+                <TextBlock Text="{Binding TabTitle}"
                            FontSize="11"
                            TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding !IsRenaming}"/>
@@ -458,6 +519,12 @@
                     <Binding Path="!IsRenaming"/>
                   </MultiBinding>
                 </StackPanel.IsVisible>
+                <Button Classes="icon_button" Width="22" Height="22" Padding="0"
+                        Click="OnSplitSession"
+                        IsVisible="{Binding !IsSplit}"
+                        ToolTip.Tip="Split Right">
+                  <Path Width="10" Height="10" Data="{StaticResource Icons.Layout}"/>
+                </Button>
                 <Button Classes="icon_button" Width="22" Height="22" Padding="0"
                         Click="OnCopyEnvironment"
                         ToolTip.Tip="Copy Env">

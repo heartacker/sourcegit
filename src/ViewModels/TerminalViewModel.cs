@@ -1,18 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SourceGit.ViewModels
 {
     public class TerminalViewModel : ObservableObject, IDisposable
     {
-        public ObservableCollection<TerminalInstance> Instances { get; } = new();
+        public ObservableCollection<TerminalGroup> Groups { get; } = new();
 
-        public TerminalInstance SelectedInstance
+        public TerminalGroup SelectedGroup
         {
-            get => _selectedInstance;
-            set => SetProperty(ref _selectedInstance, value);
+            get => _selectedGroup;
+            set => SetProperty(ref _selectedGroup, value);
         }
 
         public bool IsSearchVisible
@@ -40,13 +41,24 @@ namespace SourceGit.ViewModels
         public bool UseSideBarLayout
         {
             get => _useSideBarLayout;
-            set => SetProperty(ref _useSideBarLayout, value);
+            set
+            {
+                if (SetProperty(ref _useSideBarLayout, value))
+                {
+                    OnPropertyChanged(nameof(LayoutColumns));
+                }
+            }
         }
 
-        public TerminalInstance RenamingInstance
+        public string LayoutColumns
         {
-            get => _renamingInstance;
-            set => SetProperty(ref _renamingInstance, value);
+            get => _useSideBarLayout ? "*,Auto,Auto" : "*";
+        }
+
+        public TerminalGroup RenamingGroup
+        {
+            get => _renamingGroup;
+            set => SetProperty(ref _renamingGroup, value);
         }
 
         public string NewTitle
@@ -75,8 +87,11 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public Repository Repo { get; }
+
         public TerminalViewModel(Repository repo)
         {
+            Repo = repo;
             if (repo != null)
             {
                 _workingDirectory = repo.FullPath;
@@ -117,8 +132,9 @@ namespace SourceGit.ViewModels
 
             var instance = new TerminalInstance(_workingDirectory, shell);
             instance.OnExit = () => CloseSession(instance);
-            Instances.Add(instance);
-            SelectedInstance = instance;
+            var group = new TerminalGroup(instance);
+            Groups.Add(group);
+            SelectedGroup = group;
         }
 
         public void NewSessionWithCommand(string command, string title = "")
@@ -131,8 +147,9 @@ namespace SourceGit.ViewModels
             if (!string.IsNullOrEmpty(title))
                 instance.Title = title;
             instance.OnExit = () => CloseSession(instance);
-            Instances.Add(instance);
-            SelectedInstance = instance;
+            var group = new TerminalGroup(instance);
+            Groups.Add(group);
+            SelectedGroup = group;
         }
 
         public void CloseSession(TerminalInstance instance)
@@ -140,25 +157,66 @@ namespace SourceGit.ViewModels
             if (instance == null)
                 return;
 
-            var idx = Instances.IndexOf(instance);
-            bool isSelected = SelectedInstance == instance;
-
-            Instances.Remove(instance);
-            instance.Dispose();
-
-            if (isSelected)
+            TerminalGroup targetGroup = null;
+            foreach (var group in Groups)
             {
-                if (Instances.Count > 0)
+                if (group.Panes.Contains(instance))
                 {
-                    // Focus previous session if possible, otherwise first
-                    int nextIdx = Math.Max(0, idx - 1);
-                    SelectedInstance = Instances[nextIdx];
-                }
-                else
-                {
-                    SelectedInstance = null;
+                    targetGroup = group;
+                    break;
                 }
             }
+
+            if (targetGroup == null)
+                return;
+
+            targetGroup.Panes.Remove(instance);
+            instance.Dispose();
+
+            if (targetGroup.Panes.Count == 0)
+            {
+                var idx = Groups.IndexOf(targetGroup);
+                bool isSelected = SelectedGroup == targetGroup;
+
+                Groups.Remove(targetGroup);
+                targetGroup.Dispose();
+
+                if (isSelected)
+                {
+                    if (Groups.Count > 0)
+                    {
+                        int nextIdx = Math.Max(0, idx - 1);
+                        SelectedGroup = Groups[nextIdx];
+                    }
+                    else
+                    {
+                        SelectedGroup = null;
+                    }
+                }
+            }
+        }
+
+        public void SplitSession(TerminalInstance instance)
+        {
+            if (instance == null)
+                return;
+
+            TerminalGroup targetGroup = null;
+            foreach (var group in Groups)
+            {
+                if (group.Panes.Contains(instance))
+                {
+                    targetGroup = group;
+                    break;
+                }
+            }
+
+            if (targetGroup == null || targetGroup.IsSplit)
+                return;
+
+            var newInstance = new TerminalInstance(instance.WorkingDirectory, instance.Shell, instance.EnvironmentVariables);
+            newInstance.OnExit = () => CloseSession(newInstance);
+            targetGroup.Panes.Add(newInstance);
         }
 
         public void DuplicateSession(TerminalInstance instance)
@@ -168,74 +226,86 @@ namespace SourceGit.ViewModels
             var newInstance = new TerminalInstance(instance.WorkingDirectory, instance.Shell);
             newInstance.OnExit = () => CloseSession(newInstance);
             newInstance.Title = instance.Title;
-            Instances.Add(newInstance);
-            SelectedInstance = newInstance;
+            var group = new TerminalGroup(newInstance);
+            Groups.Add(group);
+            SelectedGroup = group;
         }
 
-        public void StartRename(TerminalInstance instance)
+        public void CloseGroup(TerminalGroup group)
         {
-            if (instance == null)
+            if (group == null)
+                return;
+            var panes = group.Panes.ToList();
+            foreach (var pane in panes)
+            {
+                CloseSession(pane);
+            }
+        }
+
+        public void StartRename(TerminalGroup group)
+        {
+            if (group == null)
                 return;
 
-            if (_renamingInstance != null)
-                _renamingInstance.IsRenaming = false;
+            if (_renamingGroup != null)
+                _renamingGroup.IsRenaming = false;
 
-            NewTitle = instance.Title;
-            RenamingInstance = instance;
-            instance.IsRenaming = true;
+            NewTitle = group.Title;
+            RenamingGroup = group;
+            group.IsRenaming = true;
         }
 
         public void ConfirmRename()
         {
-            if (_renamingInstance != null)
+            if (_renamingGroup != null)
             {
                 if (!string.IsNullOrWhiteSpace(_newTitle))
-                    _renamingInstance.Title = _newTitle;
-                _renamingInstance.IsRenaming = false;
+                    _renamingGroup.Title = _newTitle;
+                _renamingGroup.IsRenaming = false;
             }
-            RenamingInstance = null;
+            RenamingGroup = null;
         }
 
         public void CancelRename()
         {
-            if (_renamingInstance != null)
-                _renamingInstance.IsRenaming = false;
-            RenamingInstance = null;
+            if (_renamingGroup != null)
+                _renamingGroup.IsRenaming = false;
+            RenamingGroup = null;
         }
 
         public void GotoPrevSession()
         {
-            if (Instances.Count <= 1)
+            if (Groups.Count <= 1)
                 return;
-            var idx = Instances.IndexOf(_selectedInstance);
+            var idx = Groups.IndexOf(_selectedGroup);
             if (idx > 0)
-                SelectedInstance = Instances[idx - 1];
+                SelectedGroup = Groups[idx - 1];
             else
-                SelectedInstance = Instances[Instances.Count - 1];
+                SelectedGroup = Groups[Groups.Count - 1];
         }
 
         public void GotoNextSession()
         {
-            if (Instances.Count <= 1)
+            if (Groups.Count <= 1)
                 return;
-            var idx = Instances.IndexOf(_selectedInstance);
-            if (idx < Instances.Count - 1)
-                SelectedInstance = Instances[idx + 1];
+            var idx = Groups.IndexOf(_selectedGroup);
+            if (idx < Groups.Count - 1)
+                SelectedGroup = Groups[idx + 1];
             else
-                SelectedInstance = Instances[0];
+                SelectedGroup = Groups[0];
         }
 
         public void SelectSessionByIndex(int index)
         {
-            if (index >= 0 && index < Instances.Count)
+            if (index >= 0 && index < Groups.Count)
             {
-                SelectedInstance = Instances[index];
+                SelectedGroup = Groups[index];
             }
         }
 
         public void ClearCurrentSession()
         {
-            SelectedInstance?.Model?.Feed("\u001b[2J\u001b[H"); // ANSI clear screen
+            SelectedGroup?.Panes?.FirstOrDefault()?.Model?.Feed("\u001b[2J\u001b[H"); // ANSI clear screen
         }
 
         public void ClearSession(TerminalInstance instance)
@@ -250,46 +320,47 @@ namespace SourceGit.ViewModels
 
         public void SearchNext()
         {
-            SelectedInstance?.Model?.SelectNextSearchResult();
+            SelectedGroup?.Panes?.FirstOrDefault()?.Model?.SelectNextSearchResult();
         }
 
         public void SearchPrev()
         {
-            SelectedInstance?.Model?.SelectPreviousSearchResult();
+            SelectedGroup?.Panes?.FirstOrDefault()?.Model?.SelectPreviousSearchResult();
         }
 
         public void CloseSearch()
         {
             IsSearchVisible = false;
             SearchText = string.Empty;
-            SelectedInstance?.Model?.ClearSelection();
+            SelectedGroup?.Panes?.FirstOrDefault()?.Model?.ClearSelection();
         }
 
         private void OnSearchTextChanged()
         {
-            if (SelectedInstance != null)
+            var active = SelectedGroup?.Panes?.FirstOrDefault();
+            if (active != null)
             {
-                SearchResultCount = SelectedInstance.Model.Search(_searchText);
+                SearchResultCount = active.Model.Search(_searchText);
             }
         }
 
         public void Dispose()
         {
-            foreach (var instance in Instances)
-                instance.Dispose();
-            Instances.Clear();
-            _selectedInstance = null;
+            foreach (var group in Groups)
+                group.Dispose();
+            Groups.Clear();
+            _selectedGroup = null;
 
             ViewLogs?.Dispose();
         }
 
         private string _workingDirectory;
-        private TerminalInstance _selectedInstance;
+        private TerminalGroup _selectedGroup;
         private bool _isSearchVisible;
         private string _searchText = string.Empty;
         private int _searchResultCount;
         private bool _useSideBarLayout = false;
-        private TerminalInstance _renamingInstance = null;
+        private TerminalGroup _renamingGroup = null;
         private string _newTitle = string.Empty;
     }
 }
