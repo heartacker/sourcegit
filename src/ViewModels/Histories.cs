@@ -75,7 +75,7 @@ namespace SourceGit.ViewModels
             get => _commits;
             set
             {
-                GenerateGraph(value);
+                GenerateGraph(value, true);
                 if (SetProperty(ref _commits, value))
                     PostCommitsChanged();
             }
@@ -140,7 +140,12 @@ namespace SourceGit.ViewModels
                     OnPropertyChanged();
 
                     if (_repo.UIStates.GraphHighlighting >= Models.CommitGraphHighlighting.SelectedCommitsOnly)
-                        GenerateGraph(_commits);
+                    {
+                        if (_selectedCommits.Count == 1)
+                            CalculateTargetLineage(_selectedCommits[0]);
+                        else
+                            GenerateGraph(_commits);
+                    }
                 }
             }
         }
@@ -650,30 +655,30 @@ namespace SourceGit.ViewModels
                 GenerateGraph(_commits);
         }
 
-        private void GenerateGraph(List<Models.Commit> commits)
+        private void GenerateGraph(List<Models.Commit> commits, bool commitsChanged = false)
         {
             var firstParentOnly = _repo.UIStates.HistoryShowFlags.HasFlag(Models.HistoryShowFlags.FirstParentOnly);
             var highlighting = _repo.UIStates.GraphHighlighting;
-            var extraHeads = new HashSet<string>();
 
+            bool[] selectedLineage = null;
             if (highlighting >= Models.CommitGraphHighlighting.SelectedCommitsOnly)
             {
                 if (_selectedLineageCommits != null)
                 {
-                    for (int i = 0; i < _selectedLineageCommits.Length; i++)
-                    {
-                        if (_selectedLineageCommits[i])
-                            extraHeads.Add(_commits[i].SHA);
-                    }
+                    selectedLineage = _selectedLineageCommits;
                 }
-                else
+                else if (_selectedCommits.Count > 0)
                 {
+                    selectedLineage = new bool[commits.Count];
                     foreach (var c in _selectedCommits)
-                        extraHeads.Add(c.SHA);
+                    {
+                        if (c.Index >= 0 && c.Index < selectedLineage.Length)
+                            selectedLineage[c.Index] = true;
+                    }
                 }
             }
 
-            Graph = Models.CommitGraph.Generate(commits, firstParentOnly, highlighting, extraHeads);
+            Graph = Models.CommitGraph.Generate(commits, commitsChanged, firstParentOnly, highlighting, selectedLineage);
         }
 
         public bool[] GetCommitLineageFast(
