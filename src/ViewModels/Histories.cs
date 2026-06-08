@@ -400,7 +400,7 @@ namespace SourceGit.ViewModels
         {
             _repo = repo;
             _commitDetailSharedData = new CommitDetailSharedData();
-            TerminalViewModel = new TerminalViewModel(repo.FullPath);
+            TerminalViewModel = new TerminalViewModel(repo);
 
             _repo.UIStates.HistoryFilters.CollectionChanged += (_, e) =>
             {

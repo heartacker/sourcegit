@@ -454,6 +454,16 @@
                                    DataContext="{Binding TerminalViewModel}"/>
           </TabItem.Content>
         </TabItem>
+        <TabItem IsEnabled="True">
+          <TabItem.Header>
+            <Border Background="Transparent">
+              <TextBlock Classes="tab_header" Text="{DynamicResource Text.ViewLogs}"/>
+            </Border>
+          </TabItem.Header>
+          <TabItem.Content>
+            <v:TerminalLogsView DataContext="{Binding TerminalViewModel.ViewLogs}"/>
+          </TabItem.Content>
+        </TabItem>
       </TabControl>
       <StackPanel x:Name="DetailsButtonBar"
                   Orientation="Horizontal"

@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:SourceGit.ViewModels"
+             xmlns:v="using:SourceGit.Views"
+             xmlns:c="using:SourceGit.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="SourceGit.Views.TerminalLogsView"
+             x:DataType="vm:ViewLogs">
+  <Grid RowDefinitions="Auto,*">
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Background="{DynamicResource Brush.DataGridHeaderBG}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0">
+          <Button Classes="icon_button" Width="28" Height="28" Click="OnCopyLog" ToolTip.Tip="{DynamicResource Text.Copy}">
+            <Path Width="12" Height="12" Data="{StaticResource Icons.Copy}"/>
+          </Button>
+          <Button Classes="icon_button" Width="28" Height="28" Click="OnClearAll" ToolTip.Tip="{DynamicResource Text.ViewLogs.Clear}">
+            <Path Width="12" Height="12" Data="{StaticResource Icons.Clear}"/>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto">
+      <!-- Log Content -->
+      <Border Grid.Column="0" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="0,0,1,0" Background="{DynamicResource Brush.Contents}">
+        <v:CommandLogContentPresenter Log="{Binding SelectedLog}"
+                                      FontFamily="{DynamicResource Fonts.Monospace}"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Auto"/>
+      </Border>
+
+      <GridSplitter Grid.Column="1" Width="10"
+                    HorizontalAlignment="Stretch"
+                    Background="Transparent"
+                    ResizeBehavior="PreviousAndNext"
+                    ResizeDirection="Columns"
+                    Cursor="SizeWestEast"/>
+
+      <!-- Log List Sidebar -->
+      <ListBox x:Name="LogList" Grid.Column="2" MinWidth="200"
+               Background="{DynamicResource Brush.DataGridHeaderBG}"
+               BorderThickness="1,0,0,0" BorderBrush="{DynamicResource Brush.Border0}"
+               ItemsSource="{Binding Logs}"
+               SelectedItem="{Binding SelectedLog, Mode=TwoWay}"
+               Padding="0"
+               SelectionChanged="OnLogSelectionChanged">
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Height" Value="28"/>
+          </Style>
+        </ListBox.Styles>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="vm:CommandLog">
+            <Grid ColumnDefinitions="3,Auto,*,Auto" Height="28" Background="Transparent" Margin="4,0">
+              <Grid.ContextMenu>
+                <ContextMenu x:DataType="vm:CommandLog">
+                  <MenuItem Header="{DynamicResource Text.Copy}" Click="OnCopyLog">
+                    <MenuItem.Icon><Path Data="{StaticResource Icons.Copy}" Width="12" Height="12"/></MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="{DynamicResource Text.ViewLogs.Delete}" Click="OnDeleteLog">
+                    <MenuItem.Icon><Path Data="{StaticResource Icons.Close}" Width="12" Height="12"/></MenuItem.Icon>
+                  </MenuItem>
+                </ContextMenu>
+              </Grid.ContextMenu>
+
+              <Border Grid.Column="0" Width="3" Background="{DynamicResource Brush.Accent}" IsVisible="{Binding $parent[ListBoxItem].IsSelected}"/>
+              <v:LoadingIcon Grid.Column="1" Width="12" Height="12" Margin="4,0" IsVisible="{Binding !IsComplete}"/>
+              <TextBlock Grid.Column="2" Text="{Binding Name}" VerticalAlignment="Center" FontSize="11" TextTrimming="CharacterEllipsis"/>
+              
+              <!-- Quick Actions on Hover -->
+              <StackPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal" Margin="0,0,4,0" IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
+                <Button Classes="icon_button" Width="20" Height="20" Padding="0" Click="OnCopyLog" ToolTip.Tip="{DynamicResource Text.Copy}">
+                  <Path Width="10" Height="10" Data="{StaticResource Icons.Copy}"/>
+                </Button>
+                <Button Classes="icon_button" Width="20" Height="20" Padding="0" Click="OnDeleteLog" ToolTip.Tip="{DynamicResource Text.ViewLogs.Delete}">
+                  <Path Width="8" Height="8" Data="{StaticResource Icons.Close}"/>
+                </Button>
+              </StackPanel>
+
+              <TextBlock Grid.Column="3" Text="{Binding StartTime, StringFormat=HH:mm:ss}" Foreground="{DynamicResource Brush.FG2}" FontSize="10" VerticalAlignment="Center" Margin="4,0" IsVisible="{Binding !$parent[ListBoxItem].IsPointerOver}"/>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
+  </Grid>
+</UserControl>
