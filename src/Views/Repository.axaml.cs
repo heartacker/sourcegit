@@ -1,9 +1,9 @@
 using System;
-
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 
 namespace SourceGit.Views
@@ -102,6 +102,12 @@ namespace SourceGit.Views
             if (DataContext is ViewModels.Repository repo)
                 await repo.SkipMergeAsync();
 
+            e.Handled = true;
+        }
+
+        private void OnTokenFilterHotKey(object sender, RoutedEventArgs e)
+        {
+            TokenFilterBox.FocusSearchTextBox();
             e.Handled = true;
         }
 

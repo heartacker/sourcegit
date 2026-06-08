@@ -53,6 +53,7 @@ namespace SourceGit.Commands
         public async Task<List<Models.Commit>> GetResultAsync()
         {
             var commits = new List<Models.Commit>();
+            var commitIdx = 0;
             try
             {
                 using var proc = new Process();
@@ -66,7 +67,7 @@ namespace SourceGit.Commands
                     if (parts.Length != 8)
                         continue;
 
-                    var commit = new Models.Commit() { SHA = parts[0] };
+                    var commit = new Models.Commit() { SHA = parts[0], Index = commitIdx++ };
                     commit.ParseParents(parts[1]);
                     commit.ParseDecorators(parts[2]);
                     commit.Author = Models.User.FindOrAdd(parts[3]);
