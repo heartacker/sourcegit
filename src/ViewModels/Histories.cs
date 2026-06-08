@@ -75,10 +75,109 @@ namespace SourceGit.ViewModels
             get => _commits;
             set
             {
-                GenerateGraph(value, true);
-                if (SetProperty(ref _commits, value))
-                    PostCommitsChanged();
+                _rawCommits = value;
+                UpdateDisplayCommits();
             }
+        }
+
+        public void UpdateDisplayCommits()
+        {
+            var commits = FoldCommits(_rawCommits);
+
+            GenerateGraph(_rawCommits, false);
+
+            if (SetProperty(ref _commits, commits, nameof(Commits)))
+            {
+                PostCommitsChanged();
+            }
+        }
+
+        private List<Models.Commit> FoldCommits(List<Models.Commit> commits)
+        {
+            if (commits == null)
+                return [];
+
+            if (!Preferences.Instance.EnableLinearCommitFolding)
+            {
+                foreach (var c in commits)
+                    c.IsFolded = false;
+                return commits;
+            }
+
+            var threshold = Preferences.Instance.MaxLinearCommitsToFold;
+            if (threshold < 3)
+            {
+                foreach (var c in commits)
+                    c.IsFolded = false;
+                return commits;
+            }
+
+            var childrenCount = new Dictionary<string, int>();
+            foreach (var c in commits)
+            {
+                foreach (var p in c.Parents)
+                {
+                    if (!childrenCount.TryAdd(p, 1))
+                        childrenCount[p]++;
+                }
+            }
+
+            var result = new List<Models.Commit>();
+            int i = 0;
+            while (i < commits.Count)
+            {
+                var start = commits[i];
+                if (start.HasDecorators || start.Parents.Count != 1 || childrenCount.GetValueOrDefault(start.SHA, 0) > 1)
+                {
+                    start.IsFolded = false;
+                    result.Add(start);
+                    i++;
+                    continue;
+                }
+
+                var segment = new List<Models.Commit> { start };
+                int j = i + 1;
+                while (j < commits.Count)
+                {
+                    var next = commits[j];
+                    if (next.HasDecorators || next.Parents.Count != 1 || childrenCount.GetValueOrDefault(next.SHA, 0) > 1 || !segment[^1].Parents[0].Equals(next.SHA))
+                        break;
+
+                    segment.Add(next);
+                    j++;
+                }
+
+                if (segment.Count > threshold)
+                {
+                    var first = segment[0].Clone();
+                    var last = segment[^1];
+                    var middleIdx = segment.Count / 2;
+                    var middle = segment[middleIdx].Clone();
+
+                    first.IsFolded = false;
+                    middle.IsFolded = true;
+                    middle.FoldedCount = segment.Count - 3;
+
+                    first.Parents = new List<string> { middle.SHA };
+                    middle.Parents = new List<string> { last.SHA };
+
+                    result.Add(first);
+                    result.Add(middle);
+                    result.Add(last);
+                }
+                else
+                {
+                    foreach (var c in segment)
+                    {
+                        c.IsFolded = false;
+                        result.Add(c);
+                    }
+                }
+
+                i = j;
+            }
+
+            return result;
         }
 
         public Models.CommitGraph Graph
@@ -798,6 +897,7 @@ namespace SourceGit.ViewModels
         private CommitDetailSharedData _commitDetailSharedData = null;
         private bool _isLoading = true;
         private List<Models.Commit> _commits = [];
+        private List<Models.Commit> _rawCommits = [];
         private Models.CommitGraph _graph = null;
         private long _hoveredCommitIndex = -1;
         private bool[] _hoveredLineageCommits = null;

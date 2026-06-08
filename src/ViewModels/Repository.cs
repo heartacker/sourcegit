@@ -487,6 +487,7 @@ namespace SourceGit.ViewModels
 
         public void Open()
         {
+            Preferences.Instance.PropertyChanged += OnPreferencesChanged;
             try
             {
                 _watcher = new Models.Watcher(this, FullPath, _gitCommonDir);
@@ -509,6 +510,7 @@ namespace SourceGit.ViewModels
 
         public void Close()
         {
+            Preferences.Instance.PropertyChanged -= OnPreferencesChanged;
             var commitMessage = _workingCopy.CommitMessage;
             if (!string.IsNullOrEmpty(commitMessage) && _workingCopy.InProgressContext != null)
                 File.WriteAllText(Path.Combine(GitDir, "MERGE_MSG"), commitMessage);
@@ -529,6 +531,14 @@ namespace SourceGit.ViewModels
 
             _watcher?.Dispose();
             _autoFetchTimer.Dispose();
+        }
+
+        private void OnPreferencesChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(Preferences.EnableLinearCommitFolding) || e.PropertyName == nameof(Preferences.MaxLinearCommitsToFold))
+            {
+                _histories?.UpdateDisplayCommits();
+            }
         }
 
         public void SendNotification(string message, bool isError = false)

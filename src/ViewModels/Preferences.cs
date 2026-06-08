@@ -135,6 +135,18 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _maxHistoryCommits, value);
         }
 
+        public int MaxLinearCommitsToFold
+        {
+            get => _maxLinearCommitsToFold;
+            set => SetProperty(ref _maxLinearCommitsToFold, value);
+        }
+
+        public bool EnableLinearCommitFolding
+        {
+            get => _enableLinearCommitFolding;
+            set => SetProperty(ref _enableLinearCommitFolding, value);
+        }
+
         public int SubjectGuideLength
         {
             get => _subjectGuideLength;
@@ -843,6 +855,8 @@ namespace SourceGit.ViewModels
         private LayoutInfo _layout = new();
 
         private int _maxHistoryCommits = 20000;
+        private int _maxLinearCommitsToFold = 5;
+        private bool _enableLinearCommitFolding = false;
         private int _subjectGuideLength = 50;
         private bool _useFixedTabWidth = true;
         private bool _useAutoHideScrollBars = true;

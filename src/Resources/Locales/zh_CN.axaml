@@ -518,6 +518,8 @@
   <x:String x:Key="Text.Histories.Header.AuthorTime" xml:space="preserve">修改时间</x:String>
   <x:String x:Key="Text.Histories.Header.CommitTime" xml:space="preserve">提交时间</x:String>
   <x:String x:Key="Text.Histories.Header.GraphAndSubject" xml:space="preserve">路线图与主题</x:String>
+  <x:String x:Key="Text.Histories.Folded" xml:space="preserve">{0} 个提交已折叠</x:String>
+  <x:String x:Key="ToolTip.Histories.Fold" xml:space="preserve">折叠/展开连续的提交</x:String>
   <x:String x:Key="Text.Histories.Header.Highlights" xml:space="preserve">高亮模式</x:String>
   <x:String x:Key="Text.Histories.Header.Highlights.All" xml:space="preserve">全部显示</x:String>
   <x:String x:Key="Text.Histories.Header.Highlights.CurrentBranchOnly" xml:space="preserve">仅当前分支</x:String>
