@@ -228,6 +228,8 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public Repository Repo => _repo;
+
         public Histories(Repository repo)
         {
             _repo = repo;
