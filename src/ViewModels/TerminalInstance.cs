@@ -24,6 +24,12 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _title, value);
         }
 
+        public bool IsRenaming
+        {
+            get => _isRenaming;
+            set => SetProperty(ref _isRenaming, value);
+        }
+
         public string FormattedEnvironment
         {
             get
@@ -311,6 +317,7 @@ namespace SourceGit.ViewModels
         private readonly MemoryStream _outputBuffer = new MemoryStream();
         private bool _isFlushPending = false;
         private string _title;
+        private bool _isRenaming;
         private Dictionary<string, string> _environment;
     }
 }
