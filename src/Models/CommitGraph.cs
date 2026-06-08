@@ -214,7 +214,7 @@ namespace SourceGit.Models
                 {
                     // Break at every commit to ensure path-aware highlight is precise.
                     major.Path.EndCommitIndex = commit.Index;
-                    major.Replace(major.Path.Color, major.Path.IsHighlighted, commit.Index);
+                    major.Replace(major.Path.Color, isHighlighted, commit.Index);
                     temp.Paths.Add(major.Path);
                 }
 
