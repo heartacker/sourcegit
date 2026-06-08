@@ -155,6 +155,7 @@
                                    AllowWrap="True"
                                    Margin="0,4,0,0"
                                    UseGraphColor="False"
+                                   DecoratorDisplayMode="{Binding Source={x:Static vm:Preferences.Instance}, Path=DecoratorDisplayMode}"
                                    PointerReleased="OnCommitRefsPresenterPointerReleased"/>
           </Border>
 

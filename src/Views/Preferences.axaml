@@ -151,10 +151,20 @@
                       Content="{DynamicResource Text.Preferences.General.ShowChangesTabInCommitDetailByDefault}"
                       IsChecked="{Binding ShowChangesInCommitDetailByDefault, Mode=TwoWay}"/>
 
-            <CheckBox Grid.Row="7" Grid.Column="1"
-                      Height="32"
-                      Content="{DynamicResource Text.Preferences.General.ShowTagsInGraph}"
-                      IsChecked="{Binding ShowTagsInGraph, Mode=TwoWay}"/>
+            <TextBlock Grid.Row="7" Grid.Column="0"
+                       Text="{DynamicResource Text.Preferences.General.DecoratorDisplay}"
+                       HorizontalAlignment="Right"
+                       Margin="0,0,16,0"/>
+            <ComboBox Grid.Row="7" Grid.Column="1"
+                      MinHeight="28"
+                      Padding="8,0"
+                      HorizontalAlignment="Stretch"
+                      SelectedIndex="{Binding DecoratorDisplayMode, Mode=TwoWay}">
+              <ComboBoxItem Content="{DynamicResource Text.Preferences.General.DecoratorDisplay.None}"/>
+              <ComboBoxItem Content="{DynamicResource Text.Preferences.General.DecoratorDisplay.Branch}"/>
+              <ComboBoxItem Content="{DynamicResource Text.Preferences.General.DecoratorDisplay.Tag}"/>
+              <ComboBoxItem Content="{DynamicResource Text.Preferences.General.DecoratorDisplay.All}"/>
+            </ComboBox>
 
             <CheckBox Grid.Row="8" Grid.Column="1"
                       Height="32"
