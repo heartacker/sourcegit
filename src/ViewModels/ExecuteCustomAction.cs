@@ -226,7 +226,12 @@ namespace SourceGit.ViewModels
 
             log.AppendLine($"$ {CustomAction.Executable} {cmdline}\n");
 
-            if (CustomAction.WaitForExit)
+            if (CustomAction.UseTerminal)
+            {
+                var fullCmd = $"{CustomAction.Executable} {cmdline}";
+                _repo.Terminal.NewSessionWithCommand(fullCmd, CustomAction.Name);
+            }
+            else if (CustomAction.WaitForExit)
                 await RunAsync(cmdline, log);
             else
                 _ = Task.Run(() => Run(cmdline));

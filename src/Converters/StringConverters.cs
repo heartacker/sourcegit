@@ -68,6 +68,14 @@ namespace SourceGit.Converters
         public static readonly FuncValueConverter<string, string> ToShortSHA =
             new FuncValueConverter<string, string>(v => v == null ? string.Empty : (v.Length > 10 ? v.Substring(0, 10) : v));
 
+        public static readonly FuncValueConverter<string, string> ToMonospaceFontName =
+            new FuncValueConverter<string, string>(v =>
+            {
+                if (string.IsNullOrEmpty(v))
+                    return "fonts:SourceGit#JetBrains Mono";
+                return v;
+            });
+
         public static readonly FuncValueConverter<string, string> TrimRefsPrefix =
             new FuncValueConverter<string, string>(v =>
             {
