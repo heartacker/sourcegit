@@ -719,6 +719,11 @@
   <x:String x:Key="Text.Preferences.General.ShowChangesTabInCommitDetailByDefault" xml:space="preserve">Show `CHANGES` tab in commit detail by default</x:String>
   <x:String x:Key="Text.Preferences.General.ShowRelativeTimeInGraph" xml:space="preserve">Show relative time in commit graph</x:String>
   <x:String x:Key="Text.Preferences.General.ShowTagsInGraph" xml:space="preserve">Show tags in commit graph</x:String>
+  <x:String x:Key="Text.Preferences.General.DecoratorDisplay" xml:space="preserve">Decorator Display</x:String>
+  <x:String x:Key="Text.Preferences.General.DecoratorDisplay.None" xml:space="preserve">None</x:String>
+  <x:String x:Key="Text.Preferences.General.DecoratorDisplay.Branch" xml:space="preserve">Branches Only</x:String>
+  <x:String x:Key="Text.Preferences.General.DecoratorDisplay.Tag" xml:space="preserve">Tags Only</x:String>
+  <x:String x:Key="Text.Preferences.General.DecoratorDisplay.All" xml:space="preserve">All</x:String>
   <x:String x:Key="Text.Preferences.General.SubjectGuideLength" xml:space="preserve">Subject Guide Length</x:String>
   <x:String x:Key="Text.Preferences.General.Use24Hours" xml:space="preserve">24-Hours</x:String>
   <x:String x:Key="Text.Preferences.General.UseCompactBranchNames" xml:space="preserve">Use compact branch names in commit graph</x:String>

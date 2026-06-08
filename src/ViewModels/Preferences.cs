@@ -217,10 +217,11 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _ignoreUpdateTag, value);
         }
 
-        public bool ShowTagsInGraph
+        [JsonIgnore]
+        public int DecoratorDisplayMode
         {
-            get => _showTagsInGraph;
-            set => SetProperty(ref _showTagsInGraph, value);
+            get => _decoratorDisplayMode;
+            set => SetProperty(ref _decoratorDisplayMode, value);
         }
 
         public bool UseCompactBranchNamesInGraph
@@ -868,7 +869,7 @@ namespace SourceGit.ViewModels
         private double _lastCheckUpdateTime = 0;
         private string _ignoreUpdateTag = string.Empty;
 
-        private bool _showTagsInGraph = true;
+        private int _decoratorDisplayMode = 3;
         private bool _useTwoColumnsLayoutInHistories = false;
         private bool _displayTimeAsPeriodInHistories = false;
         private bool _useSideBySideDiff = false;

@@ -93,7 +93,7 @@
                         <v:CommitRefsPresenter Foreground="{DynamicResource Brush.FG1}"
                                                FontSize="12"
                                                VerticalAlignment="Center"
-                                               UseGraphColor="False"/>
+                                               UseGraphColor="False" DecoratorDisplayMode="{Binding Source={x:Static vm:Preferences.Instance}, Path=DecoratorDisplayMode}"/>
                         <TextBlock Margin="4,0,0,0"
                                    FontFamily="{DynamicResource Fonts.Monospace}"
                                    Text="{Binding SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
@@ -160,7 +160,7 @@
                         <v:CommitRefsPresenter Foreground="{DynamicResource Brush.FG1}"
                                                FontSize="12"
                                                VerticalAlignment="Center"
-                                               UseGraphColor="False"/>
+                                               UseGraphColor="False" DecoratorDisplayMode="{Binding Source={x:Static vm:Preferences.Instance}, Path=DecoratorDisplayMode}"/>
                         <TextBlock Margin="4,0,0,0"
                                    FontFamily="{DynamicResource Fonts.Monospace}"
                                    Text="{Binding SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"

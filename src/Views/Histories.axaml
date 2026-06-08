@@ -124,7 +124,7 @@
                                            Background="{DynamicResource Brush.Contents}"
                                            Foreground="{DynamicResource Brush.FG1}"
                                            Branches="{Binding #ThisControl.Branches}"
-                                           ShowTags="{Binding Source={x:Static vm:Preferences.Instance}, Path=ShowTagsInGraph}"
+                                           DecoratorDisplayMode="{Binding Source={x:Static vm:Preferences.Instance}, Path=DecoratorDisplayMode}"
                                            FontSize="12"
                                            VerticalAlignment="Center"
                                            UseGraphColor="{Binding IsHighlightedInGraph, Mode=OneWay}"
