@@ -107,6 +107,24 @@ namespace SourceGit.Views
             set => SetAndRaise(SubjectProperty, ref _subject, value);
         }
 
+        public static readonly StyledProperty<bool> IsFoldedProperty =
+            AvaloniaProperty.Register<CommitSubjectPresenter, bool>(nameof(IsFolded), false);
+
+        public bool IsFolded
+        {
+            get => GetValue(IsFoldedProperty);
+            set => SetValue(IsFoldedProperty, value);
+        }
+
+        public static readonly StyledProperty<int> FoldedCountProperty =
+            AvaloniaProperty.Register<CommitSubjectPresenter, int>(nameof(FoldedCount), 0);
+
+        public int FoldedCount
+        {
+            get => GetValue(FoldedCountProperty);
+            set => SetValue(FoldedCountProperty, value);
+        }
+
         public static readonly DirectProperty<CommitSubjectPresenter, AvaloniaList<Models.IssueTracker>> IssueTrackersProperty =
             AvaloniaProperty.RegisterDirect<CommitSubjectPresenter, AvaloniaList<Models.IssueTracker>>(
                 nameof(IssueTrackers),
@@ -179,6 +197,12 @@ namespace SourceGit.Views
                     newValue.CollectionChanged += OnIssueTrackersChanged;
 
                 OnIssueTrackersChanged(null, null);
+            }
+            else if (change.Property == IsFoldedProperty ||
+                change.Property == FoldedCountProperty)
+            {
+                _needRebuildInlines = true;
+                InvalidateVisual();
             }
             else if (change.Property == FontFamilyProperty ||
                 change.Property == CodeFontFamilyProperty ||
@@ -306,6 +330,19 @@ namespace SourceGit.Views
         private void GenerateFormattedTextElements()
         {
             _inlines.Clear();
+
+            if (IsFolded)
+            {
+                var foldedText = new FormattedText(
+                    String.Format("··· {0} more commits ···", FoldedCount),
+                    CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    new Typeface(FontFamily, FontStyle.Italic, FontWeight.Normal),
+                    FontSize,
+                    Brushes.Gray);
+                _inlines.Add(new Inline(0, foldedText, null));
+                return;
+            }
 
             var subject = Subject;
             if (string.IsNullOrEmpty(subject))
