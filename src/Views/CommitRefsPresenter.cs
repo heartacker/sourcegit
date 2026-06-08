@@ -218,6 +218,14 @@ namespace SourceGit.Views
             set => SetValue(HasSingleRemoteProperty, value);
         }
 
+        public static readonly StyledProperty<int> DecoratorDisplayModeProperty =
+            AvaloniaProperty.Register<CommitRefsPresenter, int>(nameof(DecoratorDisplayMode), 3);
+
+        public int DecoratorDisplayMode
+        {
+            get => GetValue(DecoratorDisplayModeProperty);
+            set => SetValue(DecoratorDisplayModeProperty, value);
+        }
 
         public Models.Decorator DecoratorAt(Point point)
         {
@@ -402,7 +410,8 @@ namespace SourceGit.Views
                 change.Property == BackgroundProperty ||
                 change.Property == ShowTagsProperty ||
                 change.Property == BranchesProperty ||
-                change.Property == HasSingleRemoteProperty)
+                change.Property == HasSingleRemoteProperty ||
+                change.Property == DecoratorDisplayModeProperty)
                 InvalidateMeasure();
         }
 
@@ -427,14 +436,39 @@ namespace SourceGit.Views
             InvalidateMeasure();
         }
 
+        private bool ShouldShowDecorator(Models.Decorator decorator)
+        {
+            if (DecoratorDisplayMode == 0)
+                return false;
+
+            if (decorator.Type == Models.DecoratorType.Tag)
+            {
+                return DecoratorDisplayMode == 2 || DecoratorDisplayMode == 3;
+            }
+            else if (decorator.Type != Models.DecoratorType.None)
+            {
+                return DecoratorDisplayMode == 1 || DecoratorDisplayMode == 3;
+            }
+
+            return false;
+        }
+
         protected override Size MeasureOverride(Size availableSize)
         {
             _pills.Clear();
             if (DataContext is not Models.Commit commit)
                 return new Size(0, 0);
 
-            var refs = commit.Decorators;
-            if (refs == null || refs.Count == 0)
+            var refs = new List<Models.Decorator>();
+            if (commit.Decorators != null)
+            {
+                foreach (var d in commit.Decorators)
+                {
+                    if (ShouldShowDecorator(d))
+                        refs.Add(d);
+                }
+            }
+            if (refs.Count == 0)
                 return new Size(0, 0);
             EnsureIcons();
             var typeface = new Typeface(FontFamily);

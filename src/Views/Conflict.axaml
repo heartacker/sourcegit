@@ -31,7 +31,8 @@
                                        Branches="{Binding $parent[v:Conflict].Repository.Branches}"
                                        FontSize="12"
                                        VerticalAlignment="Center"
-                                       UseGraphColor="False"/>
+                                       UseGraphColor="False"
+                                       DecoratorDisplayMode="{Binding Source={x:Static vm:Preferences.Instance}, Path=DecoratorDisplayMode}"/>
                 <TextBlock Margin="4,0,0,0"
                            Text="{Binding SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
                            FontFamily="{DynamicResource Fonts.Monospace}"
