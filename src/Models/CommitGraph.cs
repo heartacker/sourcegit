@@ -139,6 +139,8 @@ namespace SourceGit.Models
                             if (!isHighlighted && l.IsHighlighted)
                                 isHighlighted = true;
                         }
+
+                        isHighlighted = isHighlighted || l.IsHighlighted;
                     }
                     else
                     {
@@ -208,6 +210,16 @@ namespace SourceGit.Models
                     major.Highlight(commit.Index);
                     temp.Paths.Add(major.Path);
                 }
+                else if (major != null && commit.Parents.Count > 0)
+                {
+                    // Break at every commit to ensure path-aware highlight is precise.
+                    major.Path.EndCommitIndex = commit.Index;
+                    major.Replace(major.Path.Color, major.Path.IsHighlighted, commit.Index);
+                    temp.Paths.Add(major.Path);
+                }
+
+                if (major != null)
+                    commit.PathIndex = temp.Paths.IndexOf(major.Path);
 
                 // Calculate link position of this commit.
                 var position = new Point(major?.LastX ?? offsetX, offsetY);
@@ -413,18 +425,25 @@ namespace SourceGit.Models
             }
 
             /// <summary>
+            ///     End the current path and create a new one from the end.
+            /// </summary>
+            public void Replace(int color, bool isHighlighted, int startCommitIndex)
+            {
+                Add(LastX, _lastY);
+
+                Path = new Path(color, isHighlighted);
+                Path.Points.Add(new Point(LastX, _lastY));
+                Path.StartCommitIndex = startCommitIndex;
+                _endY = 0;
+            }
+
+            /// <summary>
             ///     End the current path and create a new highlighted from the end.
             /// </summary>
             public void Highlight(int commitIndex)
             {
-                var color = Path.Color;
-                Add(LastX, _lastY);
                 Path.EndCommitIndex = commitIndex;
-
-                Path = new Path(color, true);
-                Path.Points.Add(new Point(LastX, _lastY));
-                Path.StartCommitIndex = commitIndex;
-                _endY = 0;
+                Replace(Path.Color, true, commitIndex);
             }
 
             private void Add(double x, double y)
