@@ -99,7 +99,7 @@ namespace SourceGit.ViewModels
             get
             {
                 if (_terminal == null)
-                    _terminal = new TerminalViewModel(FullPath);
+                    _terminal = new TerminalViewModel(this);
                 return _terminal;
             }
         }
