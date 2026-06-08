@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -846,6 +847,7 @@ namespace SourceGit.Views
         {
             var canCherryPick = true;
             var canMerge = true;
+            var canInsertAfterCm = TryGetMultiCommitInteractiveRebaseTarget(selected, out var rebaseAnchor);
 
             foreach (var c in selected)
             {
@@ -892,7 +894,24 @@ namespace SourceGit.Views
                     menu.Items.Add(merge);
                 }
 
-                if (canCherryPick || canMerge)
+                if (canInsertAfterCm)
+                {
+                    var target = rebaseAnchor.SHA.Substring(0, 10);
+                    var current = repo.CurrentBranch?.Name ?? "HEAD";
+                    var movingCount = selected.Count - 1;
+
+                    var insertAfterCurrent = new MenuItem();
+                    insertAfterCurrent.Header = App.Text("CommitCM.InteractiveRebase.InsertSelectedAfter", movingCount, current, target);
+                    insertAfterCurrent.Icon = this.CreateMenuIcon("Icons.InteractiveRebase");
+                    insertAfterCurrent.Click += async (_, e) =>
+                    {
+                        await StartInteractiveRebaseInsertAfterCurrentAsync(repo, rebaseAnchor, selected);
+                        e.Handled = true;
+                    };
+                    menu.Items.Add(insertAfterCurrent);
+                }
+
+                if (canCherryPick || canMerge || canInsertAfterCm)
                     menu.Items.Add(new MenuItem() { Header = "-" });
             }
 
@@ -1001,6 +1020,55 @@ namespace SourceGit.Views
             copy.Items.Add(copyMessage);
             menu.Items.Add(copy);
             return menu;
+        }
+
+        private static bool TryGetMultiCommitInteractiveRebaseTarget(List<Models.Commit> selected,
+                            out Models.Commit target)
+        {
+            target = null;
+            if (selected is not { Count: > 1 })
+                return false;
+
+            Models.Commit merged = null;
+            foreach (var c in selected)
+            {
+                if (c.IsCurrentHead || c.Parents.Count != 1)
+                    return false;
+
+                if (c.IsMerged)
+                {
+                    if (merged != null)
+                        return false;
+
+                    merged = c;
+                }
+            }
+
+            if (merged == null)
+                return false;
+
+            target = merged;
+            return true;
+        }
+
+        private async Task StartInteractiveRebaseInsertAfterCurrentAsync(ViewModels.Repository repo,
+                            Models.Commit target, List<Models.Commit> selected)
+        {
+            if (!repo.CanCreatePopup())
+                return;
+
+            var on = target;
+
+            // Sort by committer time in descending order (from new to old)
+            var movingCommits = selected
+                .Where(c => !c.SHA.Equals(target.SHA, StringComparison.Ordinal))
+                .OrderByDescending(c => c.CommitterTime)
+                .ToList();
+
+            var moving = movingCommits.Select(c => c.SHA).ToList();
+
+            var autoInsert = new ViewModels.InteractiveRebaseAutoInsert(target.SHA, moving);
+            await this.ShowDialogAsync(new ViewModels.InteractiveRebase(repo, on, null, autoInsert));
         }
 
         private ContextMenu CreateContextMenuForSingleCommit(ViewModels.Repository repo, Models.Commit commit)
