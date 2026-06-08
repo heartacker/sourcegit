@@ -678,6 +678,8 @@ namespace SourceGit.Views
             set => SetAndRaise(SelectedChunkProperty, ref _selectedChunk, value);
         }
 
+        public ViewModels.Repository Repository => (DataContext as ViewModels.MergeConflictEditor)?.Repository;
+
         public MergeConflictEditor()
         {
             InitializeComponent();

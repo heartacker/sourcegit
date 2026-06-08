@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 namespace SourceGit.Views
 {
@@ -46,6 +47,25 @@ namespace SourceGit.Views
             set => SetAndRaise(WebLinksProperty, ref _webLinks, value);
         }
 
+        public static readonly StyledProperty<List<Models.Branch>> BranchesProperty =
+            AvaloniaProperty.Register<CommitBaseInfo, List<Models.Branch>>(nameof(Branches));
+
+        public List<Models.Branch> Branches
+        {
+            get => GetValue(BranchesProperty);
+            set => SetValue(BranchesProperty, value);
+        }
+        public static readonly DirectProperty<CommitBaseInfo, bool> IsSHACopiedProperty =
+            AvaloniaProperty.RegisterDirect<CommitBaseInfo, bool>(
+                nameof(IsSHACopied),
+                static o => o.IsSHACopied);
+
+        public bool IsSHACopied
+        {
+            get => _isSHACopied;
+            private set => SetAndRaise(IsSHACopiedProperty, ref _isSHACopied, value);
+        }
+
         public static readonly DirectProperty<CommitBaseInfo, bool> SupportsContainsInProperty =
             AvaloniaProperty.RegisterDirect<CommitBaseInfo, bool>(
                 nameof(SupportsContainsIn),
@@ -68,6 +88,45 @@ namespace SourceGit.Views
             SupportsContainsIn = DataContext is ViewModels.CommitDetail;
         }
 
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+
+            if (change.Property == ContentProperty)
+            {
+                IsSHACopied = false;
+                _iconResetTimer?.Stop();
+            }
+        }
+
+        protected override void OnLoaded(RoutedEventArgs e)
+        {
+            base.OnLoaded(e);
+
+            _iconResetTimer = new DispatcherTimer();
+            _iconResetTimer.Interval = TimeSpan.FromSeconds(1);
+            _iconResetTimer.Tag = this;
+            _iconResetTimer.Tick += static (o, _) =>
+            {
+                if (o is DispatcherTimer { Tag: CommitBaseInfo view } timer)
+                {
+                    if (view.IsSHACopied)
+                        view.IsSHACopied = false;
+
+                    timer.IsEnabled = false;
+                }
+            };
+            _iconResetTimer.IsEnabled = false;
+        }
+
+        protected override void OnUnloaded(RoutedEventArgs e)
+        {
+            _iconResetTimer.Tag = null;
+            _iconResetTimer.IsEnabled = false;
+
+            base.OnUnloaded(e);
+        }
+
         private void OnDateTimeContextMenuRequested(object sender, ContextRequestedEventArgs e)
         {
             if (sender is DateTimePresenter presenter)
@@ -86,6 +145,16 @@ namespace SourceGit.Views
                 menu.Open(presenter);
                 e.Handled = true;
             }
+        }
+
+        private async void OnCopyCommitSHA(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { DataContext: Models.Commit commit })
+                await this.CopyTextAsync(commit.SHA);
+
+            IsSHACopied = true;
+            _iconResetTimer?.Start();
+            e.Handled = true;
         }
 
         private void OnOpenWebLink(object sender, RoutedEventArgs e)
@@ -262,5 +331,7 @@ namespace SourceGit.Views
         private Models.CommitSignInfo _signInfo = null;
         private bool _supportsContainsIn = false;
         private List<Models.CommitLink> _webLinks = null;
+        private bool _isSHACopied = false;
+        private DispatcherTimer _iconResetTimer = null;
     }
 }

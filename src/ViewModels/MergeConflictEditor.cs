@@ -26,6 +26,8 @@ namespace SourceGit.ViewModels
             get;
         }
 
+        public Repository Repository => _repo;
+
         public string Error
         {
             get => _error;
