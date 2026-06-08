@@ -19,6 +19,7 @@ namespace SourceGit.Models
         ParentsOnly = 1,
         ChildsOnly = 2,
         FullLineage = 3,
+        FirstParentLineage = 4,
     }
 
     public class Commit : ObservableObject
@@ -38,6 +39,7 @@ namespace SourceGit.Models
         public int Index { get; set; } = -1;
         public int PathIndex { get; set; } = -1;
 
+        public bool IsCommitFilterHead { get; set; } = false;
         public bool IsFolded { get; set; } = false;
         public int FoldedCount { get; set; } = 0;
 
@@ -49,6 +51,9 @@ namespace SourceGit.Models
 
         public bool IsCommitterVisible => !Author.Equals(Committer) || AuthorTime != CommitterTime;
         public bool IsCurrentHead => Decorators.Find(x => x.Type is DecoratorType.CurrentBranchHead or DecoratorType.CurrentCommitHead) != null;
+        public bool IsMergeCommit => Parents.Count > 1;
+        public bool IsTag => Decorators.Find(x => x.Type == DecoratorType.Tag) != null;
+        public bool IsCherryPicked => Subject.Contains("cherry-picked from commit", StringComparison.OrdinalIgnoreCase);
         public bool HasDecorators => Decorators.Count > 0;
         public string FirstParentToCompare => Parents.Count > 0 ? $"{SHA}^" : EmptyTreeHash.Guess(SHA);
 

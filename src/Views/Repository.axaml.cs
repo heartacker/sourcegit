@@ -1,11 +1,10 @@
 using System;
-
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.VisualTree;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 
 namespace SourceGit.Views
 {
@@ -25,6 +24,12 @@ namespace SourceGit.Views
         private void OnToggleFilter(object _, RoutedEventArgs e)
         {
             FilterBox.Focus();
+            e.Handled = true;
+        }
+
+        private void OnTokenFilterHotKey(object sender, RoutedEventArgs e)
+        {
+            TokenFilterBox.FocusSearchTextBox();
             e.Handled = true;
         }
 
@@ -542,6 +547,16 @@ namespace SourceGit.Views
                     ev.Handled = true;
                 };
 
+                var firstParentLineage = new MenuItem();
+                firstParentLineage.Header = App.Text("Histories.Header.Highlights.LineageMethod.FirstParentLineage");
+                if (histories.LineageSearchMethod == Models.CommitLineageSearchMethod.FirstParentLineage)
+                    firstParentLineage.Icon = this.CreateMenuIcon("Icons.Check");
+                firstParentLineage.Click += (_, ev) =>
+                {
+                    histories.LineageSearchMethod = Models.CommitLineageSearchMethod.FirstParentLineage;
+                    ev.Handled = true;
+                };
+
                 var menu = new ContextMenu();
                 menu.Placement = PlacementMode.BottomEdgeAlignedLeft;
                 menu.Items.Add(layout);
@@ -568,6 +583,7 @@ namespace SourceGit.Views
                 menu.Items.Add(childsOnly);
                 menu.Items.Add(parentsOnly);
                 menu.Items.Add(fullLineage);
+                menu.Items.Add(firstParentLineage);
                 menu.Open(button);
             }
 

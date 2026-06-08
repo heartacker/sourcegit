@@ -1932,6 +1932,48 @@ namespace SourceGit.Views
                 await this.ShowDialogAsync(new ViewModels.InteractiveRebase(repo, on, prefill));
         }
 
+
+
+        private void OnSoloModeOnCurrentHead(object sender, RoutedEventArgs e)
+        {
+            var repoView = this.FindAncestorOfType<Repository>();
+            if (repoView is { DataContext: ViewModels.Repository { CurrentBranch: not null } repo })
+            {
+                ApplySoloTokens(repo, ["HEAD", repo.CurrentBranch.Head]);
+                e.Handled = true;
+            }
+        }
+
+        private void OnClearSoloMode(object sender, RoutedEventArgs e)
+        {
+            var repoView = this.FindAncestorOfType<Repository>();
+            if (repoView is { DataContext: ViewModels.Repository repo })
+            {
+                repoView.TokenFilterBox?.DeleteTokensByPrefix("solo:");
+                repo.ClearSoloMode();
+                e.Handled = true;
+            }
+        }
+
+        private void ApplySoloTokens(ViewModels.Repository repo, IEnumerable<string> targets)
+        {
+            var repoView = this.FindAncestorOfType<Repository>();
+            if (repoView?.TokenFilterBox == null)
+            {
+                repo.SetSoloCommitFilterMode(targets, Models.FilterMode.Included);
+                return;
+            }
+
+            // Keep one source of truth by clearing legacy SoloFilter state before token-based filtering.
+            repo.ClearSoloMode();
+
+            foreach (var target in targets)
+            {
+                if (!string.IsNullOrWhiteSpace(target))
+                    repoView.TokenFilterBox.InsertToken($"solo:{target}");
+            }
+        }
+
         private Models.Branch _currentBranch = null;
         private Models.Bisect _bisect = null;
         private bool _hasSingleRemote = false;

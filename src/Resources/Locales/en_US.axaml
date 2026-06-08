@@ -176,6 +176,9 @@
   <x:String x:Key="Text.CommitCM.Reset" xml:space="preserve">Reset ${0}$ to ${1}$...</x:String>
   <x:String x:Key="Text.CommitCM.Revert" xml:space="preserve">Revert Commit...</x:String>
   <x:String x:Key="Text.CommitCM.SaveAsPatch" xml:space="preserve">Save as Patch...</x:String>
+  <x:String x:Key="Text.CommitCM.SoloCommits" xml:space="preserve">Solo Commits</x:String>
+  <x:String x:Key="Text.Repository.SoloModeOnCurrentHead" xml:space="preserve">Solo Mode (HEAD)</x:String>
+  <x:String x:Key="Text.Repository.ClearSoloMode" xml:space="preserve">Clear Solo Mode</x:String>
   <x:String x:Key="Text.CommitDetail.Changes" xml:space="preserve">CHANGES</x:String>
   <x:String x:Key="Text.CommitDetail.Changes.Count" xml:space="preserve">changed file(s)</x:String>
   <x:String x:Key="Text.CommitDetail.Changes.Search" xml:space="preserve">Search Changes...</x:String>
@@ -528,6 +531,7 @@
   <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.ParentsOnly" xml:space="preserve">Ancestors Only</x:String>
   <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.ChildsOnly" xml:space="preserve">Descendants Only</x:String>
   <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.FullLineage" xml:space="preserve">Full Lineage</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.FirstParentLineage" xml:space="preserve">Only First Parent</x:String>
   <x:String x:Key="Text.Histories.Header.SHA" xml:space="preserve">SHA</x:String>
   <x:String x:Key="Text.Histories.HighlightsInGraph" xml:space="preserve">HIGHLIGHTS IN GRAPH</x:String>
   <x:String x:Key="Text.Histories.HighlightsInGraph.All" xml:space="preserve">All</x:String>
