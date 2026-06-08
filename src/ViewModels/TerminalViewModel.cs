@@ -55,6 +55,11 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _newTitle, value);
         }
 
+        public ViewLogs ViewLogs
+        {
+            get;
+        }
+
         public List<Models.ShellOrTerminal> AvailableShells
         {
             get
@@ -70,9 +75,13 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public TerminalViewModel(string workingDirectory)
+        public TerminalViewModel(Repository repo)
         {
-            _workingDirectory = workingDirectory;
+            if (repo != null)
+            {
+                _workingDirectory = repo.FullPath;
+                ViewLogs = new ViewLogs(repo);
+            }
         }
 
         public void NewSession(Models.ShellOrTerminal shell = null)
@@ -261,6 +270,8 @@ namespace SourceGit.ViewModels
                 instance.Dispose();
             Instances.Clear();
             _selectedInstance = null;
+
+            ViewLogs?.Dispose();
         }
 
         private string _workingDirectory;
@@ -273,3 +284,4 @@ namespace SourceGit.ViewModels
         private string _newTitle = string.Empty;
     }
 }
+
