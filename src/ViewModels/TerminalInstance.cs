@@ -20,6 +20,8 @@ namespace SourceGit.ViewModels
         public string WorkingDirectory { get; }
         public Action OnExit { get; set; }
 
+        public Dictionary<string, string> EnvironmentVariables => _environment;
+
         public string Title
         {
             get => _title;
@@ -73,6 +75,15 @@ namespace SourceGit.ViewModels
             Model.SizeChanged += OnInitialSizeChanged;
         }
 
+        public TerminalInstance(string workingDirectory, Models.ShellOrTerminal shell, Dictionary<string, string> inheritedEnv, string initialCommand = "")
+            : this(workingDirectory, shell, initialCommand)
+        {
+            if (inheritedEnv != null)
+            {
+                _inheritedEnv = new Dictionary<string, string>(inheritedEnv);
+            }
+        }
+
         private void OnInitialSizeChanged(object sender, TerminalSizeChangedEventArgs e)
         {
             Model.SizeChanged -= OnInitialSizeChanged;
@@ -92,32 +103,40 @@ namespace SourceGit.ViewModels
                 args = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "-NoLogo" : "-i";
             }
 
-            var env = new Dictionary<string, string>();
-            var current = Environment.GetEnvironmentVariables();
-            foreach (System.Collections.DictionaryEntry entry in current)
+            Dictionary<string, string> env;
+            if (_inheritedEnv != null)
             {
-                var key = entry.Key?.ToString();
-                if (string.IsNullOrEmpty(key) || key.StartsWith('='))
-                    continue;
-
-                var val = entry.Value?.ToString() ?? string.Empty;
-
-                // Strip all VSCode/IDE shell integration artifacts
-                if (key.Contains("VSCODE", StringComparison.OrdinalIgnoreCase) ||
-                    key.Contains("VSC_", StringComparison.OrdinalIgnoreCase) ||
-                    key.StartsWith("BASH_FUNC_", StringComparison.OrdinalIgnoreCase) ||
-                    key.StartsWith("PS1", StringComparison.OrdinalIgnoreCase) ||
-                    key.StartsWith("PS2", StringComparison.OrdinalIgnoreCase) ||
-                    key.StartsWith("PS3", StringComparison.OrdinalIgnoreCase) ||
-                    key.StartsWith("PS4", StringComparison.OrdinalIgnoreCase) ||
-                    key.Contains("ELECTRON", StringComparison.OrdinalIgnoreCase) ||
-                    key.Equals("TERM_PROGRAM", StringComparison.OrdinalIgnoreCase) ||
-                    key.Equals("TERM_PROGRAM_VERSION", StringComparison.OrdinalIgnoreCase) ||
-                    key.Equals("PROMPT_COMMAND", StringComparison.OrdinalIgnoreCase))
+                env = new Dictionary<string, string>(_inheritedEnv);
+            }
+            else
+            {
+                env = new Dictionary<string, string>();
+                var current = Environment.GetEnvironmentVariables();
+                foreach (System.Collections.DictionaryEntry entry in current)
                 {
-                    continue;
+                    var key = entry.Key?.ToString();
+                    if (string.IsNullOrEmpty(key) || key.StartsWith('='))
+                        continue;
+
+                    var val = entry.Value?.ToString() ?? string.Empty;
+
+                    // Strip all VSCode/IDE shell integration artifacts
+                    if (key.Contains("VSCODE", StringComparison.OrdinalIgnoreCase) ||
+                        key.Contains("VSC_", StringComparison.OrdinalIgnoreCase) ||
+                        key.StartsWith("BASH_FUNC_", StringComparison.OrdinalIgnoreCase) ||
+                        key.StartsWith("PS1", StringComparison.OrdinalIgnoreCase) ||
+                        key.StartsWith("PS2", StringComparison.OrdinalIgnoreCase) ||
+                        key.StartsWith("PS3", StringComparison.OrdinalIgnoreCase) ||
+                        key.StartsWith("PS4", StringComparison.OrdinalIgnoreCase) ||
+                        key.Contains("ELECTRON", StringComparison.OrdinalIgnoreCase) ||
+                        key.Equals("TERM_PROGRAM", StringComparison.OrdinalIgnoreCase) ||
+                        key.Equals("TERM_PROGRAM_VERSION", StringComparison.OrdinalIgnoreCase) ||
+                        key.Equals("PROMPT_COMMAND", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    env[key] = val;
                 }
-                env[key] = val;
             }
 
             env["PROMPT_COMMAND"] = string.Empty;
@@ -363,5 +382,6 @@ namespace SourceGit.ViewModels
         private string _title;
         private bool _isRenaming;
         private Dictionary<string, string> _environment;
+        private Dictionary<string, string> _inheritedEnv;
     }
 }

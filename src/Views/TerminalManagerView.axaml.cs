@@ -40,6 +40,9 @@ namespace SourceGit.Views
                 vm.PropertyChanged += OnViewModelPropertyChanged;
                 _oldVm = vm;
 
+                // Initial layout columns update
+                UpdateMainLayoutColumns();
+
                 // Trigger initial focus check
                 Dispatcher.UIThread.Post(FocusProperControl, DispatcherPriority.Background);
             }
@@ -47,14 +50,90 @@ namespace SourceGit.Views
 
         private void OnViewModelPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(ViewModels.TerminalViewModel.SelectedInstance) || e.PropertyName == "Instances")
+            if (e.PropertyName == nameof(ViewModels.TerminalViewModel.SelectedGroup) || e.PropertyName == "Groups")
             {
                 // Use a lower priority for empty state to avoid catching Enter key from exit command
-                var priority = (DataContext is ViewModels.TerminalViewModel vm && vm.Instances.Count == 0)
+                var priority = (DataContext is ViewModels.TerminalViewModel vm && vm.Groups.Count == 0)
                                    ? DispatcherPriority.ApplicationIdle
                                    : DispatcherPriority.Background;
 
                 Dispatcher.UIThread.Post(FocusProperControl, priority);
+                UpdateSplitLayoutColumns();
+                
+                if (e.PropertyName == nameof(ViewModels.TerminalViewModel.SelectedGroup) && _oldSelectedGroup != null)
+                {
+                    _oldSelectedGroup.PropertyChanged -= OnSelectedGroupPropertyChanged;
+                }
+                
+                if (DataContext is ViewModels.TerminalViewModel curVm && curVm.SelectedGroup != null)
+                {
+                    curVm.SelectedGroup.PropertyChanged -= OnSelectedGroupPropertyChanged;
+                    curVm.SelectedGroup.PropertyChanged += OnSelectedGroupPropertyChanged;
+                    _oldSelectedGroup = curVm.SelectedGroup;
+                }
+            }
+            else if (e.PropertyName == nameof(ViewModels.TerminalViewModel.UseSideBarLayout))
+            {
+                UpdateMainLayoutColumns();
+            }
+        }
+
+        private void OnSelectedGroupPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ViewModels.TerminalGroup.IsSplit))
+            {
+                UpdateSplitLayoutColumns();
+            }
+        }
+
+        private void UpdateSplitLayoutColumns()
+        {
+            if (DataContext is ViewModels.TerminalViewModel vm && vm.SelectedGroup != null)
+            {
+                var grid = this.FindControl<Grid>("TerminalSplitGrid");
+                if (grid != null && grid.ColumnDefinitions.Count >= 3)
+                {
+                    if (vm.SelectedGroup.IsSplit)
+                    {
+                        grid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+                        grid.ColumnDefinitions[1].Width = GridLength.Auto;
+                        grid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
+                    }
+                    else
+                    {
+                        grid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+                        grid.ColumnDefinitions[1].Width = new GridLength(0);
+                        grid.ColumnDefinitions[2].Width = new GridLength(0);
+                    }
+                }
+            }
+        }
+
+        private GridLength _sideBarWidth = new GridLength(200, GridUnitType.Pixel);
+
+        private void UpdateMainLayoutColumns()
+        {
+            if (DataContext is ViewModels.TerminalViewModel vm)
+            {
+                var grid = this.FindControl<Grid>("MainContentGrid");
+                if (grid != null && grid.ColumnDefinitions.Count >= 3)
+                {
+                    if (vm.UseSideBarLayout)
+                    {
+                        grid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+                        grid.ColumnDefinitions[1].Width = GridLength.Auto;
+                        grid.ColumnDefinitions[2].Width = _sideBarWidth;
+                    }
+                    else
+                    {
+                        if (grid.ColumnDefinitions[2].Width.Value > 0)
+                            _sideBarWidth = grid.ColumnDefinitions[2].Width;
+
+                        grid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+                        grid.ColumnDefinitions[1].Width = new GridLength(0);
+                        grid.ColumnDefinitions[2].Width = new GridLength(0);
+                    }
+                }
             }
         }
 
@@ -63,16 +142,25 @@ namespace SourceGit.Views
             if (DataContext is not ViewModels.TerminalViewModel vm)
                 return;
 
-            if (vm.Instances.Count == 0)
+            if (vm.Groups.Count == 0)
             {
                 // Small delay to ensure any pending keyboard events (like Enter for 'exit') are processed
                 await Task.Delay(100);
             }
-            else if (vm.SelectedInstance != null)
+            else if (vm.SelectedGroup != null)
             {
-                // Focus the TerminalControl
-                var terminal = this.GetVisualDescendants().OfType<TerminalControl>().FirstOrDefault(x => x.IsVisible);
-                terminal?.Focus();
+                // In some cases, the TerminalControl is not yet added to the visual tree or marked visible
+                // when SelectedGroup changes. We retry a few times to ensure it gets focused and layout runs.
+                for (int i = 0; i < 8; i++)
+                {
+                    var terminal = this.GetVisualDescendants().OfType<TerminalControl>().FirstOrDefault(x => x.IsVisible);
+                    if (terminal != null)
+                    {
+                        terminal.Focus();
+                        break;
+                    }
+                    await Task.Delay(25);
+                }
             }
         }
 
@@ -105,21 +193,56 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private void OnSplitSession(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.TerminalViewModel vm)
+            {
+                if (sender is Control control)
+                {
+                    if (control.DataContext is ViewModels.TerminalInstance instance)
+                        vm.SplitSession(instance);
+                    else if (control.DataContext is ViewModels.TerminalGroup group)
+                        vm.SplitSession(group.Panes.FirstOrDefault());
+                }
+            }
+            e.Handled = true;
+        }
+
+        private void OnCloseActivePane(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.TerminalViewModel vm)
+            {
+                if (sender is Control control)
+                {
+                    if (control.DataContext is ViewModels.TerminalInstance instance)
+                        vm.CloseSession(instance);
+                    else if (control.DataContext is ViewModels.TerminalGroup group)
+                        vm.CloseGroup(group);
+                }
+            }
+            e.Handled = true;
+        }
+
         private void OnSessionPointerPressed(object sender, PointerPressedEventArgs e)
         {
-            if (sender is Control { DataContext: ViewModels.TerminalInstance instance })
+            if (sender is Control { DataContext: ViewModels.TerminalGroup group })
             {
                 if (e.GetCurrentPoint(this).Properties.IsMiddleButtonPressed)
                 {
                     if (DataContext is ViewModels.TerminalViewModel vm)
-                        vm.CloseSession(instance);
+                        vm.CloseGroup(group);
                     e.Handled = true;
                 }
                 else if (e.ClickCount == 2 && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
                 {
                     if (DataContext is ViewModels.TerminalViewModel vm)
-                        vm.StartRename(instance);
+                        vm.StartRename(group);
                     e.Handled = true;
+                }
+                else if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+                {
+                    if (DataContext is ViewModels.TerminalViewModel vm)
+                        vm.SelectedGroup = group;
                 }
             }
         }
@@ -229,8 +352,12 @@ namespace SourceGit.Views
 
         private async void OnTerminalDrop(object sender, DragEventArgs e)
         {
-            if (DataContext is ViewModels.TerminalViewModel { SelectedInstance: { } instance })
+            if (DataContext is ViewModels.TerminalViewModel vm && vm.SelectedGroup != null)
             {
+                var instance = vm.SelectedGroup.Panes.FirstOrDefault();
+                if (instance == null)
+                    return;
+
                 var data = e.DataTransfer;
                 if (data.TryGetValue(DataFormat.File) is IEnumerable<IStorageItem> files)
                 {
@@ -271,8 +398,12 @@ namespace SourceGit.Views
 
         private async void OnCopy(object sender, RoutedEventArgs e)
         {
-            if (DataContext is ViewModels.TerminalViewModel { SelectedInstance: { } instance })
+            if (DataContext is ViewModels.TerminalViewModel vm && vm.SelectedGroup != null)
             {
+                var instance = vm.SelectedGroup.Panes.FirstOrDefault();
+                if (instance == null)
+                    return;
+
                 var selected = instance.Model.SelectedText;
                 if (!string.IsNullOrEmpty(selected))
                 {
@@ -286,8 +417,12 @@ namespace SourceGit.Views
 
         private async void OnPaste(object sender, RoutedEventArgs e)
         {
-            if (DataContext is ViewModels.TerminalViewModel { SelectedInstance: { } instance })
+            if (DataContext is ViewModels.TerminalViewModel vm && vm.SelectedGroup != null)
             {
+                var instance = vm.SelectedGroup.Panes.FirstOrDefault();
+                if (instance == null)
+                    return;
+
                 var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
                 if (clipboard != null)
                 {
@@ -301,10 +436,10 @@ namespace SourceGit.Views
 
         private void OnRenameSession(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem { DataContext: ViewModels.TerminalInstance instance } &&
+            if (sender is MenuItem { DataContext: ViewModels.TerminalGroup group } &&
                 DataContext is ViewModels.TerminalViewModel vm)
             {
-                vm.StartRename(instance);
+                vm.StartRename(group);
             }
             e.Handled = true;
         }
@@ -352,28 +487,54 @@ namespace SourceGit.Views
 
         private void OnDuplicateSession(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem { DataContext: ViewModels.TerminalInstance instance } &&
-                DataContext is ViewModels.TerminalViewModel vm)
+            if (DataContext is ViewModels.TerminalViewModel vm && sender is MenuItem menuItem)
             {
-                vm.DuplicateSession(instance);
+                if (menuItem.DataContext is ViewModels.TerminalGroup group)
+                {
+                    var instance = group.Panes.FirstOrDefault();
+                    if (instance != null)
+                        vm.DuplicateSession(instance);
+                }
+                else if (menuItem.DataContext is ViewModels.TerminalInstance instance)
+                {
+                    vm.DuplicateSession(instance);
+                }
             }
             e.Handled = true;
         }
 
         private async void OnCopySessionPath(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem { DataContext: ViewModels.TerminalInstance instance })
+            if (sender is MenuItem menuItem)
             {
-                await this.CopyTextAsync(instance.WorkingDirectory);
+                if (menuItem.DataContext is ViewModels.TerminalGroup group)
+                {
+                    var instance = group.Panes.FirstOrDefault();
+                    if (instance != null)
+                        await this.CopyTextAsync(instance.WorkingDirectory);
+                }
+                else if (menuItem.DataContext is ViewModels.TerminalInstance instance)
+                {
+                    await this.CopyTextAsync(instance.WorkingDirectory);
+                }
             }
             e.Handled = true;
         }
 
         private async void OnCopyEnvironment(object sender, RoutedEventArgs e)
         {
-            var instance = (sender as MenuItem)?.DataContext as ViewModels.TerminalInstance;
-            if (instance == null && sender is Button btn)
+            ViewModels.TerminalInstance instance = null;
+            if (sender is MenuItem menuItem)
+            {
+                if (menuItem.DataContext is ViewModels.TerminalGroup group)
+                    instance = group.Panes.FirstOrDefault();
+                else
+                    instance = menuItem.DataContext as ViewModels.TerminalInstance;
+            }
+            else if (sender is Button btn)
+            {
                 instance = btn.DataContext as ViewModels.TerminalInstance;
+            }
 
             if (instance != null)
             {
@@ -384,9 +545,18 @@ namespace SourceGit.Views
 
         private void OnClearSession(object sender, RoutedEventArgs e)
         {
-            var instance = (sender as MenuItem)?.DataContext as ViewModels.TerminalInstance;
-            if (instance == null && sender is Button btn)
+            ViewModels.TerminalInstance instance = null;
+            if (sender is MenuItem menuItem)
+            {
+                if (menuItem.DataContext is ViewModels.TerminalGroup group)
+                    instance = group.Panes.FirstOrDefault();
+                else
+                    instance = menuItem.DataContext as ViewModels.TerminalInstance;
+            }
+            else if (sender is Button btn)
+            {
                 instance = btn.DataContext as ViewModels.TerminalInstance;
+            }
 
             if (instance != null && DataContext is ViewModels.TerminalViewModel vm)
             {
@@ -397,14 +567,61 @@ namespace SourceGit.Views
 
         private void OnCloseSession(object sender, RoutedEventArgs e)
         {
-            var instance = (sender as MenuItem)?.DataContext as ViewModels.TerminalInstance;
-            if (instance == null && sender is Button btn)
-                instance = btn.DataContext as ViewModels.TerminalInstance;
-
-            if (instance != null && DataContext is ViewModels.TerminalViewModel vm)
+            if (DataContext is ViewModels.TerminalViewModel vm)
             {
-                vm.CloseSession(instance);
+                if (sender is MenuItem menuItem)
+                {
+                    if (menuItem.DataContext is ViewModels.TerminalGroup group)
+                        vm.CloseGroup(group);
+                    else if (menuItem.DataContext is ViewModels.TerminalInstance instance)
+                        vm.CloseSession(instance);
+                }
+                else if (sender is Button btn)
+                {
+                    if (btn.DataContext is ViewModels.TerminalGroup group)
+                        vm.CloseGroup(group);
+                    else if (btn.DataContext is ViewModels.TerminalInstance instance)
+                        vm.CloseSession(instance);
+                }
             }
+            e.Handled = true;
+        }
+
+        private void OnOpenAsStandalone(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not ViewModels.TerminalViewModel vm)
+                return;
+
+            ViewModels.TerminalGroup targetGroup = null;
+            if (sender is MenuItem menuItem && menuItem.DataContext is ViewModels.TerminalGroup group)
+            {
+                targetGroup = group;
+            }
+            else
+            {
+                targetGroup = vm.SelectedGroup;
+            }
+
+            if (targetGroup == null)
+                return;
+
+            // 1. 从当前 Groups 列表中移出
+            vm.Groups.Remove(targetGroup);
+            if (vm.SelectedGroup == targetGroup)
+            {
+                vm.SelectedGroup = vm.Groups.Count > 0 ? vm.Groups[0] : null;
+            }
+
+            // 2. 创建一个独立窗口专用的 ViewModel
+            var standaloneVm = new ViewModels.TerminalViewModel(vm.Repo);
+            standaloneVm.Groups.Add(targetGroup);
+            standaloneVm.SelectedGroup = targetGroup;
+
+            // 3. 实例化独立窗口并展示
+            var standalone = new TerminalStandalone();
+            standalone.DataContext = standaloneVm;
+            standalone.Show();
+
             e.Handled = true;
         }
 
@@ -435,5 +652,6 @@ namespace SourceGit.Views
         }
 
         private ViewModels.TerminalViewModel _oldVm;
+        private ViewModels.TerminalGroup _oldSelectedGroup;
     }
 }
