@@ -6,10 +6,18 @@
              xmlns:vm="using:SourceGit.ViewModels"
              xmlns:v="using:SourceGit.Views"
              xmlns:c="using:SourceGit.Converters"
+             xmlns:ctrl="using:SourceGit.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SourceGit.Views.Repository"
              x:DataType="vm:Repository"
              x:Name="ThisControl">  
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Controls/TokenSearchBox/TokenSearchBox.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
   <Grid>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="49"/>
@@ -587,7 +595,7 @@
             <Grid Grid.Column="2">
               <!-- Dashboard (History) Page -->
               <Border IsVisible="{Binding IsDashboardVisible, Mode=OneWay}" PropertyChanged="OnRightPagePropertyChanged">
-                <Grid RowDefinitions="Auto,Auto,*" Background="{DynamicResource Brush.SubPanel}">
+                <Grid RowDefinitions="Auto,Auto,Auto,*" Background="{DynamicResource Brush.SubPanel}">
                   <!-- Bisect Information Bar -->
                   <Grid Grid.Row="0"
                         Height="28"
@@ -683,8 +691,36 @@
                             Tag="reset"/>
                   </Grid>
 
+                  <!-- TokenSearchBox for Commit Filtering (Histories View Only) -->
+                  <Border Grid.Row="1" Padding="8,4" Background="{DynamicResource Brush.DataGridHeaderBG}">
+                    <Border.IsVisible>
+                      <Binding Path="SelectedViewIndex" Converter="{x:Static c:IntConverters.IsZero}"/>
+                    </Border.IsVisible>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <ctrl:TokenSearchBox Grid.Column="0"
+                                           x:Name="TokenFilterBox"
+                                           DataContext="{Binding Histories}"
+                                           PlaceholderText="Filter Command Center，Type &quot;/&quot; or space..."
+                                           MinHeight="30"
+                                           CornerRadius="16"
+                                           HorizontalAlignment="Stretch"
+                                           Text="{Binding SearchText, Mode=TwoWay}"
+                                           SelectedTokens="{Binding SearchTokens}"
+                                           Providers="{Binding SearchProviders}"
+                                           SlashCommands="{Binding SearchSlashCommands}"/>
+
+                      <!-- Invisible Button to handle search hotkey pressed -->
+                      <Button Grid.Column="1"
+                              Width="0" Height="0"
+                              Margin="0" Padding="0"
+                              HorizontalAlignment="Right"
+                              Click="OnTokenFilterHotKey"
+                              HotKey="{OnPlatform Ctrl+F, macOS=⌘+F}"/>
+                    </Grid>
+                  </Border>
+
                   <!-- History Filter Bar -->
-                  <Border Grid.Row="1"
+                  <Border Grid.Row="2"
                           Background="{DynamicResource Brush.Popup}"
                           BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}"
                           IsVisible="{Binding UIStates.HistoryFilters.Count, Converter={x:Static c:IntConverters.IsGreaterThanZero}}">
@@ -781,7 +817,7 @@
                   </Border>
 
                   <!-- History -->
-                  <v:Histories Grid.Row="2"
+                  <v:Histories Grid.Row="3"
                                DataContext="{Binding Histories, Mode=OneWay}"
                                CurrentBranch="{Binding CurrentBranch, Mode=OneWay}"
                                Branches="{Binding Repo.Branches, Mode=OneWay}"
