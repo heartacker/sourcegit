@@ -80,8 +80,6 @@ namespace SourceGit.Models
             }
             else if (OperatingSystem.IsMacOS())
             {
-            else if (OperatingSystem.IsMacOS())
-            {
                 AddIfExeExists("zsh", "Zsh", "/bin/zsh", "-i", true);
                 AddIfExeExists("bash", "Bash", "/bin/bash", "-i", true);
                 AddIfExeExists("sh", "Sh", "/bin/sh", "-i", true);
@@ -94,7 +92,6 @@ namespace SourceGit.Models
                 AddIfExeExists("cmux", "cmux", "cmux");
                 AddIfExeExists("mux0", "mux0", "mux0");
                 AddIfExeExists("alacritty-term", "Alacritty", "Alacritty", "--working-directory");
-            }
             }
             else
             {
