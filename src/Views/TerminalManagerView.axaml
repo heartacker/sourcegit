@@ -87,12 +87,12 @@
 
         <!-- Center: Current Title or Tab Bar -->
         <Panel Grid.Column="1">
-          <TextBlock Text="{Binding SelectedInstance.Title, FallbackValue=''}"
-                     VerticalAlignment="Center" HorizontalAlignment="Center"
+          <TextBlock Text="{Binding SelectedInstance.Title, FallbackValue=''}" 
+                     VerticalAlignment="Center" HorizontalAlignment="Center" 
                      Foreground="{DynamicResource Brush.FG2}" FontSize="11" Opacity="0.8"
                      IsVisible="{Binding UseSideBarLayout}"/>
-
-          <ListBox ItemsSource="{Binding Instances}"
+          
+          <ListBox ItemsSource="{Binding Instances}" 
                    SelectedItem="{Binding SelectedInstance, Mode=TwoWay}"
                    Background="Transparent"
                    Padding="4,0"
@@ -151,8 +151,7 @@
                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Width="12" Height="12" Source="{Binding Shell.Icon}"/>
                     <TextBlock Margin="6,0" Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource Brush.FG1}"/>
-                    <Button Classes="icon_button" Width="16" Height="16" Padding="0"
-                            Click="OnCloseSession" IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
+                    <Button Classes="icon_button" Width="16" Height="16" Padding="0" Click="OnCloseSession" IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
                       <Path Width="6" Height="6" Data="{StaticResource Icons.Close}"/>
                     </Button>
                   </StackPanel>
@@ -476,3 +475,4 @@
     </Grid>
   </Grid>
 </UserControl>
+
