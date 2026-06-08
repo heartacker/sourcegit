@@ -778,6 +778,7 @@
                   <v:Histories Grid.Row="2"
                                DataContext="{Binding Histories, Mode=OneWay}"
                                CurrentBranch="{Binding CurrentBranch, Mode=OneWay}"
+                               Branches="{Binding Repo.Branches, Mode=OneWay}"
                                Bisect="{Binding Bisect, Mode=OneWay}"
                                HasSingleRemote="{Binding HasSingleRemote, Mode=OneWay}"
                                IssueTrackers="{Binding IssueTrackers, Mode=OneWay}">

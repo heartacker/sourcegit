@@ -7,6 +7,8 @@ namespace SourceGit.Views
 {
     public partial class Conflict : UserControl
     {
+        public ViewModels.Repository Repository => (DataContext as ViewModels.Conflict)?.Repository;
+
         public Conflict()
         {
             InitializeComponent();
