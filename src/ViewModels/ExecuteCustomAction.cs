@@ -237,8 +237,8 @@ namespace SourceGit.ViewModels
 
         private string PrepareStringByTarget(string org)
         {
-            var repoPath = OperatingSystem.IsWindows() ? _repo.FullPath.Replace("/", "\\") : _repo.FullPath;
-            org = org.Replace("${REPO}", repoPath);
+            org = org.Replace("${REPO}", GetWorkdir());
+            org = org.Replace("${DIRNAME}", GetWorkdirname());
 
             if (Target is Models.Branch { IsDetachedHead: false } targetBranch)
                 org = org.Replace("${BRANCH}", targetBranch.Name).Replace("${BRANCH_FRIENDLY_NAME}", targetBranch.FriendlyName).Replace("${REMOTE}", targetBranch.Remote);
@@ -256,6 +256,16 @@ namespace SourceGit.ViewModels
                 Models.CustomActionTargetFile f => org.Replace("${SHA}", f.Revision?.SHA ?? "HEAD").Replace("${FILE}", f.File),
                 _ => org
             };
+        }
+
+        private string GetWorkdir()
+        {
+            return OperatingSystem.IsWindows() ? _repo.FullPath.Replace("/", "\\") : _repo.FullPath;
+        }
+
+        private string GetWorkdirname()
+        {
+            return System.IO.Path.GetFileName(_repo.FullPath);
         }
 
         private void Run(string args)
