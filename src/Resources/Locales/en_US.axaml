@@ -224,6 +224,7 @@
   <x:String x:Key="Text.Configure.CustomAction.Arguments.Tip" xml:space="preserve">Built-in parameters:
 
   ${REPO} Repository's path
+  ${DIRNAME} - repository's directory name;
   ${REMOTE} Selected remote or selected branch's remote
   ${BRANCH} Selected branch, without ${REMOTE} part for remote branches
   ${BRANCH_FRIENDLY_NAME} Friendly name of selected branch, contains ${REMOTE} part for remote branches
