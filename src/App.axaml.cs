@@ -221,6 +221,14 @@ namespace SourceGit
             return string.Format(fmt, args);
         }
 
+        public static StreamGeometry GetIcon(string key)
+        {
+            if (Current != null && Current.TryFindResource(key, out var resource) && resource is StreamGeometry geo)
+                return geo;
+
+            return null;
+        }
+
         public static ViewModels.Launcher GetLauncher()
         {
             return Current is App app ? app._launcher : null;
