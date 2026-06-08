@@ -87,12 +87,12 @@
 
         <!-- Center: Current Title or Tab Bar -->
         <Panel Grid.Column="1">
-          <TextBlock Text="{Binding SelectedInstance.Title, FallbackValue=''}" 
-                     VerticalAlignment="Center" HorizontalAlignment="Center" 
+          <TextBlock Text="{Binding SelectedInstance.Title, FallbackValue=''}"
+                     VerticalAlignment="Center" HorizontalAlignment="Center"
                      Foreground="{DynamicResource Brush.FG2}" FontSize="11" Opacity="0.8"
                      IsVisible="{Binding UseSideBarLayout}"/>
-          
-          <ListBox ItemsSource="{Binding Instances}" 
+
+          <ListBox ItemsSource="{Binding Instances}"
                    SelectedItem="{Binding SelectedInstance, Mode=TwoWay}"
                    Background="Transparent"
                    Padding="4,0"
@@ -149,9 +149,27 @@
                   </Border.ContextMenu>
 
                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Image Width="12" Height="12" Source="{Binding Shell.Icon}"/>
-                    <TextBlock Margin="6,0" Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource Brush.FG1}"/>
-                    <Button Classes="icon_button" Width="16" Height="16" Padding="0" Click="OnCloseSession" IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
+                    <Image Width="12" Height="12" Source="{Binding Shell.Icon}" IsVisible="{Binding !IsRenaming}"/>
+                    <Panel VerticalAlignment="Center">
+                      <TextBlock Margin="6,0" Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource Brush.FG1}" IsVisible="{Binding !IsRenaming}"/>
+                      <TextBox Height="24"
+                               Margin="4,0"
+                               Padding="4,2"
+                               FontSize="11"
+                               BorderThickness="1"
+                               Text="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).NewTitle, Mode=TwoWay}"
+                               IsVisible="{Binding IsRenaming}"
+                               KeyDown="OnRenameTextBoxKeyDown"
+                               Loaded="OnRenameTextBoxLoaded"
+                               LostFocus="OnRenameTextBoxLostFocus"/>
+                    </Panel>
+                    <Button Classes="icon_button" Width="16" Height="16" Padding="0" Click="OnCloseSession">
+                      <Button.IsVisible>
+                        <MultiBinding Converter="{x:Static c:BoolConverters.And}">
+                          <Binding Path="$parent[ListBoxItem].IsPointerOver"/>
+                          <Binding Path="!IsRenaming"/>
+                        </MultiBinding>
+                      </Button.IsVisible>
                       <Path Width="6" Height="6" Data="{StaticResource Icons.Close}"/>
                     </Button>
                   </StackPanel>
@@ -352,36 +370,6 @@
                                     DragDrop.DragOver="OnTerminalDragOver"
                                     DragDrop.Drop="OnTerminalDrop"/>
         </Grid>
-
-        <!-- Local Rename Overlay -->
-        <Border Background="#66000000" IsVisible="{Binding RenamingInstance, Converter={x:Static c:ObjectConverters.IsNotNull}}">
-          <Border Width="320" Height="40"
-                  VerticalAlignment="Top" HorizontalAlignment="Center"
-                  Margin="0,8,0,0"
-                  Background="{DynamicResource Brush.Window}"
-                  BorderBrush="{DynamicResource Brush.Border0}"
-                  BorderThickness="1"
-                  CornerRadius="4"
-                  BoxShadow="0 4 12 0 #33000000">
-            <Grid ColumnDefinitions="*,Auto,Auto">
-              <TextBox Grid.Column="0"
-                       x:Name="PART_RenameTextBox"
-                       Margin="4"
-                       Height="28"
-                       Padding="4,2"
-                       FontSize="13"
-                       Text="{Binding NewTitle, Mode=TwoWay}"
-                       KeyDown="OnRenameTextBoxKeyDown"
-                       Loaded="OnRenameTextBoxLoaded"/>
-              <Button Grid.Column="1" Classes="icon_button" Width="28" Height="28" Click="OnConfirmRename" ToolTip.Tip="Confirm">
-                <Path Width="12" Height="12" Data="{StaticResource Icons.Check}" Fill="{DynamicResource Brush.Accent}"/>
-              </Button>
-              <Button Grid.Column="2" Classes="icon_button" Width="28" Height="28" Click="OnCancelRename" ToolTip.Tip="Cancel">
-                <Path Width="10" Height="10" Data="{StaticResource Icons.Close}"/>
-              </Button>
-            </Grid>
-          </Border>
-        </Border>
       </Panel>
 
       <GridSplitter Grid.Column="1" Width="10"
@@ -441,17 +429,35 @@
                       Background="{DynamicResource Brush.Accent}"
                       IsVisible="{Binding $parent[ListBoxItem].IsSelected}"/>
               <Image Grid.Column="1" Width="14" Height="14" Margin="8,0"
-                     Source="{Binding Shell.Icon}"/>
-              <TextBlock Grid.Column="2" Text="{Binding Title}"
-                         VerticalAlignment="Center"
+                     Source="{Binding Shell.Icon}"
+                     IsVisible="{Binding !IsRenaming}"/>
+              <Panel Grid.Column="2" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Title}"
+                           FontSize="11"
+                           TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding !IsRenaming}"/>
+                <TextBox Height="24"
+                         Margin="0,0,4,0"
+                         Padding="4,2"
                          FontSize="11"
-                         TextTrimming="CharacterEllipsis"/>
+                         BorderThickness="1"
+                         Text="{Binding #TerminalManagerRoot.((vm:TerminalViewModel)DataContext).NewTitle, Mode=TwoWay}"
+                         IsVisible="{Binding IsRenaming}"
+                         KeyDown="OnRenameTextBoxKeyDown"
+                         Loaded="OnRenameTextBoxLoaded"
+                         LostFocus="OnRenameTextBoxLostFocus"/>
+              </Panel>
 
               <!-- Quick Actions on Hover -->
               <StackPanel Grid.Column="2"
                           HorizontalAlignment="Right"
-                          Orientation="Horizontal" Margin="0,0,4,0"
-                          IsVisible="{Binding $parent[ListBoxItem].IsPointerOver}">
+                          Orientation="Horizontal" Margin="0,0,4,0">
+                <StackPanel.IsVisible>
+                  <MultiBinding Converter="{x:Static c:BoolConverters.And}">
+                    <Binding Path="$parent[ListBoxItem].IsPointerOver"/>
+                    <Binding Path="!IsRenaming"/>
+                  </MultiBinding>
+                </StackPanel.IsVisible>
                 <Button Classes="icon_button" Width="22" Height="22" Padding="0"
                         Click="OnCopyEnvironment"
                         ToolTip.Tip="Copy Env">
@@ -475,4 +481,3 @@
     </Grid>
   </Grid>
 </UserControl>
-

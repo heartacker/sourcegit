@@ -344,6 +344,12 @@ namespace SourceGit.Views
             }
         }
 
+        private void OnRenameTextBoxLostFocus(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.TerminalViewModel vm)
+                vm.ConfirmRename();
+        }
+
         private void OnDuplicateSession(object sender, RoutedEventArgs e)
         {
             if (sender is MenuItem { DataContext: ViewModels.TerminalInstance instance } &&
