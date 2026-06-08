@@ -11,7 +11,7 @@ namespace SourceGit.ViewModels
     {
         private void SetupSlashCommands()
         {
-            var fieldProvider = new StaticTokenSuggestionProvider("ui:", "列名", null, new[] { "author", "time", "sha" });
+            var fieldProvider = new StaticTokenSuggestionProvider("ui:", "列名", null, new[] { "author", "author_time", "commit_time", "sha" });
             var actionProvider =
                 new StaticTokenSuggestionProvider("ui:", "动作", null, new[] { "true", "false", "toggle" });
             var uiArgs =
@@ -24,7 +24,7 @@ namespace SourceGit.ViewModels
             SearchSlashCommands.Add(new TokenSlashCommand
             {
                 Name = "ui",
-                Description = "视图控制：/ui <author|sha|time> [true|false|toggle]",
+                Description = "视图控制：/ui <author|sha|author_time|commit_time> [true|false|toggle]",
                 Icon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5",
                 RequiresArgument = true,
                 Arguments = uiArgs,
@@ -33,7 +33,7 @@ namespace SourceGit.ViewModels
             SearchSlashCommands.Add(new TokenSlashCommand
             {
                 Name = "st",
-                Description = "设置快捷命令：/st <author|sha|time> [true|false|toggle]",
+                Description = "设置快捷命令：/st <author|sha|author_time|commit_time> [true|false|toggle]",
                 Icon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5",
                 RequiresArgument = true,
                 Arguments = uiArgs,
@@ -136,6 +136,25 @@ namespace SourceGit.ViewModels
                 Suggest = SuggestSortArguments,
                 Execute = ExecuteSortCommand,
             });
+
+            var decoraOptions = new[] { "0", "1", "2", "3", "none", "branch", "tag", "all" };
+            var decoraProvider = new StaticTokenSuggestionProvider("decora:", "显示模式", null, decoraOptions);
+
+            SearchSlashCommands.Add(new TokenSlashCommand
+            {
+                Name = "decora",
+                Description = "设置装饰器显示：/decora <0|1|2|3|none|branch|tag|all>",
+                Icon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5",
+                RequiresArgument = true,
+                Arguments = new List<TokenArgumentDefinition> {
+                    new TokenArgumentDefinition {
+                        Name = "mode",
+                        Description = "选择显示模式",
+                        SuggestionProvider = decoraProvider
+                    }
+                },
+                Execute = ExecuteDecoraCommand,
+            });
         }
 
         private bool ToggleColumnByName(string name)
@@ -152,10 +171,17 @@ namespace SourceGit.ViewModels
                 return true;
             }
 
+            if (name.Equals("author_time", StringComparison.OrdinalIgnoreCase))
+            {
+                IsAuthorTimeColumnVisible = !IsAuthorTimeColumnVisible;
+                return true;
+            }
+
             if (name.Equals("time", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("commit_time", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("datetime", StringComparison.OrdinalIgnoreCase))
             {
-                IsDateTimeColumnVisible = !IsDateTimeColumnVisible;
+                IsCommitTimeColumnVisible = !IsCommitTimeColumnVisible;
                 return true;
             }
 
@@ -176,10 +202,17 @@ namespace SourceGit.ViewModels
                 return true;
             }
 
+            if (name.Equals("author_time", StringComparison.OrdinalIgnoreCase))
+            {
+                IsAuthorTimeColumnVisible = value;
+                return true;
+            }
+
             if (name.Equals("time", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("commit_time", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("datetime", StringComparison.OrdinalIgnoreCase))
             {
-                IsDateTimeColumnVisible = value;
+                IsCommitTimeColumnVisible = value;
                 return true;
             }
 
@@ -190,6 +223,8 @@ namespace SourceGit.ViewModels
         {
             return name.Equals("author", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("sha", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("author_time", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("commit_time", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("time", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("datetime", StringComparison.OrdinalIgnoreCase);
         }
@@ -327,6 +362,45 @@ namespace SourceGit.ViewModels
                 default:
                     return false;
             }
+        }
+
+        private bool ExecuteDecoraCommand(TokenSlashExecuteContext ctx)
+        {
+            var tokens = ctx.ArgumentTokens ?? [];
+            if (tokens.Count == 0)
+                return false;
+
+            var value = tokens[0].Trim().ToLowerInvariant();
+            if (string.IsNullOrEmpty(value))
+                return false;
+
+            int mode = -1;
+            switch (value)
+            {
+                case "0":
+                case "none":
+                    mode = 0;
+                    break;
+                case "1":
+                case "branch":
+                case "branches":
+                    mode = 1;
+                    break;
+                case "2":
+                case "tag":
+                case "tags":
+                    mode = 2;
+                    break;
+                case "3":
+                case "all":
+                    mode = 3;
+                    break;
+                default:
+                    return false;
+            }
+
+            Preferences.Instance.DecoratorDisplayMode = mode;
+            return true;
         }
     }
 }
