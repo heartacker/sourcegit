@@ -556,7 +556,7 @@ namespace SourceGit.ViewModels
             return false;
         }
 
-        public async Task CheckoutBranchByCommitAsync(Models.Commit commit)
+        public async Task CheckoutBranchByCommitAsync(Models.Commit commit, bool isCtrlPressed = false)
         {
             if (commit.IsCurrentHead)
                 return;
@@ -595,9 +595,16 @@ namespace SourceGit.ViewModels
             if (_repo.CanCreatePopup())
             {
                 if (firstRemoteBranch != null)
+                {
                     _repo.ShowPopup(new CreateBranch(_repo, firstRemoteBranch));
+                }
                 else if (!_repo.IsBare)
-                    _repo.ShowPopup(new CheckoutDetached(_repo, commit));
+                {
+                    if (isCtrlPressed && _repo.CurrentBranch != null)
+                        _repo.ShowPopup(new Reset(_repo, _repo.CurrentBranch, commit));
+                    else
+                        _repo.ShowPopup(new CheckoutDetached(_repo, commit));
+                }
             }
         }
 

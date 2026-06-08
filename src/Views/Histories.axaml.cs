@@ -774,7 +774,8 @@ namespace SourceGit.Views
                         return;
                 }
 
-                await histories.CheckoutBranchByCommitAsync(c);
+                var isCtrl = e.KeyModifiers.HasFlag(OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control);
+                await histories.CheckoutBranchByCommitAsync(c, isCtrl);
             }
         }
 
