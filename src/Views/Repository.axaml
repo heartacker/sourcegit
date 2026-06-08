@@ -967,10 +967,16 @@
                                          Filter="{Binding Mode=OneWay}"
                                          IsFilterValid="{Binding IsValid, Mode=OneWay}"/>
                     
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding Pattern, Converter={x:Static c:StringConverters.TrimRefsPrefix}}"
-                               Margin="4,0,8,0"
-                               TextTrimming="CharacterEllipsis"/>
+                    <Button Grid.Column="1"
+                            Classes="icon_button"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnNavigateToFilter"
+                            Margin="4,0,8,0">
+                      <TextBlock Text="{Binding Pattern, Converter={x:Static c:StringConverters.TrimRefsPrefix}}"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </Button>
 
                     <Button Grid.Column="2" Classes="icon_button" VerticalAlignment="Center" Margin="0" Padding="0" Click="OnRemoveSelectedHistoryFilter">
                       <Path Width="8" Height="8" Data="{StaticResource Icons.Close}"/>
