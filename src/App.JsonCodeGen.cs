@@ -73,5 +73,6 @@ namespace SourceGit
     [JsonSerializable(typeof(List<Models.VisualStudioInstance>))]
     [JsonSerializable(typeof(ViewModels.Preferences))]
     [JsonSerializable(typeof(ViewModels.RepositoryNodeMinimalInfo))]
+    [JsonSerializable(typeof(Porta.Pty.PtyExitedEventArgs))]
     internal partial class JsonCodeGen : JsonSerializerContext { }
 }
