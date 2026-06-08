@@ -76,7 +76,9 @@ namespace SourceGit.Models
         public List<Link> Links { get; } = [];
         public List<Dot> Dots { get; } = [];
 
-        public static CommitGraph Generate(List<Commit> commits, bool recalculateMergeState, bool firstParentOnlyEnabled, CommitGraphHighlighting highlighting, bool[] selectedLineage)
+        public static CommitGraph Generate(List<Commit> commits, bool recalculateMergeState,
+            bool firstParentOnlyEnabled, CommitGraphHighlighting highlighting,
+            bool[] selectedLineage)
         {
             const double unitWidth = 12;
             const double halfWidth = 6;
