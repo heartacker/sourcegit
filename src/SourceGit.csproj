@@ -8,6 +8,7 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <EnableUnsafeBinaryFormatterSerialization Condition="$([MSBuild]::IsOSPlatform('Windows'))">true</EnableUnsafeBinaryFormatterSerialization>
 
     <Product>SourceGit</Product>
     <Description>OpenSource GIT client</Description>
@@ -58,7 +59,10 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="OpenAI" Version="2.10.0" />
     <PackageReference Include="Pfim" Version="0.11.4" />
+    <PackageReference Include="Porta.Pty" Version="1.0.7" />
     <PackageReference Include="StbImageSharp" Version="2.30.15" />
+    <PackageReference Include="SvcSystems.UI.Terminal" Version="1.0.1" />
+    <PackageReference Include="XTerm.NET" Version="1.0.14" />
 
     <ProjectReference Include="../depends/AvaloniaEdit/src/AvaloniaEdit.TextMate/AvaloniaEdit.TextMate.csproj" />
   </ItemGroup>
@@ -78,5 +82,6 @@
     </ItemGroup>
   </Target>
 </Project>
+
 
 

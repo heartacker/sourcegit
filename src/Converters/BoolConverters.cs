@@ -16,6 +16,9 @@ namespace SourceGit.Converters
         public static readonly FuncValueConverter<bool, IBrush> IsWarningToBrush =
             new(x => x ? Brushes.DarkGoldenrod : Application.Current?.FindResource("Brush.FG1") as IBrush);
 
+        public static readonly FuncValueConverter<bool, bool> Not =
+            new(x => !x);
+
         public static readonly IMultiValueConverter And = new FuncMultiValueConverter<bool, bool>(values =>
         {
             foreach (var v in values)
