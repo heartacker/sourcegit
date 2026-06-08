@@ -66,20 +66,7 @@ namespace SourceGit.Views
             if (vm.Instances.Count == 0)
             {
                 // Small delay to ensure any pending keyboard events (like Enter for 'exit') are processed
-                // await Task.Delay(100);
-
-                // // Focus the empty state SplitButton
-                // var emptyBtn = this.FindControl<SplitButton>("PART_EmptyNewBtn");
-                // if (emptyBtn != null)
-                // {
-                //     emptyBtn.Focus();
-                // }
-                // else
-                // {
-                //     // Fallback search if Name binding fails in Template
-                //     var btn = this.GetVisualDescendants().OfType<SplitButton>().FirstOrDefault(x => x.IsVisible);
-                //     btn?.Focus();
-                // }
+                await Task.Delay(100);
             }
             else if (vm.SelectedInstance != null)
             {
