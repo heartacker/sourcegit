@@ -41,6 +41,9 @@ namespace SourceGit.Models
             public List<Point> Points { get; } = [];
             public int Color { get; } = color;
             public bool IsHighlighted { get; } = isHighlighted;
+            public bool IsHoveredRelated { get; set; } = false;
+            public int StartCommitIndex { get; set; } = -1;
+            public int EndCommitIndex { get; set; } = -1;
         }
 
         public class Link
@@ -50,6 +53,8 @@ namespace SourceGit.Models
             public Point End;
             public int Color;
             public bool IsHighlighted;
+            public int StartCommitIndex = -1;
+            public int EndCommitIndex = -1;
         }
 
         public enum DotType
@@ -85,6 +90,13 @@ namespace SourceGit.Models
             var colorPicker = new ColorPicker();
             var defHighlighting = highlighting == CommitGraphHighlighting.All;
 
+            var commitMap = new Dictionary<string, int>();
+            for (int i = 0; i < commits.Count; i++)
+            {
+                commits[i].Index = i;
+                commitMap[commits[i].SHA] = i;
+            }
+
             foreach (var commit in commits)
             {
                 PathHelper major = null;
@@ -114,12 +126,14 @@ namespace SourceGit.Models
                             else
                             {
                                 major.End(offsetX, offsetY, halfHeight);
+                                major.Path.EndCommitIndex = commit.Index;
                                 ended.Add(l);
                             }
                         }
                         else
                         {
                             l.End(major.LastX, offsetY, halfHeight);
+                            l.Path.EndCommitIndex = commit.Index;
                             ended.Add(l);
 
                             if (!isHighlighted && l.IsHighlighted)
@@ -184,14 +198,14 @@ namespace SourceGit.Models
 
                     if (commit.Parents.Count > 0)
                     {
-                        major = new PathHelper(commit.Parents[0], isHighlighted, colorPicker.Next(), new Point(offsetX, offsetY));
+                        major = new PathHelper(commit.Parents[0], isHighlighted, colorPicker.Next(), new Point(offsetX, offsetY), commit.Index);
                         unsolved.Add(major);
                         temp.Paths.Add(major.Path);
                     }
                 }
                 else if (isHighlighted && !major.IsHighlighted && commit.Parents.Count > 0)
                 {
-                    major.Highlight();
+                    major.Highlight(commit.Index);
                     temp.Paths.Add(major.Path);
                 }
 
@@ -222,7 +236,7 @@ namespace SourceGit.Models
                             if (isHighlighted && !parent.IsHighlighted)
                             {
                                 parent.Goto(parent.LastX, offsetY + halfHeight, halfHeight);
-                                parent.Highlight();
+                                parent.Highlight(commit.Index);
                                 temp.Paths.Add(parent.Path);
                             }
 
@@ -233,6 +247,8 @@ namespace SourceGit.Models
                                 Control = new Point(parent.LastX, position.Y),
                                 Color = parent.Path.Color,
                                 IsHighlighted = isHighlighted,
+                                StartCommitIndex = commit.Index,
+                                EndCommitIndex = commitMap.GetValueOrDefault(parentHash, -1),
                             });
                         }
                         else
@@ -240,7 +256,7 @@ namespace SourceGit.Models
                             offsetX += unitWidth;
 
                             // Create new curve for parent commit that not includes before
-                            var l = new PathHelper(parentHash, isHighlighted, colorPicker.Next(), position, new Point(offsetX, position.Y + halfHeight));
+                            var l = new PathHelper(parentHash, isHighlighted, colorPicker.Next(), position, new Point(offsetX, position.Y + halfHeight), commit.Index);
                             unsolved.Add(l);
                             temp.Paths.Add(l.Path);
                         }
@@ -262,6 +278,7 @@ namespace SourceGit.Models
                     continue;
 
                 path.End((i + 0.5) * unitWidth + 4, endY + halfHeight, halfHeight);
+                path.Path.EndCommitIndex = commits.Count - 1;
             }
             unsolved.Clear();
 
@@ -297,7 +314,7 @@ namespace SourceGit.Models
             public double LastX { get; private set; }
             public bool IsHighlighted { get => Path.IsHighlighted; }
 
-            public PathHelper(string next, bool IsHighlighted, int color, Point start)
+            public PathHelper(string next, bool IsHighlighted, int color, Point start, int startCommitIndex)
             {
                 Next = next;
                 LastX = start.X;
@@ -305,9 +322,10 @@ namespace SourceGit.Models
 
                 Path = new Path(color, IsHighlighted);
                 Path.Points.Add(start);
+                Path.StartCommitIndex = startCommitIndex;
             }
 
-            public PathHelper(string next, bool IsHighlighted, int color, Point start, Point to)
+            public PathHelper(string next, bool IsHighlighted, int color, Point start, Point to, int startCommitIndex)
             {
                 Next = next;
                 LastX = to.X;
@@ -316,6 +334,7 @@ namespace SourceGit.Models
                 Path = new Path(color, IsHighlighted);
                 Path.Points.Add(start);
                 Path.Points.Add(to);
+                Path.StartCommitIndex = startCommitIndex;
             }
 
             /// <summary>
@@ -396,13 +415,15 @@ namespace SourceGit.Models
             /// <summary>
             ///     End the current path and create a new highlighted from the end.
             /// </summary>
-            public void Highlight()
+            public void Highlight(int commitIndex)
             {
                 var color = Path.Color;
                 Add(LastX, _lastY);
+                Path.EndCommitIndex = commitIndex;
 
                 Path = new Path(color, true);
                 Path.Points.Add(new Point(LastX, _lastY));
+                Path.StartCommitIndex = commitIndex;
                 _endY = 0;
             }
 

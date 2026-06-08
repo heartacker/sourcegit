@@ -512,6 +512,15 @@
   <x:String x:Key="Text.Histories.Header.AuthorTime" xml:space="preserve">AUTHOR TIME</x:String>
   <x:String x:Key="Text.Histories.Header.CommitTime" xml:space="preserve">COMMIT TIME</x:String>
   <x:String x:Key="Text.Histories.Header.GraphAndSubject" xml:space="preserve">GRAPH &amp; SUBJECT</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights" xml:space="preserve">Highlighting Mode</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.All" xml:space="preserve">Show All</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.CurrentBranchOnly" xml:space="preserve">Current Branch Only</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.SelectedLineageOnly" xml:space="preserve">Selected Lineage Only</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.CurrentBranchAndSelectedLineage" xml:space="preserve">Current Branch &amp; Selected Lineage</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod" xml:space="preserve">Lineage Search Method</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.ParentsOnly" xml:space="preserve">Ancestors Only</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.ChildsOnly" xml:space="preserve">Descendants Only</x:String>
+  <x:String x:Key="Text.Histories.Header.Highlights.LineageMethod.FullLineage" xml:space="preserve">Full Lineage</x:String>
   <x:String x:Key="Text.Histories.Header.SHA" xml:space="preserve">SHA</x:String>
   <x:String x:Key="Text.Histories.HighlightsInGraph" xml:space="preserve">HIGHLIGHTS IN GRAPH</x:String>
   <x:String x:Key="Text.Histories.HighlightsInGraph.All" xml:space="preserve">All</x:String>
@@ -676,6 +685,7 @@
   <x:String x:Key="Text.Preferences.Appearance.Theme" xml:space="preserve">Theme</x:String>
   <x:String x:Key="Text.Preferences.Appearance.ThemeOverrides" xml:space="preserve">Theme Overrides</x:String>
   <x:String x:Key="Text.Preferences.Appearance.UseAutoHideScrollBars" xml:space="preserve">Use auto-hide scrollbars</x:String>
+  <x:String x:Key="Text.Preferences.Appearance.EnableHoverViewTracking" xml:space="preserve">Enable hover view tracking</x:String>
   <x:String x:Key="Text.Preferences.Appearance.UseFixedTabWidth" xml:space="preserve">Use fixed tab width in titlebar</x:String>
   <x:String x:Key="Text.Preferences.Appearance.UseNativeWindowFrame" xml:space="preserve">Use native window frame</x:String>
   <x:String x:Key="Text.Preferences.DiffMerge" xml:space="preserve">DIFF/MERGE TOOL</x:String>

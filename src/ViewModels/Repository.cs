@@ -155,6 +155,12 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public Models.CommitGraphHighlighting GraphHighlighting
+        {
+            get => _histories.GraphHighlighting;
+            set => _histories.GraphHighlighting = value;
+        }
+
         public List<Models.Remote> Remotes
         {
             get => _remotes;

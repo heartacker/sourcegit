@@ -378,6 +378,15 @@ namespace SourceGit.Views
             set => SetAndRaise(IsDetailsPanelExpandedProperty, ref _isDetailsPanelExpanded, value);
         }
 
+        public static readonly StyledProperty<Models.CommitGraphHighlighting> GraphHighlightingProperty =
+            AvaloniaProperty.Register<Histories, Models.CommitGraphHighlighting>(nameof(GraphHighlighting), Models.CommitGraphHighlighting.All);
+
+        public Models.CommitGraphHighlighting GraphHighlighting
+        {
+            get => GetValue(GraphHighlightingProperty);
+            set => SetValue(GraphHighlightingProperty, value);
+        }
+
         public Histories()
         {
             InitializeComponent();
@@ -599,6 +608,9 @@ namespace SourceGit.Views
             if (!IsLoaded)
                 return;
 
+            if (DataContext is not ViewModels.Histories vm)
+                return;
+
             var dataGrid = CommitListContainer;
             var rowsPresenter = dataGrid.FindDescendantOfType<DataGridRowsPresenter>();
             if (rowsPresenter == null)
@@ -606,6 +618,9 @@ namespace SourceGit.Views
 
             double rowHeight = dataGrid.RowHeight;
             double startY = 0;
+            int topIndex = -1;
+            int bottomIndex = -1;
+
             foreach (var child in rowsPresenter.Children)
             {
                 if (child is DataGridRow { IsVisible: true } row)
@@ -618,10 +633,16 @@ namespace SourceGit.Views
                         if (startY < test)
                             startY = test;
                     }
+
+                    if (topIndex == -1 || row.Index < topIndex)
+                        topIndex = row.Index;
+                    if (bottomIndex == -1 || row.Index > bottomIndex)
+                        bottomIndex = row.Index;
                 }
             }
 
-            IsScrollToTopVisible = startY >= rowHeight;
+            vm.SetVisibleCommitRange(topIndex, bottomIndex);
+            SetCurrentValue(IsScrollToTopVisibleProperty, startY >= rowHeight);
 
             var clipWidth = dataGrid.Columns[0].ActualWidth - 4;
             var lastLayout = CommitGraph.Layout;
@@ -636,6 +657,39 @@ namespace SourceGit.Views
         {
             if (DataContext is ViewModels.Histories histories)
                 CommitListContainer.ScrollIntoView(histories.Commits[0], null);
+        }
+
+        protected override void OnPointerMoved(PointerEventArgs e)
+        {
+            base.OnPointerMoved(e);
+
+            if (DataContext is not ViewModels.Histories vm)
+                return;
+
+            if (!ViewModels.Preferences.Instance.EnableHoverViewTracking)
+            {
+                vm.HoveredCommitIndex = -1;
+                return;
+            }
+
+            var point = e.GetPosition(this);
+            var row = (this.InputHitTest(point) as Visual)?.FindAncestorOfType<DataGridRow>();
+            if (row != null)
+            {
+                var index = (long)row.Index;
+                vm.HoveredCommitIndex = index;
+            }
+            else
+            {
+                vm.HoveredCommitIndex = -1;
+            }
+        }
+
+        protected override void OnPointerExited(PointerEventArgs e)
+        {
+            base.OnPointerExited(e);
+            if (DataContext is ViewModels.Histories vm)
+                vm.HoveredCommitIndex = -1;
         }
 
         private void OnCommitListContextRequested(object sender, ContextRequestedEventArgs e)
