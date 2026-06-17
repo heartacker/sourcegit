@@ -159,7 +159,7 @@ namespace SourceGit.Models
                 // Ancestor pass:
                 // Scan towards older rows (larger index). For each active commit,
                 // propagate highlight to all reachable parents in range.
-                for (int i = commit.Index; i <= bottomLimit; i++)
+                for (int i = topLimit; i <= bottomLimit; i++)
                 {
                     if (active[i])
                     {

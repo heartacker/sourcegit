@@ -585,13 +585,16 @@ namespace SourceGit.ViewModels
                 return await Task.Run(
                     () =>
                     {
-                        var results =
+                        var results = new List<TokenSuggestion>();
+
+                        // Commits suggestions
+                        var commitResults =
                             soloSource.Where(c => !string.IsNullOrWhiteSpace(c?.SHA))
                                 .Where(c => string.IsNullOrEmpty(query) ||
                                             (!string.IsNullOrEmpty(c.Subject) &&
                                              c.Subject.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
                                             c.SHA.StartsWith(query, StringComparison.OrdinalIgnoreCase))
-                                .Take(100)
+                                .Take(50)
                                 .Select(c => new TokenSuggestion
                                 {
                                     Name = string.IsNullOrWhiteSpace(c.Subject) ? c.SHA[..Math.Min(10, c.SHA.Length)]
@@ -601,15 +604,46 @@ namespace SourceGit.ViewModels
                                     CanExecuteDirectly = true,
                                     ActionType = TokenSuggestionActionType.Execute
                                 });
+                        results.AddRange(commitResults);
 
+                        // Branch suggestions
+                        var branchResults = _repo.Branches
+                                .Select(b => b.IsLocal ? b.Name : b.FriendlyName)
+                                .Where(n => !string.IsNullOrEmpty(n) && (string.IsNullOrEmpty(query) || n.Contains(query, StringComparison.OrdinalIgnoreCase)))
+                                .OrderBy(n => n)
+                                .Take(20)
+                                .Select(n => new TokenSuggestion
+                                {
+                                    Name = n,
+                                    Value = n,
+                                    Description = "[Branch] 开启该分支的谱系视图",
+                                    CanExecuteDirectly = true,
+                                    ActionType = TokenSuggestionActionType.Execute
+                                });
+                        results.AddRange(branchResults);
+
+                        // Tag suggestions
+                        var tagResults = _repo.Tags
+                                .Select(t => t.Name)
+                                .Where(n => !string.IsNullOrEmpty(n) && (string.IsNullOrEmpty(query) || n.Contains(query, StringComparison.OrdinalIgnoreCase)))
+                                .OrderBy(n => n)
+                                .Take(20)
+                                .Select(n => new TokenSuggestion
+                                {
+                                    Name = n,
+                                    Value = n,
+                                    Description = "[Tag] 开启该标签的谱系视图",
+                                    CanExecuteDirectly = true,
+                                    ActionType = TokenSuggestionActionType.Execute
+                                });
+                        results.AddRange(tagResults);
+
+                        // HEAD
                         var head = soloSource.FirstOrDefault(x => x.IsCurrentHead);
                         if (head != null &&
-                            (string.IsNullOrEmpty(query) || "HEAD".Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                             (!string.IsNullOrEmpty(head.Subject) &&
-                              head.Subject.Contains(query, StringComparison.OrdinalIgnoreCase))))
+                            (string.IsNullOrEmpty(query) || "HEAD".Contains(query, StringComparison.OrdinalIgnoreCase)))
                         {
-                            var list = results.ToList();
-                            list.Insert(0, new TokenSuggestion
+                            results.Insert(0, new TokenSuggestion
                             {
                                 Name = "HEAD",
                                 Value = "HEAD",
@@ -617,8 +651,8 @@ namespace SourceGit.ViewModels
                                 CanExecuteDirectly = true,
                                 ActionType = TokenSuggestionActionType.Execute
                             });
-                            return list.DistinctBy(c => c.Value ?? c.Name);
                         }
+
                         return results.DistinctBy(c => c.Value ?? c.Name);
                     },
                     ct);
@@ -903,20 +937,7 @@ namespace SourceGit.ViewModels
 
                 foreach (var target in soloTargets)
                 {
-                    Models.Commit commit = null;
-                    if (target.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
-                    {
-                        commit = _rawCommits.Find(x => x.IsCurrentHead);
-                    }
-                    else if (rawCommitMap.TryGetValue(target, out var exact))
-                    {
-                        commit = exact;
-                    }
-                    else if (target.Length >= 4)
-                    {
-                        commit = _rawCommits.Find(x => x.SHA.StartsWith(target, StringComparison.OrdinalIgnoreCase));
-                    }
-
+                    var commit = FindCommitByIdentifier(target, rawCommitMap);
                     if (commit != null)
                     {
                         var lineage = Models.CommitGraph.GetCommitLineageFast(_rawCommits, rawCommitMap, commit,

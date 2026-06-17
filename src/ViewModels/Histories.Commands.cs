@@ -287,7 +287,10 @@ namespace SourceGit.ViewModels
                 case "solo":
                     if (tokens.Count < 2)
                         return false;
-                    _repo.NavigateToCommit(tokens[1].Trim());
+
+                    var soloTarget = tokens[1].Trim();
+                    AddFilter($"solo:{soloTarget}");
+                    _repo.NavigateToCommit(soloTarget);
                     return true;
 
                 case "commit":
