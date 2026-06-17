@@ -898,6 +898,28 @@ namespace SourceGit.ViewModels
             }
         }
 
+        private Models.Commit FindCommitByIdentifier(string target, Dictionary<string, Models.Commit> map)
+        {
+            if (string.IsNullOrEmpty(target))
+                return null;
+
+            if (target.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
+                return _rawCommits.Find(x => x.IsCurrentHead);
+
+            if (map.TryGetValue(target, out var exact))
+                return exact;
+
+            if (target.Length >= 4 && target.All(char.IsAsciiHexDigit))
+            {
+                var match = _rawCommits.Find(x => x.SHA.StartsWith(target, StringComparison.OrdinalIgnoreCase));
+                if (match != null)
+                    return match;
+            }
+
+            // Find by branch/tag name in decorators
+            return _rawCommits.Find(c => c.Decorators.Any(d => d.Name.Equals(target, StringComparison.OrdinalIgnoreCase)));
+        }
+
         private List<Models.Commit> FilterCommits(List<Models.Commit> commits, List<string> targets)
         {
             if (commits == null || commits.Count == 0 || targets.Count == 0)
@@ -910,41 +932,21 @@ namespace SourceGit.ViewModels
                 rawCommitMap[_rawCommits[i].SHA] = _rawCommits[i];
             }
 
-            var commitMap = new Dictionary<string, Models.Commit>(commits.Count);
+            var commitMap = new Dictionary<string, int>(commits.Count);
             for (int i = 0; i < commits.Count; i++)
-            {
-                commits[i].Index = i;
-                commitMap[commits[i].SHA] = commits[i];
-            }
+                commitMap[commits[i].SHA] = i;
 
             var active = new bool[commits.Count];
             foreach (var target in targets)
             {
-                Models.Commit commit = null;
-                if (target.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
-                {
-                    commit = _rawCommits.Find(x => x.IsCurrentHead);
-                }
-                else if (rawCommitMap.TryGetValue(target, out var exact))
-                {
-                    commit = exact;
-                }
-                else if (target.Length >= 4)
-                {
-                    commit = _rawCommits.Find(x => x.SHA.StartsWith(target, StringComparison.OrdinalIgnoreCase));
-                }
-
+                var commit = FindCommitByIdentifier(target, rawCommitMap);
                 if (commit != null)
                 {
                     var lineage = Models.CommitGraph.GetCommitLineageFast(_rawCommits, rawCommitMap, commit, Models.CommitLineageSearchMethod.FullLineage, (uint)_rawCommits.Count);
                     for (int i = 0; i < lineage.Length; i++)
                     {
-                        if (!lineage[i])
-                            continue;
-
-                        var lineageCommit = _rawCommits[i];
-                        if (commitMap.TryGetValue(lineageCommit.SHA, out var visibleCommit) && visibleCommit.Index < commits.Count)
-                            active[visibleCommit.Index] = true;
+                        if (lineage[i] && commitMap.TryGetValue(_rawCommits[i].SHA, out var idx))
+                            active[idx] = true;
                     }
                 }
             }
@@ -968,6 +970,10 @@ namespace SourceGit.ViewModels
         {
             if (commits == null || commits.Count == 0)
                 return commits;
+
+            // Re-index for display/folding/graph generation
+            for (int i = 0; i < commits.Count; i++)
+                commits[i].Index = i;
 
             if (!Preferences.Instance.EnableLinearCommitFolding)
             {
@@ -998,7 +1004,7 @@ namespace SourceGit.ViewModels
             for (int i = 0; i < commits.Count; i++)
             {
                 var start = commits[i];
-                if (start.HasDecorators || start.Parents.Count != 1 || childrenCount.GetValueOrDefault(start.SHA, 0) > 1)
+                if (start.HasDecorators || start.Parents.Count != 1 || childrenCount.GetValueOrDefault(start.SHA, 0) > 1 || start.IsCommitFilterHead)
                 {
                     start.IsFolded = false;
                     result.Add(start);
