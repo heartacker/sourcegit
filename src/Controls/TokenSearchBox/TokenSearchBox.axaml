@@ -9,6 +9,143 @@
   <conv:PlaceholderTextConverter x:Key="PlaceholderTextConverter" />
   <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
+  <DataTemplate x:Key="TokenChipTemplate" x:DataType="c:TokenInstance">
+    <Border Name="ChipBorder"
+            Height="20"
+            CornerRadius="10"
+            Margin="0"
+            Padding="0"
+            BorderThickness="1">
+      <Border.Transitions>
+        <Transitions>
+          <CornerRadiusTransition Property="CornerRadius" Duration="0:0:0.1" Easing="SineEaseInOut"/>
+          <DoubleTransition Property="Height" Duration="0:0:0.1" Easing="CubicEaseOut"/>
+        </Transitions>
+      </Border.Transitions>
+      <Border.Background>
+        <MultiBinding Converter="{StaticResource TokenToBackgroundConverter}">
+          <Binding Path="Raw" />
+          <Binding Path="$parent[c:TokenSearchBox].PersistentTokens" />
+        </MultiBinding>
+      </Border.Background>
+      <Border.BorderBrush>
+        <MultiBinding Converter="{StaticResource TokenToColorConverter}">
+          <Binding Path="Raw" />
+          <Binding Path="$parent[c:TokenSearchBox].PersistentTokens" />
+        </MultiBinding>
+      </Border.BorderBrush>
+      <Grid ColumnDefinitions="Auto,*">
+        <Border Name="LeftBadgeBorder"
+                Grid.Column="0"
+                Width="20"
+                Height="20"
+                CornerRadius="10"
+                BorderThickness="0"
+                Background="Transparent"
+                IsVisible="{Binding !IsOperator}"
+                Margin="0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+          <Border.Styles>
+            <Style Selector="ContentPresenter:not(:pointerover):not(.selected) Path#LeftIconPath">
+              <Setter Property="Opacity" Value="1.0"/>
+            </Style>
+            <Style Selector="ContentPresenter:pointerover Path#LeftIconPath">
+              <Setter Property="Opacity" Value="0"/>
+            </Style>
+            <Style Selector="ContentPresenter.selected Path#LeftIconPath">
+              <Setter Property="Opacity" Value="0"/>
+            </Style>
+            <Style Selector="ContentPresenter:not(:pointerover):not(.selected) Button#PART_DeleteButton">
+              <Setter Property="Opacity" Value="0"/>
+              <Setter Property="IsHitTestVisible" Value="False"/>
+            </Style>
+            <Style Selector="ContentPresenter:pointerover Button#PART_DeleteButton">
+              <Setter Property="Opacity" Value="1.0"/>
+              <Setter Property="IsHitTestVisible" Value="True"/>
+            </Style>
+            <Style Selector="ContentPresenter.selected Button#PART_DeleteButton">
+              <Setter Property="Opacity" Value="1.0"/>
+              <Setter Property="IsHitTestVisible" Value="True"/>
+            </Style>
+          </Border.Styles>
+          <Grid>
+            <Path Name="LeftIconPath"
+                  Data="{Binding Provider.Icon}"
+                  Fill="{DynamicResource Brush.FG1}"
+                  Width="10"
+                  Height="10"
+                  Stretch="Uniform"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"/>
+            <Button Name="PART_DeleteButton"
+                    Classes="icon"
+                    Focusable="False"
+                    Command="{Binding $parent[c:TokenSearchBox].RemoveTokenCommand}"
+                    CommandParameter="{Binding}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Padding="0"
+                    Width="10"
+                    Height="10"
+                    Background="Transparent"
+                    BorderThickness="0">
+              <Button.Styles>
+                <Style Selector="Button#PART_DeleteButton /template/ ContentPresenter#PART_ContentPresenter">
+                  <Setter Property="Background" Value="Transparent"/>
+                  <Setter Property="BorderBrush" Value="Transparent"/>
+                </Style>
+              </Button.Styles>
+              <Path Data="{StaticResource Icons.Clear}"
+                    Fill="{DynamicResource Brush.FG1}"
+                    Stretch="Uniform" />
+            </Button>
+          </Grid>
+        </Border>
+        <TextBlock Grid.Column="1"
+                   Text="{Binding DisplayText}"
+                   FontSize="12"
+                   VerticalAlignment="Center">
+          <TextBlock.Styles>
+            <Style Selector="TextBlock">
+              <Setter Property="Margin" Value="6,0,10,0"/>
+            </Style>
+            <Style Selector="TextBlock[Text=|]">
+              <Setter Property="FontWeight" Value="Bold"/>
+              <Setter Property="Opacity" Value="0.5"/>
+              <Setter Property="Margin" Value="10,0,10,0"/>
+            </Style>
+            <Style Selector="TextBlock[Text=&amp;]">
+              <Setter Property="FontWeight" Value="Bold"/>
+              <Setter Property="Opacity" Value="0.5"/>
+              <Setter Property="Margin" Value="10,0,10,0"/>
+            </Style>
+            <Style Selector="TextBlock[Text=||]">
+              <Setter Property="FontWeight" Value="Bold"/>
+              <Setter Property="Opacity" Value="0.5"/>
+              <Setter Property="Margin" Value="10,0,10,0"/>
+            </Style>
+            <Style Selector="TextBlock[Text=&amp;&amp;]">
+              <Setter Property="FontWeight" Value="Bold"/>
+              <Setter Property="Opacity" Value="0.5"/>
+              <Setter Property="Margin" Value="10,0,10,0"/>
+            </Style>
+            <Style Selector="TextBlock[Text=(]">
+              <Setter Property="FontWeight" Value="Bold"/>
+              <Setter Property="Opacity" Value="0.5"/>
+              <Setter Property="Margin" Value="10,0,10,0"/>
+            </Style>
+            <Style Selector="TextBlock[Text=)]">
+              <Setter Property="FontWeight" Value="Bold"/>
+              <Setter Property="Opacity" Value="0.5"/>
+              <Setter Property="Margin" Value="10,0,10,0"/>
+            </Style>
+          </TextBlock.Styles>
+        </TextBlock>
+      </Grid>
+    </Border>
+  </DataTemplate>
+
   <Design.PreviewWith>
     <Border Padding="20">
       <c:TokenSearchBox Width="400" PlaceholderText="Search..."/>
@@ -61,58 +198,34 @@
                              VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <ItemsControl Name="PART_Container">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center"/>
-                    </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.Items>
-                    <!-- Token List -->
-                    <ItemsControl Name="PART_TokensList"
-                                  ItemsSource="{TemplateBinding SelectedTokens}"
-                                  Background="Transparent"
-                                  BorderThickness="0"
-                                  Padding="0"
-                                  Margin="0"
-                                  Focusable="False"
-                                  MinHeight="32"
-                                  VerticalAlignment="Center">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                          <WrapPanel Orientation="Horizontal" VerticalAlignment="Center"/>
-                        </ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
-                      <ItemsControl.Styles>
+                    <WrapPanel Name="PART_TokensList"
+                               Orientation="Horizontal"
+                               VerticalAlignment="Center"
+                               MinHeight="32">
+                      <WrapPanel.Styles>
                         <!-- Base ContentPresenter style representing the item -->
                         <Style Selector="ContentPresenter" x:DataType="c:TokenInstance">
                           <Setter Property="VerticalAlignment" Value="Center"/>
-                          <Setter Property="Tag">
-                            <MultiBinding Converter="{StaticResource TokenBubblePositionConverter}">
-                              <Binding Path="Raw" />
-                              <Binding Path="$parent[c:TokenSearchBox].SelectedTokens" />
-                              <Binding Path="$parent[c:TokenSearchBox].SelectedTokens.Count" />
-                            </MultiBinding>
-                          </Setter>
                           <Setter Property="Padding" Value="0,0,6,0"/>
-                          <Setter Property="Margin" Value="0"/>
+                          <Setter Property="Margin" Value="0,3,2,3"/>
                           <Setter Property="CornerRadius" Value="12"/>
                           <Setter Property="Focusable" Value="False"/>
                           <Setter Property="Background" Value="Transparent"/>
                         </Style>
                         <Style Selector="c|TokenSearchBox:not(:pointerover):not(:focus-within) ContentPresenter[Tag=Start]">
                           <Setter Property="Padding" Value="0"/>
+                          <Setter Property="Margin" Value="0,3,0,3"/>
                         </Style>
                         <Style Selector="c|TokenSearchBox:not(:pointerover):not(:focus-within) ContentPresenter[Tag=Middle]">
                           <Setter Property="Padding" Value="0"/>
-                          <Setter Property="Margin" Value="-1,0,0,0"/>
+                          <Setter Property="Margin" Value="-1,3,0,3"/>
                         </Style>
                         <Style Selector="c|TokenSearchBox:not(:pointerover):not(:focus-within) ContentPresenter[Tag=Operator]">
                           <Setter Property="Padding" Value="0"/>
-                          <Setter Property="Margin" Value="-1,0,0,0"/>
+                          <Setter Property="Margin" Value="-1,3,0,3"/>
                         </Style>
                         <Style Selector="c|TokenSearchBox:not(:pointerover):not(:focus-within) ContentPresenter[Tag=End]">
-                          <Setter Property="Margin" Value="-1,0,0,0"/>
+                          <Setter Property="Margin" Value="-1,3,2,3"/>
                         </Style>
 
                         <Style Selector="c|TokenSearchBox:not(:pointerover):not(:focus-within) ContentPresenter[Tag=Start] Border#ChipBorder">
@@ -151,185 +264,35 @@
                         <Style Selector="ContentPresenter:pointerover Border#ChipBorder">
                           <Setter Property="Height" Value="24"/>
                         </Style>
-                      </ItemsControl.Styles>
+                      </WrapPanel.Styles>
 
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="c:TokenInstance">
-                          <!-- (👨🏻a:acker ❌) -->
-                          <!-- border border as half height -->
-                          <Border Name="ChipBorder"
-                                  Height="20"
-                                  CornerRadius="10"
-                                  Margin="0"
-                                  Padding="0"
-                                  BorderThickness="1">
-                            <Border.Transitions>
-                              <Transitions>
-                                <CornerRadiusTransition Property="CornerRadius" Duration="0:0:0.1" Easing="SineEaseInOut"/>
-                                <DoubleTransition Property="Height" Duration="0:0:0.1" Easing="CubicEaseOut"/>
-                              </Transitions>
-                            </Border.Transitions>
-                            <Border.Background>
-                              <MultiBinding Converter="{StaticResource TokenToBackgroundConverter}">
-                                <Binding Path="Raw" />
-                                <Binding Path="$parent[c:TokenSearchBox].PersistentTokens" />
-                              </MultiBinding>
-                            </Border.Background>
-                            <Border.BorderBrush>
-                              <MultiBinding Converter="{StaticResource TokenToColorConverter}">
-                                <Binding Path="Raw" />
-                                <Binding Path="$parent[c:TokenSearchBox].PersistentTokens" />
-                              </MultiBinding>
-                            </Border.BorderBrush>
-                            <Grid ColumnDefinitions="Auto,*">
-                              <!-- Symmetrical Left/Delete Badge Column -->
-                              <Border Name="LeftBadgeBorder"
-                                      Grid.Column="0"
-                                      Width="20"
-                                      Height="20"
-                                      CornerRadius="10"
-                                      BorderThickness="0"
-                                      Background="Transparent"
-                                      IsVisible="{Binding !IsOperator}"
-                                      Margin="0"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center">
-                                <Border.Styles>
-                                  <Style Selector="ContentPresenter:not(:pointerover):not(.selected) Path#LeftIconPath">
-                                    <Setter Property="Opacity" Value="1.0"/>
-                                  </Style>
-                                  <Style Selector="ContentPresenter:pointerover Path#LeftIconPath">
-                                    <Setter Property="Opacity" Value="0"/>
-                                  </Style>
-                                  <Style Selector="ContentPresenter.selected Path#LeftIconPath">
-                                    <Setter Property="Opacity" Value="0"/>
-                                  </Style>
-
-                                  <Style Selector="ContentPresenter:not(:pointerover):not(.selected) Button#PART_DeleteButton">
-                                    <Setter Property="Opacity" Value="0"/>
-                                    <Setter Property="IsHitTestVisible" Value="False"/>
-                                  </Style>
-                                  <Style Selector="ContentPresenter:pointerover Button#PART_DeleteButton">
-                                    <Setter Property="Opacity" Value="1.0"/>
-                                    <Setter Property="IsHitTestVisible" Value="True"/>
-                                  </Style>
-                                  <Style Selector="ContentPresenter.selected Button#PART_DeleteButton">
-                                    <Setter Property="Opacity" Value="1.0"/>
-                                    <Setter Property="IsHitTestVisible" Value="True"/>
-                                  </Style>
-                                </Border.Styles>
-                                <Grid>
-                                  <!-- The Provider Icon -->
-                                  <Path Name="LeftIconPath"
-                                        Data="{Binding Provider.Icon}"
-                                        Fill="{DynamicResource Brush.FG1}"
-                                        Width="10"
-                                        Height="10"
-                                        Stretch="Uniform"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"/>
-
-                                  <!-- The Delete Button (on top) -->
-                                  <Button Name="PART_DeleteButton"
-                                          Classes="icon"
-                                          Focusable="False"
-                                          Command="{Binding $parent[c:TokenSearchBox].RemoveTokenCommand}"
-                                          CommandParameter="{Binding}"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"
-                                          Padding="0"
-                                          Width="10"
-                                          Height="10"
-                                          Background="Transparent"
-                                          BorderThickness="0">
-                                    <Button.Styles>
-                                      <Style Selector="Button#PART_DeleteButton /template/ ContentPresenter#PART_ContentPresenter">
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Setter Property="BorderBrush" Value="Transparent"/>
-                                      </Style>
-                                    </Button.Styles>
-                                    <Path Data="{StaticResource Icons.Clear}"
-                                          Fill="{DynamicResource Brush.FG1}"
-                                          Stretch="Uniform" />
-                                  </Button>
-                                </Grid>
-                              </Border>
-
-                              <!-- Middle Text -->
-                              <TextBlock Grid.Column="1"
-                                         Text="{Binding DisplayText}"
-                                         FontSize="12"
-                                         VerticalAlignment="Center">
-                                <TextBlock.Styles>
-                                  <Style Selector="TextBlock">
-                                    <Setter Property="Margin" Value="6,0,10,0"/>
-                                  </Style>
-                                  <Style Selector="TextBlock[Text=|]">
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                    <Setter Property="Opacity" Value="0.5"/>
-                                    <Setter Property="Margin" Value="10,0,10,0"/>
-                                  </Style>
-                                  <Style Selector="TextBlock[Text=&amp;]">
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                    <Setter Property="Opacity" Value="0.5"/>
-                                    <Setter Property="Margin" Value="10,0,10,0"/>
-                                  </Style>
-                                  <Style Selector="TextBlock[Text=||]">
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                    <Setter Property="Opacity" Value="0.5"/>
-                                    <Setter Property="Margin" Value="10,0,10,0"/>
-                                  </Style>
-                                  <Style Selector="TextBlock[Text=&amp;&amp;]">
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                    <Setter Property="Opacity" Value="0.5"/>
-                                    <Setter Property="Margin" Value="10,0,10,0"/>
-                                  </Style>
-                                  <Style Selector="TextBlock[Text=(]">
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                    <Setter Property="Opacity" Value="0.5"/>
-                                    <Setter Property="Margin" Value="10,0,10,0"/>
-                                  </Style>
-                                  <Style Selector="TextBlock[Text=)]">
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                    <Setter Property="Opacity" Value="0.5"/>
-                                    <Setter Property="Margin" Value="10,0,10,0"/>
-                                  </Style>
-                                </TextBlock.Styles>
-                              </TextBlock>
-                            </Grid>
-                          </Border>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <!-- Real Input TextBox -->
-                    <!-- We use an empty PlaceholderText here because we have a custom layer above -->
-                    <TextBox Name="PART_TextPresenter"
-                             Text="{Binding $parent[c:TokenSearchBox].Text, Mode=TwoWay}"
-                             Background="Transparent"
-                             BorderThickness="0"
-                             Padding="4,0"
-                             MinHeight="30"
-                             VerticalContentAlignment="Center"
-                             FontSize="14">
-                      <TextBox.Styles>
-                        <!-- Ensure background and border are always transparent to fit inside the TokenSearchBox -->
-                        <Style Selector="TextBox /template/ Border#PART_BorderElement">
-                          <Setter Property="Background" Value="Transparent" />
-                          <Setter Property="BorderThickness" Value="0" />
-                        </Style>
-                        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-                          <Setter Property="Background" Value="Transparent" />
-                          <Setter Property="BorderThickness" Value="0" />
-                        </Style>
-                        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
-                          <Setter Property="Background" Value="Transparent" />
-                          <Setter Property="BorderThickness" Value="0" />
-                        </Style>
-                      </TextBox.Styles>
-                    </TextBox>
-                  </ItemsControl.Items>
-                </ItemsControl>
+                      <!-- Real Input TextBox (last child; token chips are inserted before it programmatically) -->
+                      <TextBox Name="PART_TextPresenter"
+                               Text="{Binding $parent[c:TokenSearchBox].Text, Mode=TwoWay}"
+                               Background="Transparent"
+                               BorderThickness="0"
+                               Padding="4,0"
+                               MinHeight="30"
+                               MinWidth="120"
+                               VerticalContentAlignment="Center"
+                               FontSize="14">
+                        <TextBox.Styles>
+                          <!-- Ensure background and border are always transparent to fit inside the TokenSearchBox -->
+                          <Style Selector="TextBox /template/ Border#PART_BorderElement">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                          </Style>
+                          <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                          </Style>
+                          <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                          </Style>
+                        </TextBox.Styles>
+                      </TextBox>
+                    </WrapPanel>
               </Grid>
             </ScrollViewer>
 

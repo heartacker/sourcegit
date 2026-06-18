@@ -10,6 +10,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Metadata;
 using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -131,7 +132,7 @@ namespace SourceGit.Controls
     /// ==========================================================================================
     /// </summary>
     [TemplatePart("PART_TextPresenter", typeof(TextBox))]
-    [TemplatePart("PART_TokensList", typeof(ItemsControl))]
+    [TemplatePart("PART_TokensList", typeof(WrapPanel))]
     [TemplatePart("PART_SuggestionsPopup", typeof(Popup))]
     [TemplatePart("PART_SuggestionsList", typeof(ListBox))]
     [TemplatePart("PART_RootBorder", typeof(Border))]
@@ -166,7 +167,7 @@ namespace SourceGit.Controls
             AvaloniaProperty.Register<TokenSearchBox, bool>(nameof(AutoCompact), true);
 
         public static readonly StyledProperty<double> MaxListHeightProperty =
-            AvaloniaProperty.Register<TokenSearchBox, double>(nameof(MaxListHeight), 96.0);
+            AvaloniaProperty.Register<TokenSearchBox, double>(nameof(MaxListHeight), 120.0);
 
         public static readonly StyledProperty<ICommand> SearchCommandProperty =
             AvaloniaProperty.Register<TokenSearchBox, ICommand>(nameof(SearchCommand));
@@ -306,7 +307,9 @@ namespace SourceGit.Controls
         }
 
         private TextBox _textBox;
-        private ItemsControl _tokensList;
+        private WrapPanel _tokensList;
+        private IDataTemplate _tokenChipTemplate;
+        private readonly List<ContentPresenter> _tokenContainers = new();
         private Popup _popup;
         private ListBox _suggestionList;
         private ContentControl _customEditorPresenter;
@@ -360,12 +363,14 @@ namespace SourceGit.Controls
                 };
             }
 
-            _tokensList = e.NameScope.Find<ItemsControl>("PART_TokensList");
+            _tokensList = e.NameScope.Find<WrapPanel>("PART_TokensList");
             if (_tokensList != null)
             {
                 _tokensList.PointerPressed += OnTokensListPointerPressed;
                 _tokensList.DoubleTapped += OnTokensListDoubleTapped;
             }
+
+            _tokenChipTemplate = this.TryFindResource("TokenChipTemplate", out var tmpl) ? (IDataTemplate)tmpl : null;
 
             _popup = e.NameScope.Find<Popup>("PART_SuggestionsPopup");
             _suggestionList = e.NameScope.Find<ListBox>("PART_SuggestionsList");
@@ -390,6 +395,7 @@ namespace SourceGit.Controls
                     SelectedTokens.CollectionChanged += (_, _) =>
                     {
                         UpdateClearButtonVisibility();
+                        RebuildTokenChips();
                         if (SelectedTokenIndex >= SelectedTokens.Count)
                         {
                             SetCurrentValue(SelectedTokenIndexProperty, -1);
@@ -397,9 +403,9 @@ namespace SourceGit.Controls
                         else
                         {
                             ClearAllTokenHighlights();
-                            if (SelectedTokenIndex >= 0)
+                            if (SelectedTokenIndex >= 0 && SelectedTokenIndex < _tokenContainers.Count)
                             {
-                                var container = _tokensList?.ContainerFromIndex(SelectedTokenIndex);
+                                var container = _tokenContainers[SelectedTokenIndex];
                                 if (container != null)
                                     container.Classes.Add("selected");
                             }
@@ -410,6 +416,8 @@ namespace SourceGit.Controls
                     PersistentTokens.CollectionChanged += (_, _) => UpdateClearButtonVisibility();
                 UpdateClearButtonVisibility();
             }
+
+            RebuildTokenChips();
 
             // [备注] 用 handledEventsToo = true 注册路由事件监听器，
             // 确保当用户点击控件内部任何地方，只要不是清空按钮或下拉建议弹窗，
@@ -726,7 +734,7 @@ namespace SourceGit.Controls
             var item = (e.Source as Visual)?.GetVisualAncestors().OfType<ContentPresenter>().FirstOrDefault();
             if (item != null)
             {
-                var index = _tokensList?.IndexFromContainer(item) ?? -1;
+                var index = _tokenContainers.IndexOf(item);
                 if (index >= 0)
                 {
                     SetCurrentValue(SelectedTokenIndexProperty, index);
@@ -738,21 +746,18 @@ namespace SourceGit.Controls
 
         private void UpdateSelectedTokenHighlight(int oldIndex, int newIndex)
         {
-            if (_tokensList == null)
-                return;
-
-            if (oldIndex >= 0 && oldIndex < SelectedTokens.Count)
+            if (oldIndex >= 0 && oldIndex < _tokenContainers.Count)
             {
-                var container = _tokensList.ContainerFromIndex(oldIndex);
+                var container = _tokenContainers[oldIndex];
                 if (container != null)
                 {
                     container.Classes.Remove("selected");
                 }
             }
 
-            if (newIndex >= 0 && newIndex < SelectedTokens.Count)
+            if (newIndex >= 0 && newIndex < _tokenContainers.Count)
             {
-                var container = _tokensList.ContainerFromIndex(newIndex);
+                var container = _tokenContainers[newIndex];
                 if (container != null)
                 {
                     container.Classes.Add("selected");
@@ -762,16 +767,47 @@ namespace SourceGit.Controls
 
         private void ClearAllTokenHighlights()
         {
-            if (_tokensList == null)
-                return;
-
-            for (int i = 0; i < SelectedTokens.Count; i++)
+            for (int i = 0; i < _tokenContainers.Count; i++)
             {
-                var container = _tokensList.ContainerFromIndex(i);
+                var container = _tokenContainers[i];
                 if (container != null)
                 {
                     container.Classes.Remove("selected");
                 }
+            }
+        }
+
+        private void RebuildTokenChips()
+        {
+            if (_tokensList == null || _textBox == null || _tokenChipTemplate == null)
+                return;
+
+            // Remove old token chip ContentPresenters (keep the TextBox)
+            for (int i = _tokensList.Children.Count - 1; i >= 0; i--)
+            {
+                if (_tokensList.Children[i] is ContentPresenter)
+                    _tokensList.Children.RemoveAt(i);
+            }
+
+            _tokenContainers.Clear();
+
+            var converter = new TokenBubblePositionConverter();
+            // Add new token chips before the TextBox
+            for (int i = 0; i < SelectedTokens.Count; i++)
+            {
+                var token = SelectedTokens[i];
+                var tag = converter.Convert(
+                    new object[] { token.Raw, SelectedTokens, SelectedTokens.Count },
+                    typeof(object), null, System.Globalization.CultureInfo.InvariantCulture);
+                var cp = new ContentPresenter
+                {
+                    Content = token,
+                    ContentTemplate = _tokenChipTemplate,
+                    DataContext = token,
+                    Tag = tag,
+                };
+                _tokensList.Children.Insert(i, cp);
+                _tokenContainers.Add(cp);
             }
         }
 
