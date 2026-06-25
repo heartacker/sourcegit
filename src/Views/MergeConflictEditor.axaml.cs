@@ -316,7 +316,7 @@ namespace SourceGit.Views
             if (_scrollViewer != null)
             {
                 _scrollViewer.ScrollChanged += OnTextViewScrollChanged;
-                _scrollViewer.Bind(ScrollViewer.OffsetProperty, new Binding("ScrollOffset", BindingMode.OneWay));
+                _scrollViewer.Bind(ScrollViewer.OffsetProperty, CompiledBinding.Create<ViewModels.MergeConflictEditor, Vector>(vm => vm.ScrollOffset));
             }
         }
 
@@ -681,7 +681,8 @@ namespace SourceGit.Views
         public MergeConflictEditor()
         {
             InitializeComponent();
-            Bind(SelectedChunkProperty, new Binding("SelectedChunk", BindingMode.OneWay));
+            Bind(SelectedChunkProperty,
+                CompiledBinding.Create<ViewModels.MergeConflictEditor, Models.ConflictSelectedChunk>(vm => vm.SelectedChunk));
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
