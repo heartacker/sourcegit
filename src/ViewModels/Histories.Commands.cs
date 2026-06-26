@@ -155,6 +155,26 @@ namespace SourceGit.ViewModels
                 },
                 Execute = ExecuteDecoraCommand,
             });
+
+            var foldOptions = new[] { "true", "false", "toggle", "3", "5", "10" };
+            var foldProvider = new StaticTokenSuggestionProvider("fold:", "动作/阈值", null, foldOptions);
+
+            SearchSlashCommands.Add(new TokenSlashCommand
+            {
+                Name = "fold",
+                Description = "折叠线性提交：/fold [true|false|toggle|<阈值>]",
+                Icon = "M 1.5 6.5 L 4.5 9.5 L 10.5 2.5",
+                RequiresArgument = false,
+                Arguments = new List<TokenArgumentDefinition> {
+                    new TokenArgumentDefinition {
+                        Name = "action",
+                        Description = "状态或折叠阈值(最少为3)",
+                        SuggestionProvider = foldProvider,
+                        IsRequired = false
+                    }
+                },
+                Execute = ExecuteFoldCommand,
+            });
         }
 
         private bool ToggleColumnByName(string name)
@@ -404,6 +424,47 @@ namespace SourceGit.ViewModels
 
             Preferences.Instance.DecoratorDisplayMode = mode;
             return true;
+        }
+
+        private bool ExecuteFoldCommand(TokenSlashExecuteContext ctx)
+        {
+            var tokens = ctx.ArgumentTokens ?? [];
+            if (tokens.Count == 0)
+            {
+                Preferences.Instance.EnableLinearCommitFolding = !Preferences.Instance.EnableLinearCommitFolding;
+                return true;
+            }
+
+            var arg = tokens[0].Trim().ToLowerInvariant();
+            if (int.TryParse(arg, out var val))
+            {
+                if (val >= 3)
+                {
+                    Preferences.Instance.MaxLinearCommitsToFold = val;
+                    Preferences.Instance.EnableLinearCommitFolding = true;
+                    return true;
+                }
+                return false;
+            }
+
+            switch (arg)
+            {
+                case "true":
+                case "on":
+                case "1":
+                    Preferences.Instance.EnableLinearCommitFolding = true;
+                    return true;
+                case "false":
+                case "off":
+                case "0":
+                    Preferences.Instance.EnableLinearCommitFolding = false;
+                    return true;
+                case "toggle":
+                    Preferences.Instance.EnableLinearCommitFolding = !Preferences.Instance.EnableLinearCommitFolding;
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 }
