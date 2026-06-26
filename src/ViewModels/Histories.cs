@@ -30,6 +30,8 @@ namespace SourceGit.ViewModels
 
         public ObservableCollection<Controls.TokenSlashCommand> SearchSlashCommands { get; } = new();
 
+        public HashSet<string> UnfoldedCommitSHAs { get; } = [];
+
         public bool IsLoading
         {
             get => _isLoading;
@@ -103,6 +105,7 @@ namespace SourceGit.ViewModels
             get => _commits;
             set
             {
+                UnfoldedCommitSHAs.Clear();
                 _rawCommits = value;
                 UpdateDisplayCommits();
             }
@@ -1023,12 +1026,13 @@ namespace SourceGit.ViewModels
                     j++;
                 }
 
-                if (segment.Count > threshold)
+                var middleIdx = segment.Count / 2;
+                var middleCommit = segment[middleIdx];
+                if (segment.Count > threshold && !UnfoldedCommitSHAs.Contains(middleCommit.SHA))
                 {
                     var first = segment[0].Clone();
                     var last = segment[^1];
-                    var middleIdx = segment.Count / 2;
-                    var middle = segment[middleIdx].Clone();
+                    var middle = middleCommit.Clone();
 
                     first.IsFolded = false;
                     middle.IsFolded = true;

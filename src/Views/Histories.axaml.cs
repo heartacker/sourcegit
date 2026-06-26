@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -789,6 +789,13 @@ namespace SourceGit.Views
                 CommitListContainer.SelectedItems is { Count: 1 } &&
                 e.Source is Control { DataContext: Models.Commit c })
             {
+                if (c.IsFolded)
+                {
+                    histories.UnfoldedCommitSHAs.Add(c.SHA);
+                    histories.UpdateDisplayCommits();
+                    return;
+                }
+
                 if (histories.Bisect != null)
                 {
                     histories.CheckoutCommitDetached(c);
