@@ -99,7 +99,17 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public void NewSession(Models.ShellOrTerminal shell = null)
+        public void NewSession()
+        {
+            NewSession(null as Models.ShellOrTerminal);
+        }
+
+        public void NewSession(object parameter)
+        {
+            NewSession(parameter as Models.ShellOrTerminal);
+        }
+
+        public void NewSession(Models.ShellOrTerminal shell)
         {
             if (shell == null)
             {
@@ -229,6 +239,12 @@ namespace SourceGit.ViewModels
             var group = new TerminalGroup(newInstance);
             Groups.Add(group);
             SelectedGroup = group;
+        }
+
+        public void CloseGroup(object parameter)
+        {
+            if (parameter is TerminalGroup group)
+                CloseGroup(group);
         }
 
         public void CloseGroup(TerminalGroup group)
