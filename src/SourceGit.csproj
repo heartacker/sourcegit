@@ -18,7 +18,6 @@
     <PackageProjectUrl>https://github.com/sourcegit-scm/sourcegit.git</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sourcegit-scm/sourcegit.git</RepositoryUrl>
     <PackageType>Public</PackageType>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(DisableAOT)' != 'true'">
@@ -48,10 +47,6 @@
     <AssemblyMetadata Include="BuildDate" Value="$([System.DateTime]::Now.ToString('o'))" />
   </ItemGroup>
 
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <AdditionalFiles Include="NativeMethods.txt" Visible="true" />
-  </ItemGroup>
-
   <ItemGroup>
     <AvaloniaResource Include="App.ico" />
     <AvaloniaResource Include="Resources/Fonts/*" />
@@ -63,24 +58,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.1.0" />
-    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.0" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.0" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
     <PackageReference Include="Azure.AI.OpenAI" Version="2.9.0-beta.1" />
     <PackageReference Include="BitMiracle.LibTiff.NET" Version="2.4.660" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="OpenAI" Version="2.10.0" />
+    <PackageReference Include="OpenAI" Version="2.13.0" />
     <PackageReference Include="Pfim" Version="0.11.4" />
-    <PackageReference Include="Porta.Pty" Version="1.0.7" />
-    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.106" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="StbImageSharp" Version="2.30.15" />
-    <PackageReference Include="SvcSystems.UI.Terminal" Version="1.0.1" />
-    <PackageReference Include="XTerm.NET" Version="1.0.14" />
+    <PackageReference Include="Porta.Pty" Version="2.0.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.16" />
+    <PackageReference Include="SvcSystems.UI.Terminal" Version="1.1.1" />
+    <PackageReference Include="XTerm.NET" Version="1.0.16" />
 
     <ProjectReference Include="../depends/AvaloniaEdit/src/AvaloniaEdit.TextMate/AvaloniaEdit.TextMate.csproj" />
   </ItemGroup>
@@ -100,6 +91,4 @@
     </ItemGroup>
   </Target>
 </Project>
-
-
 
