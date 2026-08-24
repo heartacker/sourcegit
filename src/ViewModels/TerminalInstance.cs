@@ -6,9 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
-#if !WINDOWS
 using Porta.Pty;
-#endif
 using SvcSystems.UI.Terminal;
 
 namespace SourceGit.ViewModels
@@ -168,32 +166,6 @@ namespace SourceGit.ViewModels
 
             try
             {
-#if WINDOWS
-#pragma warning disable CA1416
-                var nativeOptions = new Native.NativePtyOptions
-                {
-                    App = app,
-                    CommandLine = string.IsNullOrEmpty(args) ? [] : args.Split(' ', StringSplitOptions.RemoveEmptyEntries),
-                    Cwd = workingDirectory,
-                    Cols = _initialCols,
-                    Rows = _initialRows,
-                    Environment = env,
-                };
-
-                var nativeConn = await Native.WindowsPty.SpawnAsync(nativeOptions, token);
-#pragma warning restore CA1416
-                _connectionWrapper = nativeConn;
-                _readerStream = nativeConn.ReaderStream;
-                _writerStream = nativeConn.WriterStream;
-
-                nativeConn.ProcessExited += (s, e) =>
-                {
-                    if (Interlocked.CompareExchange(ref _disposed, 0, 0) == 0)
-                    {
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => OnExit?.Invoke());
-                    }
-                };
-#else
                 var options = new PtyOptions
                 {
                     App = app,
@@ -203,26 +175,21 @@ namespace SourceGit.ViewModels
                     Rows = _initialRows,
                     Environment = env,
                 };
-                
-                var ptyConn = await PtyProvider.SpawnAsync(options, token);
-                _connectionWrapper = ptyConn;
-                _readerStream = ptyConn.ReaderStream;
-                _writerStream = ptyConn.WriterStream;
 
-                ptyConn.ProcessExited += (s, e) =>
-                {
-                    if (Interlocked.CompareExchange(ref _disposed, 0, 0) == 0)
-                    {
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => OnExit?.Invoke());
-                    }
-                };
-#endif
-
-                if (_connectionWrapper != null)
+                _connection = await PtyProvider.SpawnAsync(options, token);
+                if (_connection != null)
                 {
                     // Apply any resize that happened while spawning
                     if (_pendingCols > 0 && _pendingRows > 0)
-                        ResizeInternal(_pendingCols, _pendingRows);
+                        _connection.Resize(_pendingCols, _pendingRows);
+
+                    _connection.ProcessExited += (s, e) =>
+                    {
+                        if (Interlocked.CompareExchange(ref _disposed, 0, 0) == 0)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => OnExit?.Invoke());
+                        }
+                    };
 
                     Model.UserInput += OnTerminalUserInput;
                     Model.SizeChanged += OnTerminalSizeChanged;
@@ -242,7 +209,7 @@ namespace SourceGit.ViewModels
                         {
                             while (!token.IsCancellationRequested)
                             {
-                                int read = await _readerStream.ReadAsync(buffer, 0, buffer.Length, token);
+                                int read = await _connection.ReaderStream.ReadAsync(buffer, 0, buffer.Length, token);
                                 if (read <= 0)
                                     break;
 
@@ -292,15 +259,15 @@ namespace SourceGit.ViewModels
 
         public void Paste(string text)
         {
-            if (_writerStream != null && !string.IsNullOrEmpty(text))
+            if (_connection != null && !string.IsNullOrEmpty(text))
             {
                 try
                 {
                     // Normalize newlines for PTY: typically PTY expects \r for Enter
                     var normalized = text.Replace("\r\n", "\r").Replace("\n", "\r");
                     var data = System.Text.Encoding.UTF8.GetBytes(normalized);
-                    _writerStream.Write(data);
-                    _writerStream.Flush();
+                    _connection.WriterStream.Write(data);
+                    _connection.WriterStream.Flush();
                 }
                 catch { }
             }
@@ -308,12 +275,12 @@ namespace SourceGit.ViewModels
 
         private void OnTerminalUserInput(object sender, TerminalUserInputEventArgs e)
         {
-            if (_writerStream != null)
+            if (_connection != null)
             {
                 try
                 {
-                    _writerStream.Write(e.Data.Span);
-                    _writerStream.Flush();
+                    _connection.WriterStream.Write(e.Data.Span);
+                    _connection.WriterStream.Flush();
                 }
                 catch { }
             }
@@ -321,23 +288,14 @@ namespace SourceGit.ViewModels
 
         private void OnTerminalSizeChanged(object sender, TerminalSizeChangedEventArgs e)
         {
-            ResizeInternal(e.Cols, e.Rows);
-        }
-
-        private void ResizeInternal(int cols, int rows)
-        {
-            if (_connectionWrapper != null)
+            if (_connection != null)
             {
-#if WINDOWS
-                ((Native.INativePtyConnection)_connectionWrapper).Resize(cols, rows);
-#else
-                ((IPtyConnection)_connectionWrapper).Resize(cols, rows);
-#endif
+                _connection.Resize(e.Cols, e.Rows);
             }
             else
             {
-                _pendingCols = cols;
-                _pendingRows = rows;
+                _pendingCols = e.Cols;
+                _pendingRows = e.Rows;
             }
         }
 
@@ -347,12 +305,12 @@ namespace SourceGit.ViewModels
                 return;
 
             _cts.Cancel();
-            if (_connectionWrapper != null)
+            if (_connection != null)
             {
                 Model.UserInput -= OnTerminalUserInput;
                 Model.SizeChanged -= OnTerminalSizeChanged;
-                ((IDisposable)_connectionWrapper).Dispose();
-                _connectionWrapper = null;
+                _connection.Dispose();
+                _connection = null;
             }
 
             lock (_outputLock)
@@ -363,9 +321,7 @@ namespace SourceGit.ViewModels
             _cts.Dispose();
         }
 
-        private object _connectionWrapper;
-        private Stream _readerStream;
-        private Stream _writerStream;
+        private IPtyConnection _connection;
         private readonly CancellationTokenSource _cts;
         private Task _readTask;
         private int _disposed = 0;
