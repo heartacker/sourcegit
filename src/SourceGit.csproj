@@ -58,20 +58,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia" Version="12.1.2" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
     <PackageReference Include="Azure.AI.OpenAI" Version="2.9.0-beta.1" />
     <PackageReference Include="BitMiracle.LibTiff.NET" Version="2.4.660" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="OpenAI" Version="2.13.0" />
     <PackageReference Include="Pfim" Version="0.11.4" />
-    <PackageReference Include="Porta.Pty" Version="2.0.0" />
+    <PackageReference Include="Porta.Pty" Version="2.2.2" />
     <PackageReference Include="StbImageSharp" Version="2.30.16" />
-    <PackageReference Include="SvcSystems.UI.Terminal" Version="1.1.1" />
-    <PackageReference Include="XTerm.NET" Version="1.0.16" />
+    <PackageReference Include="SvcSystems.UI.Terminal" Version="1.1.4" />
+    <PackageReference Include="XTerm.NET" Version="1.2.0" />
 
     <ProjectReference Include="../depends/AvaloniaEdit/src/AvaloniaEdit.TextMate/AvaloniaEdit.TextMate.csproj" />
   </ItemGroup>
@@ -91,4 +91,3 @@
     </ItemGroup>
   </Target>
 </Project>
-
